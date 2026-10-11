@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>播放 - YouTube</title>
+    <link rel="stylesheet" href="css/vars.css">
+    <script>(function(){try{var s=localStorage.getItem('yt-theme');var d=s==='dark'||(s!=='light'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
+    <link rel="stylesheet" href="css/dark.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="app-header"></div>
+
+    <div class="watch">
+        <div class="watch-main">
+            <div class="player-box">
+                <video id="player" controls preload="metadata"></video>
+                <div class="player-fallback" id="fallback" style="display:none;"></div>
+            </div>
+
+            <h1 class="w-title" id="w-title">加载中…</h1>
+            <div class="w-bar">
+                <span class="w-stats" id="w-stats"></span>
+                <button class="btn sm" id="btn-like">&#128077; 点赞</button>
+                <span class="w-stats" id="w-likes"></span>
+                <button class="btn sm" id="btn-edit" style="display:none;">修改标题</button>
+                <button class="btn sm" id="btn-del" style="display:none;">删除视频</button>
+            </div>
+
+            <div class="w-up" id="w-up">
+                <span class="avatar lg" id="w-up-av"></span>
+                <div>
+                    <div class="name" id="w-up-name"></div>
+                    <div class="w-stats" id="w-up-id"></div>
+                </div>
+                <a class="btn sm" id="w-pm" style="display:none;" title="发私信">&#9993; 发私信</a>
+            </div>
+
+            <div class="w-desc" id="w-desc"></div>
+
+            <!-- 评论区 -->
+            <section class="comments">
+                <div class="c-head" id="c-head">评论</div>
+
+                <div class="comment-form" id="root-form">
+                    <span class="avatar" id="me-av1"></span>
+                    <div class="grow">
+                        <textarea id="root-content" placeholder="写下你的评论…" rows="2"></textarea>
+                        <div class="cf-btns">
+                            <button class="btn" id="root-cancel">取消</button>
+                            <button class="btn primary" id="root-submit">评论</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="login-hint" class="note" style="display:none;">登录后即可发表评论。</div>
+
+                <div id="c-list"></div>
+            </section>
+        </div>
+
+        <aside class="side" id="side"></aside>
+    </div>
+
+    <script src="js/theme.js?v=1"></script>
+    <script src="js/common.js?v=9"></script>
+    <script src="js/watch.js?v=7"></script>
+</body>
+</html>

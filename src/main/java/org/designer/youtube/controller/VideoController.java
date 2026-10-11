@@ -1,0 +1,186 @@
+package org.designer.youtube.controller;
+/**
+ * imitate youtube，2026
+ * Copyright © 2026 /10/10. All rights reserved.
+ *
+ * @author: Jya Yijya (Tanmoku Kitaajya),China
+ * at website www.github.com/Kitaajya in github
+ *
+ * @time: 2026/9/25~2026/10/10
+ *
+ * @version 1.0
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ * **/
+import lombok.RequiredArgsConstructor;
+import org.designer.youtube.common.Result;
+import org.designer.youtube.service.VideoFileService;
+import org.designer.youtube.service.VideoService;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/api/video")
+public class VideoController {
+    private final VideoService vs;
+    private final VideoFileService vfs;
+
+    //上传视频文件（文件本体真正传到服务器并落盘，返回可直接播放的 URL）
+    @PostMapping("/upload/file")
+    public Result<Map<String, Object>> uploadVideoFile(@RequestParam String userId,
+                                                       @RequestParam String title,
+                                                       @RequestParam MultipartFile file) {
+        return vfs.uploadFile(userId, title, file);
+    }
+
+    //上传视频（旧方式：只登记服务器上的路径字符串，文件本体不经过服务器）
+    @PostMapping("/upload")
+    public Result<Map<String, Object>> uploadVideo(@RequestParam String userId,
+                                                   @RequestParam String title,
+                                                   @RequestParam String videoPath) {
+        return vs.uploadVideo(userId, title, videoPath);
+    }
+
+    //显示视频标题
+    @GetMapping("/show/title")
+    public Result<List<Map<String, Object>>> selectVideoTitle() {
+        return Result.success(vs.selectVideoTitle());
+    }
+
+    //查看某人的视频，根据用户id
+    @GetMapping("/select")
+    public Result<List<Map<String, Object>>> selectVideo(@RequestParam String userId) {
+        return Result.success(vs.selectVideo(userId));
+    }
+
+    //按照视频标题查询视频
+    @GetMapping("/select/video/title")
+    public Result<List<Map<String, Object>>> selectVideoByTitle(@RequestParam String title) {
+        return Result.success(vs.selectVideoByTitle(title));
+    }
+
+    //查全部视频+UP主信息
+    @GetMapping("/select/videos/upinfor")
+    public Result<List<Map<String, Object>>> selectVideoAndUpInformation() {
+        return Result.success(vs.selectVideoAndUpInformation());
+    }
+
+    //根据up主的昵称查询他的所有视频
+    @GetMapping("/select/videos/upname")
+    public Result<List<Map<String, Object>>> selectVideosByUpName(@RequestParam String userId) {
+        return Result.success(vs.selectVideosByUpName(userId));
+    }
+
+    //显示全部视频
+    @GetMapping("/select/all/videos")
+    public Result<List<Map<String, Object>>> selectAllVideo() {
+        return Result.success(vs.selectAllVideo());
+    }
+
+    //按视频 ID 查询单个视频详情
+    @GetMapping("/select/video/single/infor")
+    public Result<List<Map<String, Object>>> selectVideoById(@RequestParam long id) {
+        return Result.success(vs.selectVideoById(id));
+    }
+
+    //模糊搜索
+    @GetMapping("/select/like")
+    public Result<List<Map<String, Object>>> searchVideo(@RequestParam String keyword) {
+        return Result.success(vs.searchVideo(keyword));
+    }
+
+    //查询视频存储路径（用于播放/删除）
+    @GetMapping("/select/path")
+    public Result<List<Map<String, Object>>> selectVideoPathById(@RequestParam long id) {
+        return Result.success(vs.selectVideoPathById(id));
+    }
+
+    //修改自己的视频标题
+    @PostMapping("/edit/title")
+    public Result<Map<String, Object>> editTitle(@RequestParam String newTitle, @RequestParam long id,
+                                                 @RequestParam String userId) {
+        return vs.editTitle(newTitle, id, userId);
+    }
+
+    //删除自己的视频
+    @DeleteMapping("/delete/videos")
+    public Result<Map<String, Object>> deleteMyVideo(@RequestParam long id,@RequestParam String userId) {
+        return vs.deleteMyVideo(id, userId);
+    }
+    //***********************************************************评论区模块***********************************************************
+    //查看此视频的所有评论，根据id（视频id）
+    @GetMapping("/get/all/comments")
+    public Result<List<Map<String,Object>>> selectCommentsById(@RequestParam long videoId){
+        return Result.success(vs.selectCommentsById(videoId));
+    }
+    //删除我的评论
+    @DeleteMapping("/delete/my/comments")
+    public Result<Map<String,Object>>deleteSelfComment(@RequestParam String myUserId,
+                                                       @RequestParam long videoId,
+                                                       @RequestParam  String commentId){
+        return  vs.deleteSelfComment(myUserId, videoId, commentId) ;
+    }
+    //修改我的评论
+    @PostMapping("/edit/my/comments")
+    public Result<Map<String,Object>> editSelfComment(@RequestParam String newContent,@RequestParam String commentId,@RequestParam String myUserId) {
+        return vs.editSelfComment(newContent, commentId, myUserId);
+    }
+    //对video_id为videoId的视频增添我的评论（parentId 不传/传 null 表示一级评论）
+    @PostMapping("/add/my/comments")
+    public Result<Map<String,Object>> addComment(@RequestParam String commentId,@RequestParam long videoId,
+                                                 @RequestParam String userId,
+                                                 @RequestParam String content,
+                                                 @RequestParam(required = false) String parentId) {
+        return vs.addComment(commentId, videoId, userId, content, parentId);
+    }
+    //查某条评论下的全部回复（楼中楼）
+    @GetMapping("/select/parent/comments")
+    public Result<List<Map<String,Object>>>selectRepliesByParent(@RequestParam String parentId){
+        return Result.success(vs.selectRepliesByParent(parentId));
+    }
+    //显示点赞数 + 我是否赞过
+    //注意：路径必须是 /select/like/count，不能再用 /select/like，
+    //      否则与上面的模糊搜索接口重名，Spring 启动会抛 Ambiguous mapping
+    @GetMapping("/select/like/count")
+    public Result<Map<String,Object>> selectLikeQuantity(@RequestParam long id,
+                                                         @RequestParam(required = false) String userId) {
+        if (vs.selectVideoById(id).isEmpty()) return Result.fail("视频不存在或已被删除");
+        Map<String, Object> data = new HashMap<>();
+        data.put("like_count", vs.selectLikeQuantity(id));
+        data.put("liked", userId != null && !userId.isBlank() && vs.isLiked(id, userId));
+        return Result.success(data);
+    }
+    //启动点赞
+    @PostMapping("/add/like")
+    public Result<Map<String,Object>>addLike(@RequestParam long id,@RequestParam String userId) {
+        return vs.addLike(id,userId);
+    }
+    //取消点赞
+    @PostMapping("/cancel/like")
+    public Result<Map<String,Object>> cancelLike(@RequestParam long id, @RequestParam String userId) {
+        return vs.cancelLike(id, userId);
+    }
+}

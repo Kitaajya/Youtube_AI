@@ -1,0 +1,58 @@
+/* ===== 深色模式覆盖（挂在 <html data-theme="dark"> 上）===== */
+html[data-theme="dark"] {
+    --bg: #0f0f0f;
+    --surface: #212121;
+    --surface-2: #272727;
+    --surface-3: #3f3f3f;
+    --surface-hover: #353535;
+    --border: #303030;
+    --divider: #303030;
+
+    --text-primary: #f1f1f1;
+    --text-secondary: #aaaaaa;
+    --text-tertiary: #717171;
+    --link: #3ea6ff;
+    --link-hover: #65b8ff;
+    --danger: #ff4e45;
+    --danger-hover: #d33a33;
+    --ok: #4abf52;
+
+    --inverse-bg: #f1f1f1;
+    --inverse-fg: #0f0f0f;
+    --inverse-hover: #d9d9d9;
+
+    --on-primary: #0f0f0f;
+    --on-danger: #ffffff;
+
+    --input-bg: #121212;
+    --input-border: #464646;
+    --line-input: #666666;
+    --focus-ring: #3ea6ff;
+
+    --search-btn-bg: #222222;
+    --search-btn-hover: #303030;
+
+    --thumb-bg: linear-gradient(135deg, #141428 0%, #3a1063 60%, #7a1414 100%);
+    --thumb-bg-s: linear-gradient(135deg, #141428, #7a1414);
+    --thumb-overlay: rgba(255, 255, 255, .08);
+
+    --shadow-menu: 0 4px 20px rgba(0, 0, 0, .55);
+    --toast-bg: rgba(238, 238, 238, .94);
+    --toast-fg: #0f0f0f;
+    --note-bg: #3a2f0b;
+    --note-border: #6b5610;
+    --note-fg: #f0dfa0;
+
+    --drop-border: #464646;
+    --drop-over-bg: #0f2438;
+    --drop-has-bg: #10291a;
+
+    --prog-track: #3f3f3f;
+
+    --cta-bg: #ff4e45;
+    --cta-hover: #d33a33;
+    --cta-disabled: #5a2b29;
+    --btn-disabled-bg: #272727;
+
+    color-scheme: dark;
+}

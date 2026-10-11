@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - YouTube</title>
+    <link rel="stylesheet" href="css/vars.css">
+    <script>(function(){try{var s=localStorage.getItem('yt-theme');var d=s==='dark'||(s!=='light'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
+    <link rel="stylesheet" href="css/dark.css">
+    <link rel="stylesheet" href="css/register.css">
+</head>
+<body>
+    <header class="yt-header">
+        <div class="yt-logo">
+            <svg viewBox="0 0 90 20" height="20"><path d="M27.97 3.12A3.51 3.51 0 0 0 25.5.64C23.27.07 14.6.07 14.6.07S5.93.07 3.7.64A3.51 3.51 0 0 0 1.23 3.12C.66 5.35.66 10 .66 10s0 4.65.57 6.88a3.51 3.51 0 0 0 2.47 2.48c2.23.57 10.9.57 10.9.57s8.67 0 10.9-.57a3.51 3.51 0 0 0 2.47-2.48c.57-2.23.57-6.88.57-6.88s0-4.65-.57-6.88z" fill="#FF0000"/><path d="M11.73 14.29L19.06 10l-7.33-4.29z" fill="#fff"/></svg>
+            <span class="yt-logo-text">YouTube</span>
+        </div>
+    </header>
+    <main class="yt-main">
+        <div class="yt-card">
+            <h1>登录</h1>
+            <p class="yt-sub">使用您的账号继续</p>
+            <form id="loginForm">
+                <div class="field">
+                    <label>用户名 <span class="req">*</span></label>
+                    <input type="text" id="username" placeholder="请输入用户名" required>
+                </div>
+                <div class="field">
+                    <label>密码 <span class="req">*</span></label>
+                    <input type="password" id="password" placeholder="请输入密码" required>
+                </div>
+                <button type="submit" id="submitBtn">登录</button>
+                <p class="tip" id="tip"></p>
+                <p class="yt-sub" style="text-align:center;margin-top:16px;">还没有账号？<a href="register.html" style="color:var(--link);text-decoration:none;">去注册</a>　·　<a href="index.html" style="color:var(--text-secondary);text-decoration:none;">或以游客身份浏览</a></p>
+                <div class="field">
+                    <label>验证码 <span class="req">*</span></label>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <input type="text" id="captcha" placeholder="请输入验证码" required maxlength="4" style="flex:1;">
+                        <img id="captchaImg" src="/captcha" onclick="refreshCaptcha()" style="cursor:pointer;height:40px;border-radius:4px;">
+                    </div>
+                    <p style="font-size:12px;color:var(--text-secondary);margin-top:4px;">看不清？点击图片刷新验证码</p>
+                </div>
+            </form>
+        </div>
+    </main>
+    <script src="js/theme.js?v=1"></script>
+    <script src="js/login.js?v=3"></script>
+</body>
+</html>

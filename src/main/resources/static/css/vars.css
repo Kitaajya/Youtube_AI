@@ -1,0 +1,85 @@
+/* ===== 主题变量（亮色基线）+ 主题切换按钮 ===== */
+:root {
+    --bg: #f9f9f9;
+    --surface: #ffffff;
+    --surface-2: #f2f2f2;
+    --surface-3: #e5e5e5;
+    --surface-hover: #f2f2f2;
+    --border: #e5e5e5;
+    --divider: #eeeeee;
+
+    --text-primary: #0f0f0f;
+    --text-secondary: #606060;
+    --text-tertiary: #909090;
+    --link: #065fd4;
+    --link-hover: #0553bb;
+    --danger: #FF0000;
+    --danger-hover: #cc0000;
+    --ok: #1a8917;
+
+    /* 反色块（.btn.light / .chip.active） */
+    --inverse-bg: #0f0f0f;
+    --inverse-fg: #ffffff;
+    --inverse-hover: #313131;
+
+    /* 主色/警示色底上的文字 */
+    --on-primary: #ffffff;
+    --on-danger: #ffffff;
+
+    /* 表单控件 */
+    --input-bg: #ffffff;
+    --input-border: #d3d3d3;
+    --line-input: #cccccc;
+    --focus-ring: #065fd4;
+
+    /* 顶栏搜索按钮 */
+    --search-btn-bg: #f8f8f8;
+    --search-btn-hover: #f0f0f0;
+
+    /* 封面占位渐变 */
+    --thumb-bg: linear-gradient(135deg, #1a1a2e 0%, #4a148c 60%, #b71c1c 100%);
+    --thumb-bg-s: linear-gradient(135deg, #1a1a2e, #b71c1c);
+    --thumb-overlay: rgba(0, 0, 0, .15);
+
+    /* 弹层 / 提示 */
+    --shadow-menu: 0 4px 20px rgba(0, 0, 0, .15);
+    --toast-bg: rgba(15, 15, 15, .92);
+    --toast-fg: #ffffff;
+    --note-bg: #fff8e1;
+    --note-border: #ffe082;
+    --note-fg: #7a5c00;
+
+    /* 拖拽上传区 */
+    --drop-border: #c9c9c9;
+    --drop-over-bg: #f0f6ff;
+    --drop-has-bg: #f4fbf4;
+
+    /* 进度条 */
+    --prog-track: #e5e5e5;
+
+    /* 主按钮（红 / 蓝） */
+    --cta-bg: #FF0000;
+    --cta-hover: #cc0000;
+    --cta-disabled: #f2b8b5;
+    --btn-disabled-bg: #f2f2f2;
+}
+
+/* ---------- 主题切换按钮 ---------- */
+.theme-toggle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 17px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.theme-toggle:hover { background: var(--surface-hover); }
+.theme-toggle:focus-visible { outline: 2px solid var(--link); outline-offset: 1px; }
+/* 登录/注册页顶栏：靠右 */
+.yt-header .theme-toggle { margin-left: auto; }

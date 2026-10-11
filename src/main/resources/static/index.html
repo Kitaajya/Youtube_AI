@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube</title>
+    <link rel="stylesheet" href="css/vars.css">
+    <script>(function(){try{var s=localStorage.getItem('yt-theme');var d=s==='dark'||(s!=='light'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
+    <link rel="stylesheet" href="css/dark.css">
+    <link rel="stylesheet" href="css/register.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="app-header"></div>
+
+    <!-- 游客欢迎条：窄条，不挡视频流，可关闭 -->
+    <main class="yt-main" id="welcome" style="padding:0 32px;">
+        <div class="welcome-bar">
+            <b style="font-size:14px;">欢迎来到 YouTube</b>
+            <span class="w-stats">登录后可以点赞、评论和上传视频</span>
+            <a href="login.html" class="btn sm primary" id="welcome-login">登录</a>
+            <a href="register.html" class="btn sm red">注册</a>
+            <button class="btn sm" id="welcome-close" style="margin-left:auto;" title="本次浏览不再显示">&#10005; 关闭</button>
+        </div>
+    </main>
+
+    <!-- 视频流（游客与登录用户均可见） -->
+    <div id="feed" style="display:block;">
+        <div class="chips" id="chips"></div>
+        <div class="grid" id="grid"></div>
+        <div class="empty" id="empty" style="display:none;"></div>
+    </div>
+
+    <script src="js/theme.js?v=1"></script>
+    <script src="js/common.js?v=9"></script>
+    <script src="js/home.js?v=6"></script>
+</body>
+</html>

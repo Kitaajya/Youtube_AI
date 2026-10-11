@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>上传视频 - YouTube</title>
+    <link rel="stylesheet" href="css/vars.css">
+    <script>(function(){try{var s=localStorage.getItem('yt-theme');var d=s==='dark'||(s!=='light'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
+    <link rel="stylesheet" href="css/dark.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="app-header"></div>
+
+    <div class="page">
+        <div class="form-card">
+            <h1 class="page-title">上传视频</h1>
+
+            <div class="field">
+                <label>选择视频文件 <span class="req">*</span></label>
+                <input type="file" id="file" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,.m4v,.ogv">
+                <div class="hint" id="file-hint">支持 mp4 / webm / mov 等浏览器可播放格式，最大 1GB</div>
+            </div>
+
+            <div id="drop-zone" class="drop-zone">
+                <div style="font-size:34px;">&#127909;</div>
+                <div>拖拽视频文件到这里，或点击上方"选择文件"</div>
+            </div>
+
+            <div class="field">
+                <label>视频标题 <span class="req">*</span></label>
+                <input type="text" id="title" maxlength="200" placeholder="给视频起个标题">
+            </div>
+
+            <div class="prog" id="prog" style="display:none;">
+                <div class="prog-bar"><div class="prog-fill" id="prog-fill"></div></div>
+                <div class="prog-txt" id="prog-txt">上传中…</div>
+            </div>
+
+            <button class="btn red" id="submit" style="width:100%;justify-content:center;height:44px;">上传并发布</button>
+            <p class="tip" id="tip"></p>
+
+            <details style="margin-top:20px;">
+                <summary style="font-size:13px;color:var(--text-secondary);cursor:pointer;">高级：只登记服务器上已有的文件路径（不传文件本体）</summary>
+                <div style="margin-top:12px;">
+                    <div class="field"><label>文件完整路径</label><input type="text" id="old-path" placeholder="D:/videos/xxx.mp4"></div>
+                    <button class="btn sm" id="old-submit">仅登记路径</button>
+                </div>
+            </details>
+        </div>
+    </div>
+
+    <script src="js/theme.js?v=1"></script>
+    <script src="js/common.js?v=9"></script>
+    <script src="js/upload.js?v=6"></script>
+</body>
+</html>
