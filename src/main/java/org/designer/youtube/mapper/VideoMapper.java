@@ -265,10 +265,14 @@ public interface VideoMapper {
     """)
     int selectMyLike(@Param("id") long id, @Param("userId") String userId);
 
-    //播放计数加一
+    //播放计数加一（只做一次 UPDATE，新值请调 selectViewCount 回读）
     @Update("""
     UPDATE video SET view_count=view_count+1 WHERE id=#{id}
     """)
     int addVideoView(@Param("id") long id);
+
+    //回读当前播放量（配合 addVideoView 使用，返回真实数值而非受影响行数）
+    @Select("SELECT view_count FROM video WHERE id=#{id}")
+    Long selectViewCount(@Param("id") long id);
 
 }

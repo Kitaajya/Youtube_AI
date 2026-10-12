@@ -12,6 +12,7 @@
  * GET  /api/video/select/like/count?id=&userId=      点赞数 + 我是否赞过
  * POST /api/video/add/like                           点赞（重复点赞返回已赞状态）
  * POST /api/video/cancel/like                        取消点赞
+ * POST /api/video/add/view                           播放计数 +1（进页面上报一次，返回数据库真实播放量）
  */
 (async function () {
     const id = new URLSearchParams(location.search).get('id');
@@ -53,8 +54,69 @@
             location.href = 'message.html?peer=' + encodeURIComponent(upId) + '&name=' + encodeURIComponent(upName);
         };
     }
+
+    // ---------- 关注模块（后端 /api/user，与频道页同一口径）----------
+    // 后端只有"粉丝列表/关注列表"查询，没有计数接口，
+    // 所以粉丝数=列表长度，"我是否已关注"=粉丝列表里有没有我
+    const followBtn = $('#btn-follow'), fansEl = $('#w-up-fans');
+    let following = false, fansCount = 0, followBusy = false;
+    function paintFollow() {
+        followBtn.classList.toggle('light', following);
+        followBtn.innerHTML = following ? '已关注' : '关注';
+        followBtn.disabled = followBusy;
+        fansEl.textContent = fansCount > 0 ? `${YT.fmtNum(fansCount)} 位粉丝` : '';
+    }
+    if (me && upId && me.userId !== upId) {
+        followBtn.style.display = '';
+        paintFollow();
+    }
+    // 粉丝数游客也展示；登录时顺带判断"我是否已关注"
+    YT.api.get('/api/user/select/me/fans', { me: upId })
+        .then(r => {
+            const fans = (r && r.data) || [];
+            fansCount = fans.length;
+            following = !!(me && fans.some(f => String(YT.pick(f, 'user_id')) === me.userId));
+            paintFollow();
+        })
+        .catch(() => { /* 拉不到就不显示数字，不影响看视频 */ });
+
+    if (me && upId && me.userId !== upId) {
+        followBtn.onclick = async e => {
+            e.stopPropagation();            // 别触发 #w-up 的跳转
+            if (followBusy) return;
+            followBusy = true; paintFollow();
+            const wasFollowing = following;
+            try {
+                const url = wasFollowing ? '/api/user/unfollow' : '/api/user/follow';
+                const res = await YT.api.post(url, { me: me.userId, upId: upId });
+                if (res.success) {
+                    following = !wasFollowing;
+                    fansCount = Math.max(0, fansCount + (following ? 1 : -1));
+                    YT.toast(res.message || (wasFollowing ? '已取关' : '关注成功'));
+                } else {
+                    YT.toast(res.message || '操作失败，请重试');
+                }
+            } catch (err) {
+                YT.toast('请求失败：' + err.message);
+            } finally {
+                followBusy = false; paintFollow();
+            }
+        };
+    }
     $('#w-desc').innerHTML = `<b>视频文件路径：</b>${YT.esc(YT.pick(video, 'video_path'))}<br>
         <b>视频 ID：</b>${YT.esc(id)}　<b>点赞数：</b>${YT.esc(YT.pick(video, 'like_count') || 0)}`;
+
+    // ---------- 播放计数：进页面上报一次，用后端回读的真实值就地刷新 ----------
+    // 不 await，计数失败不影响看视频；重复计数（刷新页面）目前是已知偏差，未做去重
+    YT.api.post('/api/video/add/view', { id })
+        .then(r => {
+            if (!r.success) return;
+            const v = Number(r.data && r.data.view_count);
+            if (Number.isFinite(v)) {
+                $('#w-stats').textContent = `${YT.fmtNum(v)} 次观看 · ${YT.fmtFull(YT.pick(video, 'create_time'))}`;
+            }
+        })
+        .catch(() => { /* 保持详情里带过来的播放量 */ });
 
     const isMine = me && me.userId === upId;
     if (isMine) { $('#btn-edit').style.display = ''; $('#btn-del').style.display = ''; }

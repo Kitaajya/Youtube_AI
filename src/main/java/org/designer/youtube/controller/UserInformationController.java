@@ -4,11 +4,9 @@ import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.designer.youtube.common.Result;
 import org.designer.youtube.service.UserInformationService;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -36,4 +34,25 @@ public class UserInformationController {
         session.removeAttribute("captchaCode");
         return Result.success(userInformationService.login(username,password));
     }
+    //查看我关注了谁
+    @GetMapping("/select/me/follow")
+    public Result<List<Map<String,Object>>> selectIFollowWhom(@RequestParam String me){
+        return Result.success(userInformationService.selectIFollowWhom(me));
+    }
+    //查看谁关注了我
+    @GetMapping("/select/me/fans")
+    public Result<List<Map<String,Object>>> selectMyFans(@RequestParam String me){
+        return Result.success(userInformationService.selectMyFans(me));
+    }
+    //我关注了up主
+    @PostMapping("/follow")
+    public Result<Map<String,Object>> follow(@RequestParam String me,@RequestParam String upId){
+        return userInformationService.follow(me,upId);
+    }
+    //我取关了up主，我原本是up主的粉丝，现在不是了
+    @PostMapping("/unfollow")
+    public Result<Map<String,Object>> unfollow(@RequestParam String me,@RequestParam String upId){
+        return userInformationService.unfollow(me, upId);
+    }
+
 }

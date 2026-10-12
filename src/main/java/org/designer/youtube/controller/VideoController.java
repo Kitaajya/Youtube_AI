@@ -183,4 +183,9 @@ public class VideoController {
     public Result<Map<String,Object>> cancelLike(@RequestParam long id, @RequestParam String userId) {
         return vs.cancelLike(id, userId);
     }
+    //播放计数加一（播放页加载时调用一次，返回数据库回读的真实播放量）
+    @PostMapping("/add/view")
+    public Result<Map<String,Object>> addVideoView(@RequestParam long id) {
+        return vs.addVideoView(id);
+    }
 }

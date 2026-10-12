@@ -36,6 +36,25 @@ import java.util.Map;
 @Component
 public class PrivateMessageService {
     private final PrivateMessageMapper privateMessageMapper;
+
+    // 我的收件箱：会话列表（每个对话最后一句 + 未读数 + 对方昵称）
+    public List<Map<String, Object>> selectInbox(String me) {
+        if (me == null || me.isEmpty()) return List.of();
+        return privateMessageMapper.selectInbox(me);
+    }
+
+    // 别人发给我的未读总数
+    public int countUnread(String me) {
+        if (me == null || me.isEmpty()) return 0;
+        return privateMessageMapper.countUnread(me);
+    }
+
+    // 打开与某人的对话后，把对方发来的消息标记已读
+    public void markRead(String me, String other) {
+        if (me == null || me.isEmpty() || other == null || other.isEmpty()) return;
+        privateMessageMapper.markRead(me, other);
+    }
+
     // 展示我和某人的完整对话，双向，按时间正序
     public List<PrivateMessage> selectOurMessage(String a,String b){
         return privateMessageMapper.selectOurMessage(a,b);

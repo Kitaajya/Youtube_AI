@@ -131,6 +131,28 @@ CREATE TABLE IF NOT EXISTS video_cache(
     UNIQUE KEY uk_cache_key (cache_key)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
+-- ---------- 8. 私信表（PrivateMessageMapper / /api/private_message 使用） ----------
+-- 业务主键 msg_id 为 RandomlyCreateID 生成的 13 位字符串
+CREATE TABLE IF NOT EXISTS private_message(
+    msg_id      VARCHAR(13) NOT NULL,                -- 消息ID，13位随机字符串
+    from_user   VARCHAR(13) NOT NULL,                -- 发件人 user_id
+    to_user     VARCHAR(13) NOT NULL,                -- 收件人 user_id
+    contents    TEXT        NOT NULL,                -- 消息内容
+    is_read     TINYINT     NOT NULL DEFAULT 0,      -- 0=未读 1=已读（收件人视角）
+    create_time DATETIME    DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (msg_id),
+    KEY idx_pm_inbox (to_user, is_read, create_time),   -- 收件箱/未读数查询走索引
+    KEY idx_pm_outbox (from_user, create_time)          -- "我发出的"会话查询走索引
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
+-- 【已建过表的话看这里】private_message 之前是手动建的，CREATE IF NOT EXISTS 不会补索引，
+-- 老表缺索引时单独补一次（已有同名索引会报 Duplicate key name，忽略即可）：
+-- ALTER TABLE private_message ADD COLUMN create_time DATETIME DEFAULT CURRENT_TIMESTAMP;
+-- ALTER TABLE private_message ADD INDEX idx_pm_inbox (to_user, is_read, create_time);
+-- ALTER TABLE private_message ADD INDEX idx_pm_outbox (from_user, create_time);
+-- 想确认实际结构，跑这句：
+-- SHOW CREATE TABLE private_message;
+
 -- =====================================================================
 -- 执行完后自查：所有外键两端的类型是否逐字一致
 -- COLUMN_TYPE 必须同为 varchar(13)、字符集与排序规则完全相同

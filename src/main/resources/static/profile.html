@@ -3,36 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的频道 - YouTube</title>
+    <title>频道 - YouTube</title>
     <link rel="stylesheet" href="css/vars.css">
     <script>(function(){try{var s=localStorage.getItem('yt-theme');var d=s==='dark'||(s!=='light'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
     <link rel="stylesheet" href="css/dark.css">
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/channel.css?v=2">
 </head>
 <body>
     <div id="app-header"></div>
 
-    <div class="page">
-        <div class="w-up" style="margin-bottom:20px;">
-            <span class="avatar lg" id="ch-av" style="width:64px;height:64px;font-size:26px;"></span>
-            <div>
-                <div style="font-size:20px;font-weight:500;" id="ch-name">加载中…</div>
-                <div class="w-stats" id="ch-id"></div>
+    <div class="ch-wrap">
+        <!-- 横幅 -->
+        <div class="ch-banner" id="ch-banner"></div>
+
+        <!-- 频道头部：居中头像 + 名称/订阅数/简介/关注按钮 -->
+        <div class="ch-head">
+            <span class="ch-avatar" id="ch-av"></span>
+            <div class="ch-meta">
+                <h1 class="ch-title" id="ch-name">加载中…</h1>
+                <div class="ch-sub" id="ch-stats"></div>
+                <div class="ch-bio" id="ch-bio"></div>
+                <div class="ch-actions">
+                    <button class="btn ch-follow" id="ch-follow" style="display:none;">关注</button>
+                    <a href="upload.html" class="btn red sm" id="ch-upload" style="display:none;">&#8679; 上传视频</a>
+                </div>
+                <div class="ch-mini" id="ch-id"></div>
             </div>
         </div>
 
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-            <div class="page-title" style="margin:0;">视频</div>
-            <span class="w-stats" id="ch-count"></span>
-            <a href="upload.html" class="btn red sm" id="ch-upload" style="margin-left:auto;display:none;">&#8679; 上传视频</a>
+        <!-- 标签栏：首页 / 视频 / 关注与粉丝 -->
+        <div class="ch-tabs">
+            <button class="ch-tab active" data-tab="home">首页</button>
+            <button class="ch-tab" data-tab="videos">视频</button>
+            <button class="ch-tab" data-tab="social">关注与粉丝</button>
+        </div>
+        <div class="ch-tab-line"></div>
+
+        <!-- 首页：精选一条大卡 + 其余网格 -->
+        <div class="ch-panel" id="panel-home">
+            <div id="ch-feature"></div>
+            <div class="ch-grid" id="ch-grid"></div>
+            <div class="empty" id="empty" style="display:none;"></div>
         </div>
 
-        <div class="vlist" id="vlist"></div>
-        <div class="empty" id="empty" style="display:none;"></div>
+        <!-- 视频：列表视图（保留原操作按钮） -->
+        <div class="ch-panel" id="panel-videos" style="display:none;">
+            <div class="vlist" id="vlist"></div>
+        </div>
+
+        <!-- 关注与粉丝 -->
+        <div class="ch-panel" id="panel-social" style="display:none;">
+            <div class="ch-social">
+                <div>
+                    <div class="ch-col-title" id="sc-follow-title">关注</div>
+                    <div id="sc-follow"></div>
+                </div>
+                <div>
+                    <div class="ch-col-title" id="sc-fans-title">粉丝</div>
+                    <div id="sc-fans"></div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="js/theme.js?v=1"></script>
     <script src="js/common.js?v=9"></script>
-    <script src="js/profile.js?v=7"></script>
+    <script src="js/profile.js?v=10"></script>
 </body>
 </html>

@@ -109,27 +109,15 @@ public class VideoService {
     }
 
     /**
-     *  //播放计数加一
-     *  @Update("""
-     *  UPDATE video SET view_count=view_count+1 WHERE id=#{id}
-     *  """)
-     *  int addVideoView(@Param("id") long id);
-     *
-     *
-     *
-     *
-     *
-     *
-     *
-     *
-     *
-     *
+     * 播放计数：只做一次 UPDATE，再 SELECT 回读真实播放量。
+     * 切勿再调 vm.addVideoView 拿返回值当播放量——那是受影响行数，永远是 1。
      * **/
     public Result<Map<String,Object>> addVideoView(long id){
-        int k=vm.addVideoView(id);
-        if(k==0) return Result.fail("播放量故障，请刷新页面！");
-        return Result.success("播放量正常", Map.of("view_count", vm.addVideoView(id)));  // 顺带返回新值
-
+        if (vm.countVideo(id) == 0) return Result.fail("视频不存在或已被删除");
+        int k = vm.addVideoView(id);
+        if (k == 0) return Result.fail("播放计数失败，请稍后重试");
+        Long view = vm.selectViewCount(id);   // 回读 UPDATE 之后的真实值
+        return Result.success("播放计数成功", Map.of("view_count", view == null ? 0L : view));
     }
 
     //***********************************************************点赞模块***********************************************************
