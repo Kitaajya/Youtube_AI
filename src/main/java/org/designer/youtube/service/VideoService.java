@@ -1,8 +1,10 @@
 package org.designer.youtube.service;
 
+import jakarta.persistence.Cacheable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Update;
 import org.designer.youtube.common.Result;
 import org.designer.youtube.mapper.VideoMapper;
 import org.springframework.stereotype.Service;
@@ -14,6 +16,7 @@ import java.util.Map;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Cacheable
 public class VideoService {
     private final VideoMapper vm;
     //***********************************************************视频模块***********************************************************
@@ -104,6 +107,31 @@ public class VideoService {
     public List<Map<String,Object>> selectRepliesByParent(@Param("parentId") String parentId){
         return vm.selectRepliesByParent(parentId);
     }
+
+    /**
+     *  //播放计数加一
+     *  @Update("""
+     *  UPDATE video SET view_count=view_count+1 WHERE id=#{id}
+     *  """)
+     *  int addVideoView(@Param("id") long id);
+     *
+     *
+     *
+     *
+     *
+     *
+     *
+     *
+     *
+     *
+     * **/
+    public Result<Map<String,Object>> addVideoView(long id){
+        int k=vm.addVideoView(id);
+        if(k==0) return Result.fail("播放量故障，请刷新页面！");
+        return Result.success("播放量正常", Map.of("view_count", vm.addVideoView(id)));  // 顺带返回新值
+
+    }
+
     //***********************************************************点赞模块***********************************************************
     //显示点赞数（以 video_like 表为唯一口径）
     public long selectLikeQuantity(long id){
@@ -136,4 +164,5 @@ public class VideoService {
         return Result.success("已取消点赞", Map.of(
                 "like_count", vm.selectLikeQuantity(id), "liked", false));
     }
+
 }

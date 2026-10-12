@@ -212,7 +212,8 @@ public interface VideoMapper {
     //***********************************************************点赞模块***********************************************************
     /**
      * 点赞一律以 video_like 表为唯一口径（一条记录 = 一次点赞）：
-     * 联合主键 (video_id, user_id) 保证一人一视频只能赞一次，
+     * 联合主键 (video_id, user_id) 保证一人一视频只能赞一次。
+     * 播放计数正在打算实现！
      * 所以重复点赞不会产生脏数据，也不需要 video.like_quantity 这个冗余计数列。
      * 删视频时该表的记录由外键 ON DELETE CASCADE 自动清理。
      *
@@ -263,5 +264,11 @@ public interface VideoMapper {
     SELECT COUNT(*) FROM video_like WHERE video_id=#{id} AND user_id=#{userId}
     """)
     int selectMyLike(@Param("id") long id, @Param("userId") String userId);
+
+    //播放计数加一
+    @Update("""
+    UPDATE video SET view_count=view_count+1 WHERE id=#{id}
+    """)
+    int addVideoView(@Param("id") long id);
 
 }
