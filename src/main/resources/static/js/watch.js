@@ -213,6 +213,111 @@
         }
     };
 
+    // ---------- 收藏（收藏夹弹窗，后端 /api/video 收藏模块） ----------
+    const favBtn = $('#btn-fav');
+    if (me) favBtn.style.display = '';
+
+    // 弹窗 DOM 单例：首次点击时才建
+    let favModal = null, favOpenVideoId = null;
+    function buildFavModal() {
+        const el = document.createElement('div');
+        el.className = 'fav-modal';
+        el.innerHTML = `
+            <div class="fav-mask"></div>
+            <div class="fav-box">
+                <div class="fav-head">收藏到</div>
+                <div class="fav-list" id="fav-list"><div class="w-stats">加载中…</div></div>
+                <div class="fav-new">
+                    <input type="text" id="fav-name" maxlength="100" placeholder="新建收藏夹名称">
+                    <button class="btn sm primary" id="fav-create">创建</button>
+                </div>
+                <button class="btn sm fav-close" id="fav-close">关闭</button>
+            </div>`;
+        document.body.appendChild(el);
+        el.querySelector('.fav-mask').addEventListener('click', closeFav);
+        el.querySelector('#fav-close').addEventListener('click', closeFav);
+        el.querySelector('#fav-create').addEventListener('click', createPlaylist);
+        el.querySelector('#fav-name').addEventListener('keydown', e => { if (e.key === 'Enter') createPlaylist(); });
+        el.querySelector('#fav-list').addEventListener('click', e => {
+            const item = e.target.closest('.fav-item');
+            if (item) toggleFav(item);
+        });
+        return el;
+    }
+    async function openFav() {
+        if (!favModal) favModal = buildFavModal();
+        favModal.style.display = '';
+        await renderFavList();
+    }
+    function closeFav() { if (favModal) favModal.style.display = 'none'; }
+
+    async function renderFavList() {
+        const box = favModal.querySelector('#fav-list');
+        box.innerHTML = '<div class="w-stats">加载中…</div>';
+        try {
+            const r = await YT.api.get('/api/video/select/like/format', { owner: me.userId, viewer: me.userId, videoId: id });
+            const rows = r.data || [];
+            if (!rows.length) { box.innerHTML = '<div class="w-stats">还没有收藏夹，先创建一个</div>'; return; }
+            box.innerHTML = rows.map(p => {
+                const pid = String(YT.pick(p, 'playlist_id'));
+                const inList = Number(YT.pick(p, 'in_list') || 0) > 0;
+                return `
+                <div class="fav-item ${inList ? 'on' : ''}" data-pid="${YT.esc(pid)}">
+                    <span class="fi-check">${inList ? '✓' : ''}</span>
+                    <span class="fi-name">${YT.esc(YT.pick(p, 'name'))}</span>
+                    <span class="w-stats">${YT.fmtNum(YT.pick(p, 'video_count') || 0)} 个视频${Number(YT.pick(p, 'is_public') || 0) ? '' : ' · 私密'}</span>
+                </div>`;
+            }).join('');
+        } catch (e) {
+            box.innerHTML = `<div class="w-stats">加载失败：${YT.esc(e.message)}</div>`;
+        }
+    }
+
+    async function toggleFav(item) {
+        const pid = item.dataset.pid;
+        const wasOn = item.classList.contains('on');
+        item.style.opacity = '.5';
+        try {
+            const r = wasOn
+                ? await YT.api.del('/api/video/remove/from/like', { pList: pid, videoId: id })
+                : await YT.api.post('/api/video/add/to/like', { pList: pid, videoId: id });
+            if (r.success) {
+                item.classList.toggle('on', !wasOn);
+                item.querySelector('.fi-check').textContent = wasOn ? '' : '✓';
+                // 视频数就地增减
+                const cntEl = item.querySelector('.w-stats');
+                const m = cntEl.textContent.match(/^([\d.]+万?) 个视频/);
+                if (m) {
+                    const raw = m[1].endsWith('万') ? parseFloat(m[1]) * 10000 : Number(m[1]);
+                    const n = Math.max(0, raw + (wasOn ? -1 : 1));
+                    cntEl.textContent = cntEl.textContent.replace(m[1] + ' 个视频', YT.fmtNum(n) + ' 个视频');
+                }
+            } else {
+                YT.toast(r.message || '操作失败');
+            }
+        } catch (e) {
+            YT.toast('请求失败：' + e.message);
+        } finally {
+            item.style.opacity = '';
+        }
+    }
+
+    async function createPlaylist() {
+        const input = favModal.querySelector('#fav-name');
+        const name = input.value.trim();
+        if (!name) { YT.toast('收藏夹名称不能为空'); return; }
+        input.value = '';
+        try {
+            const r = await YT.api.post('/api/video/create/like/format', {
+                pList: YT.randId(), userId: me.userId, name, description: '', isPublic: 1,
+            });
+            if (r.success) { YT.toast('已创建：' + name); await renderFavList(); }
+            else YT.toast(r.message || '创建失败');
+        } catch (e) { YT.toast('请求失败：' + e.message); }
+    }
+
+    favBtn.onclick = () => { if (YT.requireLogin()) openFav(); };
+
     // ---------- 自己的视频：改标题 / 删除 ----------
     $('#btn-edit').onclick = async () => {
         const t = prompt('输入新的视频标题：', title);

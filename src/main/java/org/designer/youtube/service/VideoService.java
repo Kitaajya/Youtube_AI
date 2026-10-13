@@ -4,9 +4,9 @@ import jakarta.persistence.Cacheable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Update;
 import org.designer.youtube.common.Result;
 import org.designer.youtube.mapper.VideoMapper;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -104,7 +104,7 @@ public class VideoService {
         return Result.success();
     }
     //查某条评论下的全部回复（楼中楼）
-    public List<Map<String,Object>> selectRepliesByParent(@Param("parentId") String parentId){
+    public List<Map<String,Object>> selectRepliesByParent(String parentId){
         return vm.selectRepliesByParent(parentId);
     }
 
@@ -152,13 +152,45 @@ public class VideoService {
         return Result.success("已取消点赞", Map.of(
                 "like_count", vm.selectLikeQuantity(id), "liked", false));
     }
+    //建立收藏夹，不是把视频放进收藏夹里，因为收藏夹还没创建呢！
     public Result<Map<String,Object>> createLikeFormat(String pList,
                                                        String userId,
                                                        String name,
                                                        String description,
                                                        int isPublic){
-        int k=vm.createLikeFormat(pList, userId, name, description, isPublic);
-        if(k==0) return Result.fail("收藏失败");
+        try {
+            int k = vm.createLikeFormat(pList, userId, name, description, isPublic);
+            if(k == 0) return Result.fail("创建失败");
+            return Result.success("收藏夹创建成功", Map.of("playlistId", pList));
+        } catch (DuplicateKeyException e) {
+            // uk_playlist_name(user_id,name)：同一人重复建同名收藏夹
+            return Result.fail("已存在同名收藏夹");
+        }
+    }
+    //把视频放进收藏夹里（SQL 用 INSERT IGNORE：重复收藏返回 0 行、不抛异常）
+    public Result<Map<String,Object>>addToLikeList(String pList, String videoId){
+        int k = vm.addToLikeList(pList, videoId);
+        if(k == 0) return Result.success("你已经收藏过一次了！",Map.of("success",true));
         return Result.success("收藏成功",Map.of("success",true));
+    }
+    //删除收藏（整个收藏夹）
+    public Result<Map<String,Object>> deleteLike(String pList, String userId){
+        int k = vm.deleteLike(pList, userId);
+        if(k == 0) return Result.fail("收藏夹不存在或无权限");   // DELETE 不抛重复键，0 行=没这个夹或不是你的
+        return Result.success("已删除收藏夹", Map.of("success", true));
+    }
+    //从收藏夹移出一个视频（收藏夹还在，只删内容行）
+    public Result<Map<String,Object>> removeFromLikeList(String pList, long videoId){
+        int k = vm.removeFromLikeList(pList, videoId);
+        if(k == 0) return Result.success("本来就没在里面", Map.of("success", true));
+        return Result.success("已移出收藏夹", Map.of("success", true));
+    }
+    //某人的收藏夹列表（含 video_count 与 in_list 回显）
+    public List<Map<String,Object>> selectLikeFormats(String owner, String viewer, long videoId){
+        return vm.selectLikeFormats(owner, viewer, Math.max(videoId, 0L));
+    }
+    //某个收藏夹里的视频
+    public List<Map<String,Object>> selectLikeFormatVideos(String pList){
+        return vm.selectLikeFormatVideos(pList);
     }
 }

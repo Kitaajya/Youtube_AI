@@ -26,13 +26,14 @@
     document.title = (name || '频道') + ' - YouTube';
     if (isMine) $('#ch-upload').style.display = '';
 
-    // ---------- 标签栏：首页 / 视频 / 关注与粉丝 ----------
-    const panels = { home: $('#panel-home'), videos: $('#panel-videos'), social: $('#panel-social') };
+    // ---------- 标签栏：首页 / 视频 / 收藏夹 / 关注与粉丝 ----------
+    const panels = { home: $('#panel-home'), videos: $('#panel-videos'), plays: $('#panel-plays'), social: $('#panel-social') };
     let activeTab = 'home';
     function switchTab(tab) {
         activeTab = tab;
         document.querySelectorAll('.ch-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
         for (const [k, el] of Object.entries(panels)) el.style.display = k === tab ? '' : 'none';
+        if (tab === 'plays') loadPlaylists();
     }
     document.querySelectorAll('.ch-tab').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
 
@@ -116,6 +117,79 @@
         if (!card) return;
         location.href = 'profile.html?userId=' + encodeURIComponent(card.dataset.user)
             + '&name=' + encodeURIComponent(card.dataset.name);
+    });
+
+    // ---------- 收藏夹模块（后端 /api/video/select/like/format*） ----------
+    // viewer 传空串时 SQL 只放行 is_public=1 的夹子：看别人的频道自然只看到公开收藏夹
+    async function loadPlaylists() {
+        const grid = $('#pl-grid'), plEmpty = $('#pl-empty'), plDetail = $('#pl-detail');
+        grid.innerHTML = '<div class="empty" style="padding:20px;">加载中…</div>';
+        plEmpty.style.display = 'none';
+        plDetail.innerHTML = '';
+        let rows = [];
+        try {
+            const r = await YT.api.get('/api/video/select/like/format', {
+                owner: userId, viewer: me ? me.userId : '', videoId: 0,
+            });
+            rows = r.data || [];
+        } catch (e) {
+            grid.innerHTML = '';
+            plEmpty.textContent = '收藏夹加载失败：' + e.message;
+            plEmpty.style.display = 'block';
+            return;
+        }
+        if (!rows.length) {
+            grid.innerHTML = '';
+            plEmpty.textContent = isMine ? '还没有创建收藏夹（去任意视频页点"收藏"建一个）' : '这位UP主没有公开收藏夹';
+            plEmpty.style.display = 'block';
+            return;
+        }
+        grid.innerHTML = rows.map(p => {
+            const pid = String(YT.pick(p, 'playlist_id'));
+            const pub = Number(YT.pick(p, 'is_public') || 0) > 0;
+            return `
+            <div class="pl-card" data-pid="${YT.esc(pid)}" data-name="${YT.esc(YT.pick(p, 'name'))}">
+                <div class="pl-cover">
+                    <span class="pl-ic">&#9654;</span>
+                    <span class="pl-count">${YT.fmtNum(YT.pick(p, 'video_count') || 0)}</span>
+                </div>
+                <div class="pl-body">
+                    <div class="pl-name">${YT.esc(YT.pick(p, 'name'))}</div>
+                    <div class="pl-sub">
+                        <span class="pl-tag ${pub ? '' : 'private'}">${pub ? '&#127760; 公开' : '&#128274; 私密'}</span>
+                        <span>${YT.timeAgo(YT.pick(p, 'create_time')) || YT.fmtFull(YT.pick(p, 'create_time'))}</span>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    // 点收藏夹卡片 → 展开夹内视频
+    document.addEventListener('click', async e => {
+        const card = e.target.closest('.pl-card');
+        if (!card) return;
+        const detail = $('#pl-detail');
+        detail.innerHTML = `<div class="ch-col-title">${YT.esc(card.dataset.name)}</div><div class="empty" style="padding:20px;">加载中…</div>`;
+        try {
+            const r = await YT.api.get('/api/video/select/like/format/videos', { pList: card.dataset.pid });
+            const vids = r.data || [];
+            detail.innerHTML = `<div class="ch-col-title">${YT.esc(card.dataset.name)} · ${vids.length}</div>` + (vids.length
+                ? `<div class="ch-grid">` + vids.map(v => {
+                    const url = YT.mediaUrl(YT.pick(v, 'video_path'));
+                    return `
+                    <div class="ch-card" onclick="location.href='watch.html?id=${encodeURIComponent(YT.pick(v, 'id'))}'">
+                        <div class="thumb">${url
+                            ? `<video muted preload="metadata" playsinline src="${url}#t=0.1"></video>`
+                            : '<div style="display:flex;align-items:center;justify-content:center;height:100%;">&#9654;</div>'}</div>
+                        <div class="c-title">${YT.esc(YT.pick(v, 'title'))}</div>
+                        <div class="c-sub">${YT.fmtNum(YT.pick(v, 'view_count'))} 次观看 · 收藏于 ${YT.timeAgo(YT.pick(v, 'fav_time')) || YT.fmtFull(YT.pick(v, 'fav_time'))}</div>
+                    </div>`;
+                }).join('') + `</div>`
+                : '<div class="w-stats">这个收藏夹还是空的</div>');
+            detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } catch (err) {
+            detail.innerHTML = '<div class="w-stats">加载失败</div>';
+        }
     });
 
     if (!isMine) {

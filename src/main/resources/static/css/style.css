@@ -162,6 +162,58 @@ button { font-family: inherit; cursor: pointer; }
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 10px; color: #aaa; font-size: 14px; padding: 0 40px; text-align: center;
 }
+
+/* ---------- 收藏夹选择弹窗（播放页"收藏"按钮） ---------- */
+@keyframes favIn { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: none; } }
+.fav-modal { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; }
+.fav-mask { position: absolute; inset: 0; background: rgba(0,0,0,.5); backdrop-filter: blur(2px); }
+.fav-box {
+    position: relative;
+    width: 380px; max-width: 92vw; max-height: 78vh;
+    display: flex; flex-direction: column;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 24px 64px rgba(0,0,0,.42);
+    animation: favIn .18s cubic-bezier(.2,.8,.3,1);
+}
+.fav-head {
+    font-size: 15px; font-weight: 600; letter-spacing: .2px;
+    padding-bottom: 12px; margin-bottom: 6px;
+    border-bottom: 1px solid var(--divider);
+}
+.fav-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; min-height: 60px; padding: 4px 0; }
+.fav-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background .12s ease;
+}
+.fav-item:hover { background: var(--surface-hover); }
+.fav-item.on { background: var(--surface-2); }
+.fav-item .fi-check {
+    width: 22px; height: 22px; flex-shrink: 0;
+    border: 2px solid var(--border);
+    border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+    color: transparent;
+    transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+.fav-item.on .fi-check { background: var(--link); border-color: var(--link); color: var(--on-primary); }
+.fav-item .fi-name { flex: 1; min-width: 0; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fav-item .w-stats { flex-shrink: 0; font-size: 12px; }
+.fav-new { display: flex; gap: 8px; margin-top: 10px; padding-top: 14px; border-top: 1px solid var(--divider); }
+.fav-new input {
+    flex: 1; min-width: 0; height: 38px; padding: 0 12px;
+    border: 1px solid var(--input-border); border-radius: 10px;
+    background: var(--input-bg); color: var(--text-primary); font-size: 13px; outline: none;
+    transition: border-color .12s ease, box-shadow .12s ease;
+}
+.fav-new input:focus { border-color: var(--focus-ring); box-shadow: 0 0 0 1px var(--focus-ring); }
+.fav-close { align-self: stretch; width: 100%; justify-content: center; margin-top: 10px; }
 .w-title { font-size: 18px; font-weight: 500; margin: 16px 0 8px; }
 .w-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .w-up { display: flex; align-items: center; gap: 10px; margin: 12px 0; }

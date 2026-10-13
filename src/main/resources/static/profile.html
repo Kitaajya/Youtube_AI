@@ -8,7 +8,7 @@
     <script>(function(){try{var s=localStorage.getItem('yt-theme');var d=s==='dark'||(s!=='light'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
     <link rel="stylesheet" href="css/dark.css">
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/channel.css?v=2">
+    <link rel="stylesheet" href="css/channel.css?v=3">
 </head>
 <body>
     <div id="app-header"></div>
@@ -32,10 +32,11 @@
             </div>
         </div>
 
-        <!-- 标签栏：首页 / 视频 / 关注与粉丝 -->
+        <!-- 标签栏：首页 / 视频 / 收藏夹 / 关注与粉丝 -->
         <div class="ch-tabs">
             <button class="ch-tab active" data-tab="home">首页</button>
             <button class="ch-tab" data-tab="videos">视频</button>
+            <button class="ch-tab" data-tab="plays">收藏夹</button>
             <button class="ch-tab" data-tab="social">关注与粉丝</button>
         </div>
         <div class="ch-tab-line"></div>
@@ -50,6 +51,13 @@
         <!-- 视频：列表视图（保留原操作按钮） -->
         <div class="ch-panel" id="panel-videos" style="display:none;">
             <div class="vlist" id="vlist"></div>
+        </div>
+
+        <!-- 收藏夹：卡片网格，点击展开该夹内的视频 -->
+        <div class="ch-panel" id="panel-plays" style="display:none;">
+            <div class="ch-grid" id="pl-grid"></div>
+            <div class="empty" id="pl-empty" style="display:none;"></div>
+            <div id="pl-detail" style="margin-top:24px;"></div>
         </div>
 
         <!-- 关注与粉丝 -->
@@ -69,6 +77,6 @@
 
     <script src="js/theme.js?v=1"></script>
     <script src="js/common.js?v=9"></script>
-    <script src="js/profile.js?v=10"></script>
+    <script src="js/profile.js?v=12"></script>
 </body>
 </html>

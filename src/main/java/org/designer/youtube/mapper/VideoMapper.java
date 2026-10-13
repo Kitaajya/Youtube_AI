@@ -1,6 +1,7 @@
 package org.designer.youtube.mapper;
 
 import org.apache.ibatis.annotations.*;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 import java.util.Map;
@@ -274,6 +275,26 @@ public interface VideoMapper {
     //回读当前播放量（配合 addVideoView 使用，返回真实数值而非受影响行数）
     @Select("SELECT view_count FROM video WHERE id=#{id}")
     Long selectViewCount(@Param("id") long id);
+    /**
+     * 添加收藏功能
+     * 2026/10/13/09:45
+     *
+     *
+     -- 为避免出现未知bug，本收藏夹数据库由AI生成
+     -- 1. 收藏夹本体：一人可建多个
+     CREATE TABLE IF NOT EXISTS playlist(
+     playlist_id        VARCHAR(13)  NOT NULL,               -- 收藏夹ID，RandomlyCreateID 13位字符串，前端 randId() 生成
+     user_id            VARCHAR(13)  NOT NULL,               -- 归属人（谁能改名/删除/加视频）
+     name               VARCHAR(100) NOT NULL,               -- 收藏夹名称
+     description        VARCHAR(500) NULL,                   -- 简介，可空
+     is_public          TINYINT(1)   NOT NULL DEFAULT 1,     -- 1=公开（他人可见） 0=仅自己可见
+     create_time        DATETIME     DEFAULT CURRENT_TIMESTAMP,
+     PRIMARY KEY        (playlist_id),
+     UNIQUE KEY uk_playlist_name (user_id, name),     -- 同一人不允许两个同名收藏夹，查询也更友好
+     KEY idx_playlist_user (user_id, create_time),    -- "我的收藏夹列表"按创建时间走索引
+     CONSTRAINT fk_playlist_user FOREIGN KEY (user_id)
+     REFERENCES user_information(user_id) ON DELETE CASCADE
+     ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
      -- 2. 收藏夹内容：一条记录 = 一次收藏（多对多中间表，与 video_like/subscription 同构）
      CREATE TABLE IF NOT EXISTS playlist_video(
@@ -292,25 +313,66 @@ public interface VideoMapper {
      *
      *
      * **/
-    //建立收藏夹
+    ////建立收藏夹，不是把视频放进收藏夹里，因为收藏夹还没创建呢！
     @Insert("""
     INSERT INTO playlist(playlist_id,user_id,name,description,is_public) values
-                (#{pList},#{userId},#{name},#{discription},#{isPublic})
+                (#{pList},#{userId},#{name},#{description},#{isPublic})
     """)
-    int createLikeFormat(@Param("pList") String pList,
-                         @Param("userId") String userId,
-                         @Param("name") String name,
+    int createLikeFormat(@Param("pList")       String pList,
+                         @Param("userId")      String userId,
+                         @Param("name")        String name,
                          @Param("description") String description,
-                                               int isPublic
+                         @Param("isPublic")    int isPublic
     );
     //把视频放进收藏夹里
     @Insert("""
-    INSERT INTO playlist_video(playlist_id,video_id) values(#{pList},#{videoId})
+    INSERT IGNORE INTO playlist_video(playlist_id,video_id) values(#{pList},#{videoId})
     """)
     int addToLikeList(@Param("pList")  String pList,
+
                       @Param("videoId")String videoId);
     //取消收藏
     @Delete("""
     DELETE FROM playlist where playlist_id=#{pList} and user_id=#{userId}
     """)
+    int deleteLike(@Param("pList") String pList,
+                   @Param("userId") String userId);
+    //从收藏夹里移出一个视频（deleteLike 是整个收藏夹没了，这个是单条移出）
+    @Delete("""
+    DELETE FROM playlist_video where playlist_id=#{pList} and video_id=#{videoId}
+    """)
+    int removeFromLikeList(@Param("pList") String pList, @Param("videoId") long videoId);
+
+    /**
+     * 某人的收藏夹列表（前端收藏弹窗 + 频道页收藏夹标签用）：
+     * 自己的全部可见；别人的只看公开（is_public=1）。
+     * video_count=夹内视频数；in_list=当前这条视频是否已在该夹（收藏按钮回显，EXISTS 子查询）。
+     * DATE_FORMAT 防 Map 序列化时间戳，与私信收件箱同款处理。
+     */
+    @Select("""
+    SELECT p.playlist_id, p.name, p.description, p.is_public,
+           DATE_FORMAT(p.create_time, '%Y-%m-%d %H:%i:%S') AS create_time,
+           COUNT(pv.video_id) AS video_count,
+           EXISTS(SELECT 1 FROM playlist_video x
+                   WHERE x.playlist_id = p.playlist_id AND x.video_id = #{videoId}) AS in_list
+    FROM playlist p
+    LEFT JOIN playlist_video pv ON pv.playlist_id = p.playlist_id
+    WHERE p.user_id = #{owner} AND (p.is_public = 1 OR p.user_id = #{viewer})
+    GROUP BY p.playlist_id, p.name, p.description, p.is_public, p.create_time
+    ORDER BY p.create_time DESC
+    """)
+    List<Map<String,Object>> selectLikeFormats(@Param("owner") String owner,
+                                               @Param("viewer") String viewer,
+                                               @Param("videoId") long videoId);
+
+    //某个收藏夹里的视频（收藏夹详情页用）
+    @Select("""
+    SELECT v.id, v.user_id, v.title, v.video_path, v.view_count,
+           DATE_FORMAT(pv.create_time, '%Y-%m-%d %H:%i:%S') AS fav_time
+    FROM playlist_video pv
+    JOIN video v ON v.id = pv.video_id
+    WHERE pv.playlist_id = #{pList}
+    ORDER BY pv.create_time DESC
+    """)
+    List<Map<String,Object>> selectLikeFormatVideos(@Param("pList") String pList);
 }

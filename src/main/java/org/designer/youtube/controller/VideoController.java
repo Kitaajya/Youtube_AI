@@ -34,6 +34,8 @@ import lombok.RequiredArgsConstructor;
 import org.designer.youtube.common.Result;
 import org.designer.youtube.service.VideoFileService;
 import org.designer.youtube.service.VideoService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -47,6 +49,7 @@ import java.util.Map;
 public class VideoController {
     private final VideoService vs;
     private final VideoFileService vfs;
+    private final Logger log= LoggerFactory.getLogger(VideoController.class);
 
     //上传视频文件（文件本体真正传到服务器并落盘，返回可直接播放的 URL）
     @PostMapping("/upload/file")
@@ -188,4 +191,60 @@ public class VideoController {
     public Result<Map<String,Object>> addVideoView(@RequestParam long id) {
         return vs.addVideoView(id);
     }
+
+    /**
+     * 收藏夹的一系列操作
+     *
+     *
+     *
+     *
+     *
+     * **/
+    //建立收藏夹，不是把视频放进收藏夹里，因为收藏夹还没创建呢！
+    @PostMapping("/create/like/format")
+    public Result<Map<String,Object>> createLikeFormat(@RequestParam String pList,
+                                                       @RequestParam String userId,
+                                                       @RequestParam String name,
+                                                       @RequestParam String description,
+                                                       @RequestParam int isPublic){
+        return vs.createLikeFormat(pList, userId, name, description, isPublic);
+    }
+    //取消收藏
+    @DeleteMapping("/delete/like")
+    public Result<Map<String,Object>> deleteLike(@RequestParam String pList,
+                                                 @RequestParam String userId){
+        try{
+            //延迟两秒
+            Thread.sleep(2000);
+        }
+        catch (Exception e){
+            log.error("休眠线程发生异常!{}",e.getMessage());
+        }
+        return vs.deleteLike(pList, userId);
+    }
+    //把视频放进收藏夹
+    @PostMapping("/add/to/like")
+    public Result<Map<String,Object>> addToLikeList(@RequestParam String pList,
+                                                    @RequestParam String videoId){
+        return vs.addToLikeList(pList, videoId);
+    }
+    //从收藏夹移出一个视频（收藏夹保留）
+    @DeleteMapping("/remove/from/like")
+    public Result<Map<String,Object>> removeFromLikeList(@RequestParam String pList,
+                                                         @RequestParam long videoId){
+        return vs.removeFromLikeList(pList, videoId);
+    }
+    //收藏夹列表：owner=夹子归属人 viewer=当前访问者 videoId=用于回显"这条视频收进了哪些夹"
+    @GetMapping("/select/like/format")
+    public Result<List<Map<String,Object>>> selectLikeFormats(@RequestParam String owner,
+                                                              @RequestParam String viewer,
+                                                              @RequestParam(defaultValue = "0") long videoId){
+        return Result.success(vs.selectLikeFormats(owner, viewer, videoId));
+    }
+    //某个收藏夹里的视频
+    @GetMapping("/select/like/format/videos")
+    public Result<List<Map<String,Object>>> selectLikeFormatVideos(@RequestParam String pList){
+        return Result.success(vs.selectLikeFormatVideos(pList));
+    }
+
 }
