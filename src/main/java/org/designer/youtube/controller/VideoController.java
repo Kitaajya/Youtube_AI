@@ -246,5 +246,9 @@ public class VideoController {
     public Result<List<Map<String,Object>>> selectLikeFormatVideos(@RequestParam String pList){
         return Result.success(vs.selectLikeFormatVideos(pList));
     }
-
+    //清空收藏夹
+    @DeleteMapping("/clear/list")
+    public Result<Map<String,Object>> clearLikeList(@RequestParam String pList){
+        return vs.clearLikeList(pList);
+    }
 }
