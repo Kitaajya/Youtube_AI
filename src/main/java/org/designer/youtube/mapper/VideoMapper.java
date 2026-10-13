@@ -375,4 +375,9 @@ public interface VideoMapper {
     ORDER BY pv.create_time DESC
     """)
     List<Map<String,Object>> selectLikeFormatVideos(@Param("pList") String pList);
+    //清空某个文件夹
+    @Delete("""
+    DELETE FROM playlist WHERE playlist_id=#{pList}
+    """)
+    int clearLikeList(@Param("pList") String pList);
 }
