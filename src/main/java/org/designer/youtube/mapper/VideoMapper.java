@@ -301,5 +301,16 @@ public interface VideoMapper {
                          @Param("userId") String userId,
                          @Param("name") String name,
                          @Param("description") String description,
-                         int isPublic);
+                                               int isPublic
+    );
+    //把视频放进收藏夹里
+    @Insert("""
+    INSERT INTO playlist_video(playlist_id,video_id) values(#{pList},#{videoId})
+    """)
+    int addToLikeList(@Param("pList")  String pList,
+                      @Param("videoId")String videoId);
+    //取消收藏
+    @Delete("""
+    
+    """)
 }
