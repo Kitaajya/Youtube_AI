@@ -152,5 +152,13 @@ public class VideoService {
         return Result.success("已取消点赞", Map.of(
                 "like_count", vm.selectLikeQuantity(id), "liked", false));
     }
-
+    public Result<Map<String,Object>> createLikeFormat(String pList,
+                                                       String userId,
+                                                       String name,
+                                                       String description,
+                                                       int isPublic){
+        int k=vm.createLikeFormat(pList, userId, name, description, isPublic);
+        if(k==0) return Result.fail("收藏失败");
+        return Result.success("收藏成功",Map.of("success",true));
+    }
 }
