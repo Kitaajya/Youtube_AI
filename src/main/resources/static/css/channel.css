@@ -1,0 +1,210 @@
+/* ===== 频道页（profile.html）仿 YouTube 频道布局 ===== 颜色全部走主题变量，深浅色自适应 */
+.ch-wrap { max-width: 1280px; margin: 0 auto; padding: 0 24px 48px; }
+
+/* ---------- 横幅：默认用 /logo_word.png 作频道封面，图加载不到时退回渐变占位 ---------- */
+.ch-banner {
+    height: 140px;
+    border-radius: 16px;
+    margin-top: 16px;
+    border: 1px solid var(--border);
+    background: url('/logo_word.png') center / cover no-repeat,
+                linear-gradient(135deg, var(--surface-2), var(--surface) 45%, var(--surface-2));
+}
+
+/* ---------- 频道头部：居中头像 + 信息列 ---------- */
+.ch-head {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 28px;
+    padding: 24px 0 8px;
+}
+.ch-avatar {
+    width: 128px; height: 128px;
+    font-size: 48px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--surface-2);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+.ch-meta { min-width: 0; max-width: 640px; }
+.ch-title { font-size: 26px; font-weight: 700; margin: 0; line-height: 1.3; word-break: break-all; }
+.ch-sub { color: var(--text-secondary); font-size: 14px; margin-top: 4px; }
+.ch-bio { font-size: 14px; color: var(--text-secondary); margin-top: 8px; }
+.ch-actions { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
+.ch-mini { color: var(--text-secondary); font-size: 12px; margin-top: 2px; }
+
+/* 关注按钮：仿 Subscribe 药丸。未关注=反色高亮，已关注=暗底描边 */
+.ch-follow { border-radius: 20px; height: 36px; padding: 0 16px; font-weight: 500; }
+.ch-follow.subscribed { background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border); }
+
+/* ---------- 标签栏 ---------- */
+.ch-tabs { display: flex; gap: 4px; margin-top: 20px; }
+.ch-tab {
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    border-radius: 8px 8px 0 0;
+    font-family: inherit;
+}
+.ch-tab:hover { background: var(--surface-hover); color: var(--text-primary); }
+.ch-tab.active { color: var(--text-primary); }
+.ch-tab-line { height: 1px; background: var(--border); }
+.ch-panel { padding-top: 24px; }
+
+/* ---------- 首页：精选大卡（缩略图左 + 标题右） ---------- */
+.feature {
+    display: grid;
+    grid-template-columns: minmax(0, 360px) 1fr;
+    gap: 24px;
+    align-items: center;
+    margin-bottom: 28px;
+    cursor: pointer;
+}
+.feature .thumb {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    background: var(--surface-2);
+}
+.feature .thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.feature .f-title { font-size: 18px; font-weight: 500; line-height: 1.4; }
+.feature .f-sub { color: var(--text-secondary); font-size: 13px; margin-top: 6px; }
+
+/* ---------- 首页：其余视频网格 ---------- */
+.ch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.ch-card { cursor: pointer; }
+.ch-card .thumb {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    background: var(--surface-2);
+}
+.ch-card .thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ch-card .c-title {
+    font-size: 14px;
+    font-weight: 500;
+    margin-top: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.ch-card .c-sub { color: var(--text-secondary); font-size: 12px; margin-top: 4px; }
+
+/* ---------- 收藏夹卡片（频道页"收藏夹"标签） ---------- */
+.pl-card {
+    position: relative;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+}
+.pl-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px rgba(0,0,0,.16);
+    border-color: var(--focus-ring);
+}
+/* 封面占位区：渐变 + 播放列表图标，角标显示视频数 */
+.pl-card .pl-cover {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    display: flex; align-items: center; justify-content: center;
+    background:
+        radial-gradient(120% 120% at 20% 0%, rgba(255,255,255,.10), transparent 60%),
+        linear-gradient(135deg, var(--link) 0%, var(--link-hover) 100%);
+}
+.pl-card .pl-cover .pl-ic {
+    font-size: 34px; color: rgba(255,255,255,.9);
+    text-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+.pl-card .pl-count {
+    position: absolute; right: 8px; bottom: 8px;
+    min-width: 22px; padding: 2px 7px;
+    background: rgba(0,0,0,.6);
+    color: #fff; font-size: 12px; font-weight: 600;
+    border-radius: 6px;
+    backdrop-filter: blur(2px);
+}
+/* 信息区 */
+.pl-card .pl-body { padding: 12px 14px 14px; }
+.pl-card .pl-name {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.pl-card .pl-sub {
+    color: var(--text-secondary);
+    font-size: 12px;
+    margin-top: 5px;
+    display: flex; align-items: center; gap: 6px;
+}
+.pl-card .pl-tag {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 1px 7px; border-radius: 6px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    font-size: 11px;
+}
+.pl-card .pl-tag.private { color: var(--text-tertiary); }
+/* 自己的频道页：标签是 button，可点击切换可见性 */
+.pl-card button.pl-tag {
+    cursor: pointer; font-family: inherit; line-height: 1.6;
+    transition: border-color .12s ease, background .12s ease;
+}
+.pl-card button.pl-tag:hover { border-color: var(--focus-ring); background: var(--surface-hover); }
+.pl-card button.pl-tag:disabled { opacity: .5; cursor: wait; }
+#pl-detail .ch-grid { margin-top: 12px; }
+
+/* ---------- 关注与粉丝 ---------- */
+.ch-social { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+.ch-col-title { font-size: 16px; font-weight: 500; margin-bottom: 12px; }
+#sc-follow, #sc-fans { display: flex; flex-direction: column; gap: 6px; }
+.user-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    cursor: pointer;
+}
+.user-card:hover { background: var(--surface-hover); }
+.user-card .avatar {
+    width: 40px; height: 40px;
+    font-size: 16px;
+    border-radius: 50%;
+    background: var(--surface-2);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.user-card .uc-txt { min-width: 0; }
+.user-card .uc-name { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- 窄屏 ---------- */
+@media (max-width: 720px) {
+    .ch-head { flex-direction: column; align-items: center; text-align: center; }
+    .ch-avatar { width: 96px; height: 96px; font-size: 36px; }
+    .ch-actions { justify-content: center; }
+    .feature { grid-template-columns: 1fr; }
+}
