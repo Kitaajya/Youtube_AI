@@ -343,6 +343,14 @@ public interface VideoMapper {
     """)
     int removeFromLikeList(@Param("pList") String pList, @Param("videoId") long videoId);
 
+    //切换收藏夹可见性：WHERE 带 user_id，只能改自己的；返回 0=夹子不存在或无权限
+    @Update("""
+    UPDATE playlist SET is_public=#{isPublic} where playlist_id=#{pList} and user_id=#{userId}
+    """)
+    int updateLikeFormatPublic(@Param("pList") String pList,
+                               @Param("userId") String userId,
+                               @Param("isPublic") int isPublic);
+
     /**
      * 某人的收藏夹列表（前端收藏弹窗 + 频道页收藏夹标签用）：
      * 自己的全部可见；别人的只看公开（is_public=1）。

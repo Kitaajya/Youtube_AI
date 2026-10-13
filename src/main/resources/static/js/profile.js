@@ -147,6 +147,10 @@
         grid.innerHTML = rows.map(p => {
             const pid = String(YT.pick(p, 'playlist_id'));
             const pub = Number(YT.pick(p, 'is_public') || 0) > 0;
+            // 自己的频道：可见性标签做成可点按钮（切换公开/私密）；看别人：只读标签
+            const visEl = isMine
+                ? `<button class="pl-tag ${pub ? '' : 'private'}" data-toggle-vis="${YT.esc(pid)}" data-pub="${pub ? 1 : 0}" type="button" title="点击切换公开/私密">${pub ? '&#127760; 公开' : '&#128274; 私密'}</button>`
+                : `<span class="pl-tag ${pub ? '' : 'private'}">${pub ? '&#127760; 公开' : '&#128274; 私密'}</span>`;
             return `
             <div class="pl-card" data-pid="${YT.esc(pid)}" data-name="${YT.esc(YT.pick(p, 'name'))}">
                 <div class="pl-cover">
@@ -156,7 +160,7 @@
                 <div class="pl-body">
                     <div class="pl-name">${YT.esc(YT.pick(p, 'name'))}</div>
                     <div class="pl-sub">
-                        <span class="pl-tag ${pub ? '' : 'private'}">${pub ? '&#127760; 公开' : '&#128274; 私密'}</span>
+                        ${visEl}
                         <span>${YT.timeAgo(YT.pick(p, 'create_time')) || YT.fmtFull(YT.pick(p, 'create_time'))}</span>
                     </div>
                 </div>
@@ -164,8 +168,36 @@
         }).join('');
     }
 
+    // 切换收藏夹可见性（仅自己频道页有此按钮）：调用后端 edit/like/format/public
+    document.addEventListener('click', async e => {
+        const btn = e.target.closest('[data-toggle-vis]');
+        if (!btn) return;
+        e.stopPropagation();                 // 别触发卡片的"展开视频"
+        const pid = btn.dataset.toggleVis;
+        const next = btn.dataset.pub === '1' ? 0 : 1;   // 翻转到目标状态
+        btn.disabled = true;
+        try {
+            const r = await YT.api.post('/api/video/edit/like/format/public', { pList: pid, userId: me.userId, isPublic: next });
+            if (r.success) {
+                btn.dataset.pub = String(next);
+                btn.classList.toggle('private', next === 0);
+                btn.innerHTML = next === 1 ? '&#127760; 公开' : '&#128274; 私密';
+                YT.toast(r.message || (next === 1 ? '已设为公开' : '已设为私密'));
+            } else {
+                YT.toast(r.message || '切换失败');
+            }
+        } catch (err) {
+            YT.toast('请求失败：' + err.message);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
     // 点收藏夹卡片 → 展开夹内视频
     document.addEventListener('click', async e => {
+        // 点在"公开/私密"切换按钮上时不触发展开：
+        // 两个监听器同挂在 document 上，stopPropagation 拦不住同级监听器，只能在这里判断
+        if (e.target.closest('[data-toggle-vis]')) return;
         const card = e.target.closest('.pl-card');
         if (!card) return;
         const detail = $('#pl-detail');

@@ -213,6 +213,10 @@ button { font-family: inherit; cursor: pointer; }
     transition: border-color .12s ease, box-shadow .12s ease;
 }
 .fav-new input:focus { border-color: var(--focus-ring); box-shadow: 0 0 0 1px var(--focus-ring); }
+/* 可见性切换按钮：公开=主题蓝描边，私密=暗底（复用主题变量，深浅色自适应） */
+.fav-new .fav-vis { flex-shrink: 0; white-space: nowrap; border: 1px solid var(--border); color: var(--text-secondary); }
+.fav-new .fav-vis:hover { background: var(--surface-hover); }
+.fav-new .fav-vis:not(.private) { border-color: var(--link); color: var(--link); }
 .fav-close { align-self: stretch; width: 100%; justify-content: center; margin-top: 10px; }
 .w-title { font-size: 18px; font-weight: 500; margin: 16px 0 8px; }
 .w-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }

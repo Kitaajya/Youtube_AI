@@ -234,6 +234,13 @@ public class VideoController {
                                                          @RequestParam long videoId){
         return vs.removeFromLikeList(pList, videoId);
     }
+    //切换收藏夹可见性：isPublic 1=公开 0=私密（只能改自己的收藏夹）
+    @PostMapping("/edit/like/format/public")
+    public Result<Map<String,Object>> updateLikeFormatPublic(@RequestParam String pList,
+                                                             @RequestParam String userId,
+                                                             @RequestParam int isPublic){
+        return vs.updateLikeFormatPublic(pList, userId, isPublic);
+    }
     //收藏夹列表：owner=夹子归属人 viewer=当前访问者 videoId=用于回显"这条视频收进了哪些夹"
     @GetMapping("/select/like/format")
     public Result<List<Map<String,Object>>> selectLikeFormats(@RequestParam String owner,
@@ -251,4 +258,5 @@ public class VideoController {
     public Result<Map<String,Object>> clearLikeList(@RequestParam String pList){
         return vs.clearLikeList(pList);
     }
+
 }

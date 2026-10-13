@@ -185,6 +185,13 @@ public class VideoService {
         if(k == 0) return Result.success("本来就没在里面", Map.of("success", true));
         return Result.success("已移出收藏夹", Map.of("success", true));
     }
+    //切换收藏夹可见性（公开/私密）：只认 0/1，其它值一律归为公开，避免脏值写库
+    public Result<Map<String,Object>> updateLikeFormatPublic(String pList, String userId, int isPublic){
+        int pub = (isPublic == 0) ? 0 : 1;
+        int k = vm.updateLikeFormatPublic(pList, userId, pub);
+        if(k == 0) return Result.fail("收藏夹不存在或无权限");
+        return Result.success(pub == 1 ? "已设为公开" : "已设为私密", Map.of("is_public", pub));
+    }
     //某人的收藏夹列表（含 video_count 与 in_list 回显）
     public List<Map<String,Object>> selectLikeFormats(String owner, String viewer, long videoId){
         return vm.selectLikeFormats(owner, viewer, Math.max(videoId, 0L));
@@ -192,5 +199,15 @@ public class VideoService {
     //某个收藏夹里的视频
     public List<Map<String,Object>> selectLikeFormatVideos(String pList){
         return vm.selectLikeFormatVideos(pList);
+    }
+    //清空某个文件夹
+    public Result<Map<String,Object>> clearLikeList(String pList){
+        try{
+            int k=vm.clearLikeList(pList);
+            if(k!=0) return Result.success("清空成功",Map.of("success",true));
+        } catch (DuplicateKeyException e) {
+            return Result.success("你已经清空过一次了！",Map.of("success",true));
+        }
+        return Result.fail("清空失败，重新清空");
     }
 }

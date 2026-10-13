@@ -219,6 +219,14 @@
 
     // 弹窗 DOM 单例：首次点击时才建
     let favModal = null, favOpenVideoId = null;
+    // 新建收藏夹的可见性（true=公开，false=私密）；创建时随 isPublic 传给后端
+    let favPublic = true;
+    function paintVis(btn) {
+        if (!btn) return;
+        btn.classList.toggle('private', !favPublic);
+        btn.innerHTML = favPublic ? '&#127760; 公开' : '&#128274; 私密';
+        btn.title = favPublic ? '当前公开，点击改为仅自己可见' : '当前私密，点击改为公开';
+    }
     function buildFavModal() {
         const el = document.createElement('div');
         el.className = 'fav-modal';
@@ -229,6 +237,7 @@
                 <div class="fav-list" id="fav-list"><div class="w-stats">加载中…</div></div>
                 <div class="fav-new">
                     <input type="text" id="fav-name" maxlength="100" placeholder="新建收藏夹名称">
+                    <button class="btn sm fav-vis" id="fav-vis" type="button"></button>
                     <button class="btn sm primary" id="fav-create">创建</button>
                 </div>
                 <button class="btn sm fav-close" id="fav-close">关闭</button>
@@ -238,6 +247,10 @@
         el.querySelector('#fav-close').addEventListener('click', closeFav);
         el.querySelector('#fav-create').addEventListener('click', createPlaylist);
         el.querySelector('#fav-name').addEventListener('keydown', e => { if (e.key === 'Enter') createPlaylist(); });
+        // 可见性切换按钮：点一下在"公开/私密"间翻转
+        const visBtn = el.querySelector('#fav-vis');
+        paintVis(visBtn);
+        visBtn.addEventListener('click', () => { favPublic = !favPublic; paintVis(visBtn); });
         el.querySelector('#fav-list').addEventListener('click', e => {
             const item = e.target.closest('.fav-item');
             if (item) toggleFav(item);
@@ -247,6 +260,7 @@
     async function openFav() {
         if (!favModal) favModal = buildFavModal();
         favModal.style.display = '';
+        paintVis(favModal.querySelector('#fav-vis'));   // 每次打开同步一次按钮显示
         await renderFavList();
     }
     function closeFav() { if (favModal) favModal.style.display = 'none'; }
@@ -309,9 +323,10 @@
         input.value = '';
         try {
             const r = await YT.api.post('/api/video/create/like/format', {
-                pList: YT.randId(), userId: me.userId, name, description: '', isPublic: 1,
+                pList: YT.randId(), userId: me.userId, name, description: '',
+                isPublic: favPublic ? 1 : 0,          // 由弹窗里的可见性按钮决定，不再写死公开
             });
-            if (r.success) { YT.toast('已创建：' + name); await renderFavList(); }
+            if (r.success) { YT.toast(`已创建：${name}（${favPublic ? '公开' : '私密'}）`); await renderFavList(); }
             else YT.toast(r.message || '创建失败');
         } catch (e) { YT.toast('请求失败：' + e.message); }
     }
