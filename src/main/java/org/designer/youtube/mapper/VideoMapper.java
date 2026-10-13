@@ -311,6 +311,6 @@ public interface VideoMapper {
                       @Param("videoId")String videoId);
     //取消收藏
     @Delete("""
-    
+    DELETE FROM playlist where playlist_id=#{pList} and user_id=#{userId}
     """)
 }
