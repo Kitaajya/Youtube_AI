@@ -275,4 +275,31 @@ public interface VideoMapper {
     @Select("SELECT view_count FROM video WHERE id=#{id}")
     Long selectViewCount(@Param("id") long id);
 
+     -- 2. 收藏夹内容：一条记录 = 一次收藏（多对多中间表，与 video_like/subscription 同构）
+     CREATE TABLE IF NOT EXISTS playlist_video(
+     playlist_id        VARCHAR(13) NOT NULL,                -- 属于哪个收藏夹
+     video_id           BIGINT      NOT NULL,                -- 收藏了哪条视频（video.id 是 BIGINT，这里必须同为 BIGINT）
+     create_time        DATETIME    DEFAULT CURRENT_TIMESTAMP, -- 收藏时间，支持"最近收藏优先"排序
+     PRIMARY KEY        (playlist_id, video_id),             -- 联合主键 = 同一收藏夹里一个视频只能出现一次
+     KEY idx_pv_video (video_id, playlist_id),        -- 反查"这视频被哪些收藏夹收了"
+     CONSTRAINT fk_pv_playlist FOREIGN KEY (playlist_id)
+     REFERENCES playlist(playlist_id) ON DELETE CASCADE,   -- 删收藏夹，内容跟着没
+     CONSTRAINT fk_pv_video FOREIGN KEY (video_id)
+     REFERENCES video(id) ON DELETE CASCADE                -- 删视频，所有收藏夹里的引用自动清
+     ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+     *
+     *
+     *
+     *
+     * **/
+    //建立收藏夹
+    @Insert("""
+    INSERT INTO playlist(playlist_id,user_id,name,description,is_public) values
+                (#{pList},#{userId},#{name},#{discription},#{isPublic})
+    """)
+    int createLikeFormat(@Param("pList") String pList,
+                         @Param("userId") String userId,
+                         @Param("name") String name,
+                         @Param("description") String description,
+                         int isPublic);
 }
