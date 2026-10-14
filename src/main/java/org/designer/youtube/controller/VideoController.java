@@ -111,7 +111,8 @@ public class VideoController {
 
     //模糊搜索
     @GetMapping("/select/like")
-    public Result<List<Map<String, Object>>> searchVideo(@RequestParam String keyword) {
+    public Result<List<Map<String, Object>>> searchVideo(@RequestParam String keyword) throws InterruptedException {
+        Thread.sleep(5000);
         return Result.success(vs.searchVideo(keyword));
     }
 
