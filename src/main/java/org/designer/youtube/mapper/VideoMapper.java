@@ -388,4 +388,38 @@ public interface VideoMapper {
     DELETE FROM playlist WHERE playlist_id=#{pList}
     """)
     int clearLikeList(@Param("pList") String pList);
+
+    /**
+     *
+     * 新消息通知表
+     *
+     *
+     * CREATE TABLE IF NOT EXISTS notification(
+     *     notify_id   VARCHAR(13)  NOT NULL,               -- RandomlyCreateID / 前端 randId()
+     *     to_user     VARCHAR(13)  NOT NULL,               -- 通知给谁（作品主人 / 被回复者）
+     *     from_user   VARCHAR(13)  NOT NULL,               -- 谁触发的
+     *     type        VARCHAR(16)  NOT NULL,               -- like / comment / reply / favorite / follow
+     *     video_id    BIGINT       NULL,                   -- 相关视频（关注类为 NULL）
+     *     comment_id  VARCHAR(13)  NULL,                   -- 相关评论（点赞/关注类为 NULL）
+     *     ref_id      VARCHAR(13)  NULL,                   -- 兜底：动态ID等
+     *     contents    VARCHAR(200) NULL,                   -- 摘要，如"赞了你的视频《xxx》"或评论前 50 字
+     *     is_read     TINYINT(1)   NOT NULL DEFAULT 0,
+     *     create_time DATETIME     DEFAULT CURRENT_TIMESTAMP,
+     *     PRIMARY KEY (notify_id),
+     *     KEY idx_nt_inbox (to_user, is_read, create_time),   -- 收件箱 + 未读数，与私信同款
+     *     CONSTRAINT fk_nt_to   FOREIGN KEY (to_user)
+     *         REFERENCES user_information(user_id) ON DELETE CASCADE,
+     *     CONSTRAINT fk_nt_from FOREIGN KEY (from_user)
+     *         REFERENCES user_information(user_id) ON DELETE CASCADE
+     * ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+     *
+     *
+     * **/
+
+    //查看新增赞数
+    @Select("""
+    SELECT notify_id,from_user,to_user,type,video_id,comment_id FROM notification;
+    """)
+    List<Map<String,Object>> addNotifyLike();
+
 }
