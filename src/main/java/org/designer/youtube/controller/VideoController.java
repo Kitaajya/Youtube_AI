@@ -259,5 +259,10 @@ public class VideoController {
     public Result<Map<String,Object>> clearLikeList(@RequestParam String pList){
         return vs.clearLikeList(pList);
     }
+    //我的通知列表：最新在前，带触发人昵称头像、摘要、未读标记
+    public List<Map<String,Object>>selectMyNotifications(@RequestParam String me,
+                                                         @RequestParam int size,@RequestParam int offset){
+        return vs.selectMyNotifications(me, size, offset);
+    }
 
 }
