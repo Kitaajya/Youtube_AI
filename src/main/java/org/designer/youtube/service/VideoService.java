@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Param;
 import org.designer.youtube.common.Result;
 import org.designer.youtube.mapper.VideoMapper;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.repository.config.RepositoryBeanDefinitionRegistrarSupport;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -210,4 +211,33 @@ public class VideoService {
         }
         return Result.fail("清空失败，重新清空");
     }
+    //我的通知列表：最新在前，带触发人昵称头像、摘要、未读标记
+    public List<Map<String,Object>> selectMyNotifications(String me,int size,int offset){
+        return vm.selectMyNotifications(me, size, offset);
+    }
+    //写入一条通知
+    public Result<Map<String,Object>>insertNotify(String notifyId, String toUser, String fromUser, String type,
+                                                  Long videoId, String commentId, String contents){
+        try {
+            int k=vm.insertNotify(notifyId, toUser, fromUser, type, videoId, commentId, contents);
+            if(k!=0) return Result.success("通知成功！",Map.of("success",true));
+        }catch (DuplicateKeyException esq){
+            return Result.success("已经通知过一次了！",Map.of("success",true));
+        }
+        return Result.fail("通知失败");
+    }
+    //查视频作者与标题（点赞/收藏通知要用）
+    public Result<Map<String,Object>> selectVideoOwner(long id){
+        Map<String,Object> owner = vm.selectVideoOwner(id);
+        if (owner == null) return Result.fail("视频不存在");
+        return Result.success(Map.of(
+                "user_id", owner.get("user_id"),
+                "title",   owner.get("title")
+        ));
+    }
+    //查某条评论的作者（回复了你的评论->要通知被回复的人，不是视频作者）
+    public String selectCommentOwner(String commentId){
+        return vm.selectCommentOwner(commentId);
+    }
+
 }

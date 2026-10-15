@@ -143,6 +143,133 @@ const YT = (() => {
         toastTimer = setTimeout(() => el.style.display = 'none', 2600);
     }
 
+    // ---------- 消息提醒（顶栏铃铛）----------
+    // 后端只有一个只读接口：GET /api/video/notify?me=&size=&offset=（返回 Result<List<Map>>）
+    // 因此：红点数字 = 已拉取这一页里 is_read=0 的条数（无独立计数接口，分页后只反映第一页）；
+    //      后端没有"标记已读"接口，所以点开面板不会消除红点——is_read 由后端写入时决定。
+    const NT_PAGE_SIZE = 20;
+    const NT_POLL_MS = 5000;
+    const NT_TYPE = {
+        like:     { icon: '\u{1F44D}', label: '赞了你的视频' },
+        comment:  { icon: '\u{1F4AC}', label: '评论了你的视频' },
+        reply:    { icon: '\u21A9\uFE0F', label: '回复了你的评论' },
+        favorite: { icon: '\u{1F516}', label: '收藏了你的视频' },
+        follow:   { icon: '\u{1F464}', label: '关注了你' },
+    };
+    let ntTimer = null, ntBusy = false, ntStarted = false, ntOpen = false, ntLastSig = '';
+
+    async function ntFetch() {
+        const u = user();
+        if (!u) return [];
+        const r = await api.get('/api/video/notify', { me: u.userId, size: NT_PAGE_SIZE, offset: 0 });
+        const rows = (r && r.data) || [];
+        return Array.isArray(rows) ? rows : [];
+    }
+
+    // 指纹：只取会影响展示的字段。数据没变时完全不碰 DOM，界面无任何动作。
+    function ntSig(rows) {
+        return rows.map(n => [pick(n, 'notify_id'), pick(n, 'is_read')].join('|')).join(';');
+    }
+
+    function ntRow(n) {
+        const type = String(pick(n, 'type') || '');
+        const t = NT_TYPE[type] || { icon: '\u{1F514}', label: '有一条新消息' };
+        const who = String(pick(n, 'nickname') || pick(n, 'from_user') || '有人');
+        const vid = pick(n, 'video_id', 'videoId');
+        const fromId = String(pick(n, 'from_user') || '');
+        // 关注类跳对方频道；其余跳相关视频；都没有就不可点
+        let href = '';
+        if (type === 'follow') {
+            href = fromId ? 'profile.html?userId=' + encodeURIComponent(fromId) + '&name=' + encodeURIComponent(who) : '';
+        } else if (vid) {
+            href = 'watch.html?id=' + encodeURIComponent(vid);
+        }
+        const unread = Number(pick(n, 'is_read') || 0) === 0;
+        const text = String(pick(n, 'contents') || '').trim();
+        return `
+        <div class="nt-item ${unread ? 'unread' : ''}"${href ? ` data-href="${esc(href)}"` : ''}>
+            <span class="nt-ic">${t.icon}</span>
+            <div class="nt-txt">
+                <div class="nt-line"><b>${esc(who)}</b> ${esc(text || t.label)}</div>
+                <div class="nt-time">${esc(timeAgo(pick(n, 'create_time')) || '')}</div>
+            </div>
+        </div>`;
+    }
+
+    async function ntRefresh(force) {
+        let rows;
+        try { rows = await ntFetch(); } catch (e) { return; /* 后端不可用时保持现状 */ }
+        const sig = ntSig(rows);
+        if (!force && sig === ntLastSig) return;
+        ntLastSig = sig;
+        const unread = rows.filter(n => Number(pick(n, 'is_read') || 0) === 0).length;
+        const badge = document.getElementById('nt-badge');
+        if (badge) {
+            badge.textContent = unread > 99 ? '99+' : String(unread);
+            badge.style.display = unread > 0 ? '' : 'none';
+        }
+        // 面板没打开就不渲染列表，省掉无谓的 DOM 写入
+        const list = document.getElementById('nt-list');
+        if (list && ntOpen) {
+            list.innerHTML = rows.length ? rows.map(ntRow).join('')
+                                         : '<div class="nt-empty">暂无消息提醒</div>';
+        }
+    }
+
+    function ntSchedule() {
+        if (document.hidden) { ntTimer = null; return; }
+        ntTimer = setTimeout(async () => {
+            if (!ntBusy && !document.hidden) {
+                ntBusy = true;
+                try { await ntRefresh(false); } catch (e) { /* 单轮失败不中断轮询 */ }
+                finally { ntBusy = false; }
+            }
+            ntSchedule();
+        }, NT_POLL_MS);
+    }
+
+    function ntBind() {
+        const btn = document.getElementById('nt-btn');
+        const panel = document.getElementById('nt-panel');
+        const list = document.getElementById('nt-list');
+        if (!btn || !panel || !list) return;
+        btn.addEventListener('click', async e => {
+            e.stopPropagation();
+            ntOpen = !ntOpen;
+            panel.classList.toggle('open', ntOpen);
+            if (ntOpen) {
+                list.innerHTML = '<div class="nt-empty">加载中…</div>';
+                await ntRefresh(true);      // force：确保面板打开时一定渲染一次
+            }
+        });
+        panel.addEventListener('click', e => e.stopPropagation());   // 点面板内部不关闭
+        list.addEventListener('click', e => {
+            const item = e.target.closest('[data-href]');
+            if (item) location.href = item.dataset.href;
+        });
+        // document 级监听只注册一次（按 id 实时查找，不持有旧 DOM 闭包）
+        if (!ntStarted) {
+            ntStarted = true;
+            document.addEventListener('click', () => {
+                if (!ntOpen) return;
+                ntOpen = false;
+                const p = document.getElementById('nt-panel');
+                if (p) p.classList.remove('open');
+            });
+            // 切到后台标签停轮询，回前台补一次再恢复（避免挂着页面白耗请求）
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    if (ntTimer) { clearTimeout(ntTimer); ntTimer = null; }
+                } else if (!ntTimer) {
+                    ntRefresh(false).catch(() => { /* 忽略 */ });
+                    ntSchedule();
+                }
+            });
+        }
+        ntRefresh(false).catch(() => { /* 忽略 */ });
+        if (!ntTimer) ntSchedule();
+    }
+
     // ---------- 顶栏渲染 ----------
     function renderHeader() {
         const box = document.getElementById('app-header');
@@ -164,6 +291,13 @@ const YT = (() => {
                 ${u ? `
                     <a href="upload.html" class="icon-btn" title="上传视频">&#8679;</a>
                     <a href="dynamic.html" class="icon-btn" title="动态">&#9993;</a>
+                    <div class="nt-wrap">
+                        <button class="icon-btn" id="nt-btn" title="消息提醒">&#128276;<span class="nt-badge" id="nt-badge" style="display:none;">0</span></button>
+                        <div class="nt-panel" id="nt-panel">
+                            <div class="nt-head">消息提醒</div>
+                            <div class="nt-list" id="nt-list"><div class="nt-empty">加载中…</div></div>
+                        </div>
+                    </div>
                     <div class="menu-wrap">
                         <button class="icon-btn" id="yt-menu-btn" style="width:auto;padding:0 4px;">
                             <span class="avatar">${esc((u.nickname || u.userId).slice(0, 1).toUpperCase())}</span>
@@ -195,6 +329,7 @@ const YT = (() => {
             document.getElementById('yt-logout').addEventListener('click', logout);
         }
         if (typeof YT_THEME !== 'undefined') YT_THEME.bind();
+        ntBind();          // 铃铛只在登录态下渲染出来，未登录时函数内部自动跳过
     }
 
     document.addEventListener('DOMContentLoaded', renderHeader);

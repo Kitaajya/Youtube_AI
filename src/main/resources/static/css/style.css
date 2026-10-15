@@ -78,6 +78,48 @@ button { font-family: inherit; cursor: pointer; }
 }
 .menu a:hover, .menu button:hover { background: var(--surface-hover); }
 
+/* ---------- 消息提醒（顶栏铃铛）---------- */
+.nt-wrap { position: relative; }
+.nt-wrap .icon-btn { position: relative; }
+.nt-badge {
+    position: absolute; top: 4px; right: 2px;
+    min-width: 16px; height: 16px; padding: 0 4px;
+    border-radius: 8px;
+    background: var(--danger); color: #fff;
+    font-size: 10px; font-weight: 600; line-height: 16px; text-align: center;
+    pointer-events: none;
+}
+.nt-panel {
+    position: absolute; right: 0; top: 44px;
+    width: 360px; max-width: 92vw;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    box-shadow: var(--shadow-menu);
+    display: none;
+    z-index: 120;
+    overflow: hidden;
+}
+.nt-panel.open { display: block; }
+.nt-head {
+    padding: 12px 16px; font-size: 15px; font-weight: 500;
+    border-bottom: 1px solid var(--divider);
+}
+.nt-list { max-height: 60vh; overflow-y: auto; }
+.nt-empty { padding: 28px 16px; text-align: center; font-size: 13px; color: var(--text-secondary); }
+.nt-item {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--divider);
+}
+.nt-item:last-child { border-bottom: none; }
+.nt-item[data-href] { cursor: pointer; }
+.nt-item[data-href]:hover { background: var(--surface-hover); }
+.nt-item.unread { background: var(--surface-2); }
+.nt-item.unread[data-href]:hover { background: var(--surface-hover); }
+.nt-ic { flex-shrink: 0; font-size: 16px; line-height: 1.4; }
+.nt-txt { min-width: 0; flex: 1; }
+.nt-line { font-size: 13px; line-height: 1.5; word-break: break-word; }
+.nt-time { font-size: 11px; color: var(--text-tertiary); margin-top: 3px; }
+
 /* ---------- 按钮 ---------- */
 .btn {
     display: inline-flex; align-items: center; gap: 6px;

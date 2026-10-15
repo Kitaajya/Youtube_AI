@@ -292,9 +292,11 @@
         const wasOn = item.classList.contains('on');
         item.style.opacity = '.5';
         try {
+            // 补传 userId：后端要生成"XX 收藏了你的视频"通知时，需要知道是谁收藏的。
+            // 当前后端 addToLikeList 没接这个参数，Spring 会忽略多余参数，不影响现有功能。
             const r = wasOn
                 ? await YT.api.del('/api/video/remove/from/like', { pList: pid, videoId: id })
-                : await YT.api.post('/api/video/add/to/like', { pList: pid, videoId: id });
+                : await YT.api.post('/api/video/add/to/like', { pList: pid, videoId: id, userId: me.userId });
             if (r.success) {
                 item.classList.toggle('on', !wasOn);
                 item.querySelector('.fi-check').textContent = wasOn ? '' : '✓';

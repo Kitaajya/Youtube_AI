@@ -1,7 +1,6 @@
 package org.designer.youtube.mapper;
 
 import org.apache.ibatis.annotations.*;
-import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 import java.util.Map;
@@ -416,10 +415,53 @@ public interface VideoMapper {
      *
      * **/
 
-    //查看新增赞数
+
+    //我的通知列表：最新在前，带触发人昵称头像、摘要、未读标记
     @Select("""
-    SELECT notify_id,from_user,to_user,type,video_id,comment_id FROM notification;
+    SELECT n.notify_id, n.type, n.video_id, n.comment_id, n.contents, n.is_read,
+           DATE_FORMAT(n.create_time, '%Y-%m-%d %H:%i:%S') AS create_time,
+           u.user_id AS from_user, u.nickname, u.avatar
+    FROM notification n
+    JOIN user_information u ON u.user_id = n.from_user
+    WHERE n.to_user = #{me}
+    ORDER BY n.create_time DESC
+    LIMIT #{size} OFFSET #{offset}
     """)
-    List<Map<String,Object>> addNotifyLike();
+    List<Map<String, Object>> selectMyNotifications(@Param("me")     String me,
+                                                    @Param("size")   int size,
+                                                    @Param("offset") int offset);
+
+
+    //***********************************************************消息通知模块***********************************************************
+    /**
+     *
+     * 新增消息功能
+     * 2026/10/14/23:00
+     *
+     *
+     *
+     *
+     *
+     * **/
+    //写入一条通知（通知失败不应影响主业务，Service 层用 try-catch 包住）
+    @Insert("""
+    INSERT INTO notification(notify_id,to_user,from_user,type,video_id,comment_id,contents)
+    VALUES(#{notifyId},#{toUser},#{fromUser},#{type},#{videoId},#{commentId},#{contents})
+    """)
+    int insertNotify(@Param("notifyId")  String notifyId,
+                     @Param("toUser")    String toUser,
+                     @Param("fromUser")  String fromUser,
+                     @Param("type")      String type,
+                     @Param("videoId")   Long videoId,
+                     @Param("commentId") String commentId,
+                     @Param("contents")  String contents)    ;
+
+    //查视频作者与标题（点赞/收藏通知要用）
+    @Select("SELECT user_id, title FROM video WHERE id=#{id}")
+    Map<String,Object> selectVideoOwner(@Param("id") long id);
+
+    //查某条评论的作者（回复了你的评论->要通知被回复的人，不是视频作者）
+    @Select("SELECT user_id FROM video_comment WHERE comment_id=#{commentId}")
+    String selectCommentOwner(@Param("commentId") String commentId);
 
 }

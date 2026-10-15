@@ -6,6 +6,10 @@ package org.designer.youtube.controller;
  * @author: Jya Yijya (Tanmoku Kitaajya),China
  * at website www.github.com/Kitaajya in github
  *
+ *
+ *
+ * 第120行左右的模糊搜索我预埋了sleep，提醒只有交会员才能解除
+ *
  * @time: 2026/9/25~2026/10/10
  *
  * @version 1.0
@@ -165,9 +169,11 @@ public class VideoController {
     public Result<List<Map<String,Object>>>selectRepliesByParent(@RequestParam String parentId){
         return Result.success(vs.selectRepliesByParent(parentId));
     }
-    //显示点赞数 + 我是否赞过
-    //注意：路径必须是 /select/like/count，不能再用 /select/like，
-    //      否则与上面的模糊搜索接口重名，Spring 启动会抛 Ambiguous mapping
+    /**
+    显示点赞数 + 我是否赞过
+    注意：路径必须是 /select/like/count，不能再用 /select/like，
+          否则与上面的模糊搜索接口重名，Spring 启动会抛 Ambiguous mapping
+     **/
     @GetMapping("/select/like/count")
     public Result<Map<String,Object>> selectLikeQuantity(@RequestParam long id,
                                                          @RequestParam(required = false) String userId) {
@@ -260,9 +266,29 @@ public class VideoController {
         return vs.clearLikeList(pList);
     }
     //我的通知列表：最新在前，带触发人昵称头像、摘要、未读标记
-    public List<Map<String,Object>>selectMyNotifications(@RequestParam String me,
+    @GetMapping("/notify")
+    public Result<List<Map<String,Object>>>selectMyNotifications(@RequestParam String me,
                                                          @RequestParam int size,@RequestParam int offset){
-        return vs.selectMyNotifications(me, size, offset);
+        return Result.success(vs.selectMyNotifications(me, size, offset));
+    }
+    //写入一条通知
+    @PostMapping("/insert/notify")
+    public Result<Map<String,Object>>insertNotify(@RequestParam String notifyId,
+                                                  @RequestParam String toUser,
+                                                  @RequestParam String fromUser,@RequestParam  String type,
+                                                  @RequestParam Long videoId, @RequestParam String commentId,
+                                                  @RequestParam String contents){
+        return vs.insertNotify(notifyId, toUser, fromUser, type, videoId, commentId, contents);
+    }
+    //查视频作者与标题（点赞/收藏通知要用）
+    @PostMapping("/select/owner")
+    public Result<Map<String,Object>> selectVideoOwner(@RequestParam long id){
+        return vs.selectVideoOwner(id);
+    }
+    //查某条评论的作者（回复了你的评论->要通知被回复的人，不是视频作者）
+    @GetMapping("/select/comment")
+    public String selectCommentOwner(@RequestParam String commentId){
+        return vs.selectCommentOwner(commentId);
     }
 
 }
