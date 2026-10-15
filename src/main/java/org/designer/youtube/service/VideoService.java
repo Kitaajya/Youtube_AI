@@ -230,7 +230,8 @@ public class VideoService {
         }
         return Result.fail("通知失败");
     }
-    //查视频作者与标题（点赞/收藏通知要用）
+    //查视频作者与标题（点赞/收藏通知要用），
+    // 注意，本人设计的收藏通知意为只通知有人收藏，不通知到底是谁收藏的，为保护隐私而建，另外油管官方也是这么设计的
     public Result<Map<String,Object>> selectVideoOwner(long id){
         Map<String,Object> owner = vm.selectVideoOwner(id);
         if (owner == null) return Result.fail("视频不存在");
