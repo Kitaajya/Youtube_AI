@@ -184,6 +184,11 @@ const YT = (() => {
         } else if (vid) {
             href = 'watch.html?id=' + encodeURIComponent(vid);
         }
+
+        //收藏通知，不显示谁收藏的，只显示"收藏了你的视频《xxx》"
+        const isAnon = (type === 'favorite');
+        const whoHtml = isAnon ? '' : `<b>${esc(who)}</b> `;
+
         const unread = Number(pick(n, 'is_read') || 0) === 0;
         const text = String(pick(n, 'contents') || '').trim();
         return `
