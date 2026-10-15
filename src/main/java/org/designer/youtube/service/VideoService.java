@@ -139,6 +139,10 @@ public class VideoService {
             return Result.success("已经点过赞啦", Map.of(
                     "like_count", vm.selectLikeQuantity(id), "liked", true));
         }
+        /**
+         * 设置消息新增
+         * **/
+        sendLikeNotify(id,userId);
         return Result.success("点赞成功", Map.of(
                 "like_count", vm.selectLikeQuantity(id), "liked", true));
     }
