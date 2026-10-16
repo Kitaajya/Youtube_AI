@@ -476,4 +476,11 @@ public interface VideoMapper {
     WHERE to_user=#{me} AND is_read=0
     """)
     int readAndRemoveRedDot(@Param("me") String me);
+
+
+    //新增封面功能，添加封面
+    @Insert("""
+    INSERT INTO video(user_id,cover_path,id) VALUES (#{userId},#{coverPath},#{id})
+    """)
+    int addCover(@Param("userId") String userId,@Param("coverPath") String coverPath,@Param("id")long id);
 }
