@@ -4,6 +4,7 @@ import jakarta.persistence.Cacheable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.annotations.Param;
+import org.designer.youtube.RandomlyCreateID;
 import org.designer.youtube.common.Result;
 import org.designer.youtube.mapper.VideoMapper;
 import org.springframework.dao.DuplicateKeyException;
@@ -20,6 +21,60 @@ import java.util.Map;
 @Cacheable
 public class VideoService {
     private final VideoMapper vm;
+
+    /**
+     *
+     * 设置新消息通知功能
+     *
+     * **/
+    private void sendLikeNotify(long videoId, String fromUser) {
+        try {
+            RandomlyCreateID e=new RandomlyCreateID();
+            Map<String,Object> v = vm.selectVideoOwner(videoId);
+            if (v == null) return;
+            String toUser = String.valueOf(v.get("user_id"));
+            String title  = String.valueOf(v.get("title"));
+            if (toUser.equals(fromUser)) return;                    // 自己赞自己不发
+            String contents = "赞了你的视频《" + title + "》";
+            if (contents.length() > 200) contents = contents.substring(0, 200);
+            vm.insertNotify(e.createId(), toUser, fromUser, "like",
+                    videoId, null, contents);
+        } catch (Exception e) {
+            log.warn("点赞通知写入失败 videoId={}", videoId, e);   // 不影响点赞
+        }
+    }
+
+    private void sendCommentNotify(String commentId, long videoId,
+                                   String fromUser, String content, String parentId) {
+        try {
+            String toUser, type, action;
+            if (parentId == null) {
+                // 一级评论 → 通知视频作者
+                Map<String,Object> v = vm.selectVideoOwner(videoId);
+                if (v == null) return;
+                toUser = String.valueOf(v.get("user_id"));
+                action = "评论了你的视频《" + v.get("title") + "》";
+                type   = "comment";
+            } else {
+                // 楼中楼 → 通知被回复评论的作者
+                toUser = vm.selectCommentOwner(parentId);
+                if (toUser == null) return;
+                action = "回复了你的评论";
+                type   = "reply";
+            }
+            if (toUser.equals(fromUser)) return;
+
+            String brief = content == null ? "" : content;
+            if (brief.length() > 50) brief = brief.substring(0, 50);
+            String contents = action + "：" + brief;
+            if (contents.length() > 200) contents = contents.substring(0, 200);
+            RandomlyCreateID e=new RandomlyCreateID();
+            vm.insertNotify(e.createId(), toUser, fromUser, type,
+                    videoId, commentId, contents);
+        } catch (Exception e) {
+            log.warn("评论通知写入失败 commentId={}", commentId, e);
+        }
+    }
     //***********************************************************视频模块***********************************************************
 
     //上传视频
@@ -102,6 +157,11 @@ public class VideoService {
     public Result<Map<String,Object>> addComment(String commentId,long videoId,String userId,String content,String parentId){
         int k=vm.addComment(commentId, videoId, userId, content, parentId);
         if(k==0) return Result.fail("评论失败");
+
+        /**
+         * 新增消息设置
+         * **/
+        sendCommentNotify(commentId, videoId, userId, content, parentId);
         return Result.success();
     }
     //查某条评论下的全部回复（楼中楼）
@@ -231,6 +291,10 @@ public class VideoService {
         return Result.fail("通知失败");
     }
     //查视频作者与标题（点赞/收藏通知要用），
+    /**
+     * 2026/10/15/20:00
+     *
+     * **/
     // 注意，本人设计的收藏通知意为只通知有人收藏，不通知到底是谁收藏的，为保护隐私而建，另外油管官方也是这么设计的
     public Result<Map<String,Object>> selectVideoOwner(long id){
         Map<String,Object> owner = vm.selectVideoOwner(id);
@@ -244,5 +308,16 @@ public class VideoService {
     public String selectCommentOwner(String commentId){
         return vm.selectCommentOwner(commentId);
     }
-
+    /**
+     * 截止2026/10/15/20:17，此设计有通知已读后不会消失通知红点，而是继续存在。这是一个已知的bug。
+     * deepseek给我的提示是is_read永远没有改变，需要一个@Update使之置1（0表示未读，1表示已读）
+     *
+     * **/
+    //消除未读的通知红点：把发给我的所有未读通知标记为已读
+    public Result<Map<String,Object>> readAndRemoveRedDot(String me){
+        if (me == null || me.isEmpty()) return Result.fail("用户ID不能为空");
+        int k = vm.readAndRemoveRedDot(me);
+        return Result.success(k > 0 ? "已标记 " + k + " 条为已读" : "没有未读通知",
+                Map.of("success", true, "updated", k));
+    }
 }

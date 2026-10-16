@@ -170,14 +170,14 @@ const YT = (() => {
     function ntSig(rows) {
         return rows.map(n => [pick(n, 'notify_id'), pick(n, 'is_read')].join('|')).join(';');
     }
-
+    //通知设置
     function ntRow(n) {
         const type = String(pick(n, 'type') || '');
         const t = NT_TYPE[type] || { icon: '\u{1F514}', label: '有一条新消息' };
         const who = String(pick(n, 'nickname') || pick(n, 'from_user') || '有人');
         const vid = pick(n, 'video_id', 'videoId');
         const fromId = String(pick(n, 'from_user') || '');
-        // 关注类跳对方频道；其余跳相关视频；都没有就不可点
+
         let href = '';
         if (type === 'follow') {
             href = fromId ? 'profile.html?userId=' + encodeURIComponent(fromId) + '&name=' + encodeURIComponent(who) : '';
@@ -195,7 +195,7 @@ const YT = (() => {
         <div class="nt-item ${unread ? 'unread' : ''}"${href ? ` data-href="${esc(href)}"` : ''}>
             <span class="nt-ic">${t.icon}</span>
             <div class="nt-txt">
-                <div class="nt-line"><b>${esc(who)}</b> ${esc(text || t.label)}</div>
+                <div class="nt-line">${whoHtml}${esc(text || t.label)}</div>
                 <div class="nt-time">${esc(timeAgo(pick(n, 'create_time')) || '')}</div>
             </div>
         </div>`;

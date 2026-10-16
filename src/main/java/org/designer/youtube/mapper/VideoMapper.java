@@ -464,4 +464,16 @@ public interface VideoMapper {
     @Select("SELECT user_id FROM video_comment WHERE comment_id=#{commentId}")
     String selectCommentOwner(@Param("commentId") String commentId);
 
+    /**
+     * 截止2026/10/15/20:17，此设计有通知已读后不会消失通知红点，而是继续存在。这是一个已知的bug。
+     * deepseek给我的提示是is_read永远没有改变，需要一个@Update使之置1（0表示未读，1表示已读）
+     *
+     * **/
+
+    //消除未读的通知红点：把发给我的所有未读通知标记为已读
+    @Update("""
+    UPDATE notification SET is_read=1
+    WHERE to_user=#{me} AND is_read=0
+    """)
+    int readAndRemoveRedDot(@Param("me") String me);
 }

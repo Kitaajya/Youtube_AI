@@ -290,5 +290,10 @@ public class VideoController {
     public String selectCommentOwner(@RequestParam String commentId){
         return vs.selectCommentOwner(commentId);
     }
+    //消除未读的通知红点：把发给我的所有未读通知标记为已读
+    @PostMapping("/notify/read/all")
+    public Result<Map<String,Object>> readAndRemoveRedDot(@RequestParam String me){
+        return vs.readAndRemoveRedDot(me);
+    }
 
 }
