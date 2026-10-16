@@ -1,12 +1,3 @@
-# Youtube
-
-注：本说明书由AI生成，有哪里不对的地方直接跟我说就行。
-
-一个从零实现的视频社区网站，前后端一体。覆盖视频上传/播放/点赞/评论、动态社交、私信会话、关注粉丝、收藏夹五大模块，前端为原生 HTML/CSS/JS 多页应用，后端为 Spring Boot + MyBatis + MySQL。
-
-> 本项目为个人学习实践作品，与 YouTube 官方无任何关联。
-
-markdown
 <div align="center">
 
 # YouTube Imitate
@@ -130,14 +121,22 @@ spring.datasource.password=你的数据库密码
 
 # 视频文件落盘目录（需提前创建）
 video.storage.dir=D:/videos/Video_Bilibili_Practice/videos
-3. 启动
-bash
+```
+
+### 3. 启动
+
+```bash
 ./mvnw spring-boot:run
 # 或 IDE 直接运行 YoutubeApplication
-浏览器访问 http://localhost:8080，注册账号即可体验全部功能。
+```
 
-📁 目录结构
-text
+浏览器访问 `http://localhost:8080`，注册账号即可体验全部功能。
+
+---
+
+## 📁 目录结构
+
+```
 ├── sql/                        # 建表与修复脚本
 └── src/main/
     ├── java/org/designer/youtube/
@@ -154,72 +153,81 @@ text
             ├── css/            # vars(主题变量)/dark/style/channel/pm/register
             ├── js/             # common(请求封装)/watch/profile/message 等
             └── *.html          # index/login/register/upload/dynamic/watch/profile/message
-🗄 数据表一览
-表	用途	关键设计
-user_information	用户	user_id 13位随机主键，username 唯一
-video	视频	自增技术主键，view_count 默认 0
-video_like	点赞	联合主键 (video_id, user_id) 去重
-video_comment	视频评论	parent_id 自引用外键实现楼中楼
-dynamic	动态	—
-content_comments	动态评论	同上，楼中楼
-private_message	私信	is_read 标记 + idx_pm_inbox 收件箱索引
-subscription	关注关系	联合主键 (fan_id, up_id)，双向 ON DELETE CASCADE
-playlist	收藏夹	user_id 归属，uk_playlist_name 同人不可重名
-playlist_video	收藏内容	联合主键 (playlist_id, video_id) 去重，双端级联清理
-notification	消息通知	is_read 标记 + idx_nt_inbox(to_user, is_read, create_time) 索引
+```
+
+---
+
+## 🗄 数据表一览
+
+| 表 | 用途 | 关键设计 |
+|---|---|---|
+| `user_information` | 用户 | user_id 13位随机主键，username 唯一 |
+| `video` | 视频 | 自增技术主键，view_count 默认 0 |
+| `video_like` | 点赞 | 联合主键 (video_id, user_id) 去重 |
+| `video_comment` | 视频评论 | parent_id 自引用外键实现楼中楼 |
+| `dynamic` | 动态 | — |
+| `content_comments` | 动态评论 | 同上，楼中楼 |
+| `private_message` | 私信 | is_read 标记 + idx_pm_inbox 收件箱索引 |
+| `subscription` | 关注关系 | 联合主键 (fan_id, up_id)，双向 ON DELETE CASCADE |
+| `playlist` | 收藏夹 | user_id 归属，uk_playlist_name 同人不可重名 |
+| `playlist_video` | 收藏内容 | 联合主键 (playlist_id, video_id) 去重，双端级联清理 |
+| `notification` | 消息通知 | is_read 标记 + idx_nt_inbox(to_user, is_read, create_time) 索引 |
+
 所有外键两端类型逐字对齐（VARCHAR(13) / utf8mb4_0900_ai_ci），避免 MySQL 3780 错误。
 
-📡 API 一览
-统一返回 Result{code, success, message, data}；参数均为 @RequestParam（urlencoded / query string）。
+---
 
-用户 /api/user
-POST /create/user/account · POST /login（验证码校验） · GET /select/me/follow · GET /select/me/fans · POST /follow · POST /unfollow
+## 📡 API 一览
 
-视频 /api/video
-POST /upload/file · POST /upload · GET /select · GET /select/videos/upinfor · GET /select/videos/upname · GET /select/all/videos · GET /select/video/single/infor · GET /select/video/title · GET /select/like（模糊搜索） · GET /select/path · GET /show/title · POST /edit/title · DELETE /delete/videos · POST /add/view（播放计数）
-点赞：POST /add/like · POST /cancel/like · GET /select/like/count
-评论：GET /get/all/comments · POST /add/my/comments · POST /edit/my/comments · DELETE /delete/my/comments · GET /select/parent/comments
+统一返回 `Result{code, success, message, data}`；参数均为 `@RequestParam`（urlencoded / query string）。
 
-收藏夹 /api/video
-POST /create/like/format（建夹） · POST /add/to/like（收视频入夹） · DELETE /remove/from/like（单条移出） · DELETE /delete/like（删整个夹） · GET /select/like/format（夹列表+回显） · GET /select/like/format/videos（夹内视频） · POST /edit/like/format/public（切换公开/私密） · DELETE /clear/list
+**用户 `/api/user`**  
+`POST /create/user/account` · `POST /login`（验证码校验） · `GET /select/me/follow` · `GET /select/me/fans` · `POST /follow` · `POST /unfollow`
 
-动态 /api/dynamic
-GET /dynamic/select/all · POST /dynamic/write · POST /dynamic/edit · DELETE /dynamic/delete
+**视频 `/api/video`**  
+`POST /upload/file` · `POST /upload` · `GET /select` · `GET /select/videos/upinfor` · `GET /select/videos/upname` · `GET /select/all/videos` · `GET /select/video/single/infor` · `GET /select/video/title` · `GET /select/like`（模糊搜索） · `GET /select/path` · `GET /show/title` · `POST /edit/title` · `DELETE /delete/videos` · `POST /add/view`（播放计数）  
+点赞：`POST /add/like` · `POST /cancel/like` · `GET /select/like/count`  
+评论：`GET /get/all/comments` · `POST /add/my/comments` · `POST /edit/my/comments` · `DELETE /delete/my/comments` · `GET /select/parent/comments`
 
-私信 /api/private_message
-POST /send · GET /select/message · GET /select/inbox · GET /count/unread · POST /read
+**收藏夹 `/api/video`**  
+`POST /create/like/format`（建夹） · `POST /add/to/like`（收视频入夹） · `DELETE /remove/from/like`（单条移出） · `DELETE /delete/like`（删整个夹） · `GET /select/like/format`（夹列表+回显） · `GET /select/like/format/videos`（夹内视频） · `POST /edit/like/format/public`（切换公开/私密） · `DELETE /clear/list`
 
-消息通知 /api/video
-GET /notify（通知列表，带 is_read） · POST /insert/notify（写入通知） · POST /notify/read/all（标记全部已读，消红点） · POST /select/owner（查视频作者与标题） · GET /select/comment（查评论作者）
+**动态 `/api/dynamic`**  
+`GET /dynamic/select/all` · `POST /dynamic/write` · `POST /dynamic/edit` · `DELETE /dynamic/delete`
 
-验证码
-GET /captcha（生成图片） · GET /checkCaptcha（校验）
+**私信 `/api/private_message`**  
+`POST /send` · `GET /select/message` · `GET /select/inbox` · `GET /count/unread` · `POST /read`
 
-⚠️ 已知局限（学习项目取舍）
-密码明文存储；登录态仅存于浏览器 localStorage，接口层未做会话鉴权，userId 由前端传入（可被伪造）——生产场景必须补 Session/Token 校验与密码哈希
+**消息通知 `/api/video`**  
+`GET /notify`（通知列表，带 is_read） · `POST /insert/notify`（写入通知） · `POST /notify/read/all`（标记全部已读，消红点） · `POST /select/owner`（查视频作者与标题） · `GET /select/comment`（查评论作者）
 
-播放量未做防刷去重，刷新页面会重复计数
+**验证码**  
+`GET /captcha`（生成图片） · `GET /checkCaptcha`（校验）
 
-列表接口大多无分页，数据量大时需补 LIMIT/OFFSET
+---
 
-删除视频只删数据库记录，不清理磁盘文件，长期运行会占用存储
+## ⚠️ 已知局限（学习项目取舍）
 
-缓存依赖（spring-boot-starter-cache + Caffeine）已引入，但 VideoService 上的 @Cacheable 未真正生效（类级注解用法有误），目前每次查询直连数据库
+- 密码明文存储；登录态仅存于浏览器 localStorage，接口层未做会话鉴权，userId 由前端传入（可被伪造）——生产场景必须补 Session/Token 校验与密码哈希
+- 播放量未做防刷去重，刷新页面会重复计数
+- 列表接口大多无分页，数据量大时需补 LIMIT/OFFSET
+- 删除视频只删数据库记录，不清理磁盘文件，长期运行会占用存储
+- 缓存依赖（spring-boot-starter-cache + Caffeine）已引入，但 `VideoService` 上的 `@Cacheable` 未真正生效（类级注解用法有误），目前每次查询直连数据库
+- 私信发送失败后前端「先上屏」的乐观更新未做失败回滚
+- 通知红点数字只反映"第一页（20 条）里未读的条数"，若未读 >20 显示不会超过 20；点开后 `read/all` 会清空全部未读
+- 收藏目前不会产生通知（`addToLikeList` 未调 `insertNotify`），只有点赞/评论/回复会写通知
+- 头像/频道横幅目前用首字母占位与默认图，未开放自定义上传
 
-私信发送失败后前端「先上屏」的乐观更新未做失败回滚
+---
 
-通知红点数字只反映"第一页（20 条）里未读的条数"，若未读 >20 显示不会超过 20；点开后 read/all 会清空全部未读
+## 📄 License
 
-收藏目前不会产生通知（addToLikeList 未调 insertNotify），只有点赞/评论/回复会写通知
-
-头像/频道横幅目前用首字母占位与默认图，未开放自定义上传
-
-📄 License
 个人学习项目。仅供交流学习使用。
 
+---
+
 <div align="center">
+
 Made with ❤️ by Jya Yijya (Tanmoku Kitaajya) · 2026
 
-</div> ```
----
-Author: Jya Yijya (Tanmoku Kitaajya) · 2026
+</div>
