@@ -100,7 +100,7 @@ public interface VideoMapper {
      * **/
     //按视频 ID 查询单个视频详情（带点赞数与UP主昵称，播放页一次请求拿全）
     @Select("""
-    SELECT v.id, v.user_id, v.title, v.video_path, v.create_time, v.view_count,
+    SELECT v.id, v.user_id, v.title, v.video_path, v.cover_path, v.create_time, v.view_count,
            (SELECT COUNT(*) FROM video_like vl WHERE vl.video_id = v.id) AS like_count,
            u.nickname AS uploader, u.avatar AS uploader_avatar
     FROM video v
