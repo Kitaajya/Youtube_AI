@@ -244,7 +244,22 @@ const YT = (() => {
             panel.classList.toggle('open', ntOpen);
             if (ntOpen) {
                 list.innerHTML = '<div class="nt-empty">加载中…</div>';
-                await ntRefresh(true);      // force：确保面板打开时一定渲染一次
+                await ntRefresh(true);      // 先用旧 is_read 渲染一次（未读项还能高亮一下）
+
+                // 打开面板 = 用户已看到通知，标记全部已读，红点消失
+                const u = user();
+                if (u) {
+                    try {
+                        await api.post('/api/video/notify/read/all', { me: u.userId });
+                    } catch (err) { /* 标记失败不影响查看 */ }
+
+                    // 就地归零红点，不等下一次轮询（否则要点开面板后 5 秒红点才消失）
+                    const badge = document.getElementById('nt-badge');
+                    if (badge) { badge.textContent = '0'; badge.style.display = 'none'; }
+
+                    // 把列表里 unread 高亮去掉（is_read 在 DOM 上还是 0，重绘一次最干净）
+                    await ntRefresh(true);
+                }
             }
         });
         panel.addEventListener('click', e => e.stopPropagation());   // 点面板内部不关闭
