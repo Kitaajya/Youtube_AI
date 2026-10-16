@@ -303,5 +303,9 @@ public class VideoController {
                                                    @RequestParam MultipartFile file) {
         return vfs.uploadCover(videoId, userId, file);
     }
-
+    //新增观看历史功能，可查询和删除，此处为查询观看历史，一次查询分200条数据，防止因数据过多而查询变慢
+    @GetMapping("/select/history")
+    public Result<List<Map<String,Object>>> selectHistory(@RequestParam String userId){
+        return vs.selectHistory(userId);
+    }
 }
