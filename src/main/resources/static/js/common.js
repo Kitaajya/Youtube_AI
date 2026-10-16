@@ -356,3 +356,4 @@ const YT = (() => {
 
     return { api, randId, user, requireLogin, logout, esc, pick, mediaUrl, thumb, timeAgo, fmtNum, fmtFull, toast, safeFrom, currentPath, FROM_KEY };
 })();
+//截止2026/10/16/8:34，我已经修复了通知红点bug，以上的红点bug注释作废
