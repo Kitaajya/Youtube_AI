@@ -296,4 +296,12 @@ public class VideoController {
         return vs.readAndRemoveRedDot(me);
     }
 
+    // 上传/更换视频封面（只能改自己的视频）
+    @PostMapping("/upload/cover")
+    public Result<Map<String, Object>> uploadCover(@RequestParam long videoId,
+                                                   @RequestParam String userId,
+                                                   @RequestParam MultipartFile file) {
+        return vfs.uploadCover(videoId, userId, file);
+    }
+
 }

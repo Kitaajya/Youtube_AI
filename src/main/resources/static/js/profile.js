@@ -210,9 +210,7 @@
                     const url = YT.mediaUrl(YT.pick(v, 'video_path'));
                     return `
                     <div class="ch-card" onclick="location.href='watch.html?id=${encodeURIComponent(YT.pick(v, 'id'))}'">
-                        <div class="thumb">${url
-                            ? `<video muted preload="metadata" playsinline src="${url}#t=0.1"></video>`
-                            : '<div style="display:flex;align-items:center;justify-content:center;height:100%;">&#9654;</div>'}</div>
+                            <div class="thumb">${thumbHtml(v)}</div>
                         <div class="c-title">${YT.esc(YT.pick(v, 'title'))}</div>
                         <div class="c-sub">${YT.fmtNum(YT.pick(v, 'view_count'))} 次观看 · 收藏于 ${YT.timeAgo(YT.pick(v, 'fav_time')) || YT.fmtFull(YT.pick(v, 'fav_time'))}</div>
                     </div>`;
@@ -280,7 +278,12 @@
     }
 
     // ---------- 首页：精选大卡（最新一条）+ 其余网格 ----------
+    // 频道页封面：优先 cover_path，没有则回退视频首帧
     const thumbHtml = v => {
+        const cover = YT.pick(v, 'cover_path', 'coverPath');
+        if (cover) {
+            return `<img src="${YT.mediaUrl(cover)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;">`;
+        }
         const url = YT.mediaUrl(YT.pick(v, 'video_path'));
         return url
             ? `<video muted preload="metadata" playsinline src="${url}#t=0.1"></video>`

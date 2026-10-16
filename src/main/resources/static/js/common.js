@@ -100,14 +100,23 @@ const YT = (() => {
         return name ? '/videos/' + encodeURIComponent(name) : '';
     }
     // 视频封面：能取到播放地址时用视频首帧，取不到时退回纯色占位
+    // 视频封面：优先用 cover_path（用户选的帧），没有则回退到视频首帧
+    //就这一个函数。 首页/侧栏/搜索的结果都会自动优先显示封面。
     function thumb(v, extraCls) {
-        const url = mediaUrl(pick(v, 'video_path', 'videoPath'));
         const cls = 'thumb ' + (extraCls || '');
         const ic = '<div class="play-ic"></div>';
+
+        const cover = pick(v, 'cover_path', 'coverPath');
+        if (cover) {
+            return `<div class="${cls}"><img src="${mediaUrl(cover)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;">${ic}</div>`;
+        }
+
+        const url = mediaUrl(pick(v, 'video_path', 'videoPath'));
         return url
             ? `<div class="${cls}"><video muted preload="metadata" playsinline src="${url}#t=0.1"></video>${ic}</div>`
             : `<div class="${cls}">&#9654;${ic}</div>`;
     }
+
     function timeAgo(t) {
         if (!t) return '';
         const d = new Date(String(t).replace(' ', 'T'));
@@ -290,6 +299,131 @@ const YT = (() => {
         if (!ntTimer) ntSchedule();
     }
 
+    // ---------- 左侧导航栏图标 ----------
+    const IC = {
+        menu: '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>',
+        home: '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M12 3.2 3.5 10.5V21h6v-6h5v6h6V10.5z"/></svg>',
+        shorts: '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M10.2 2.2 4.6 13.4h4.3L7.6 21.8l8.6-11.6h-4.5l1.4-8z"/></svg>',
+        subs: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M6 4h13a2 2 0 0 1 2 2"/><path d="M10.8 10.6v4.8l4.2-2.4z" fill="currentColor" stroke="none"/></svg>',
+        you: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1-4 4-6 7.5-6s6.5 2 7.5 6"/></svg>',
+        history: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v5l3.5 2"/><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3 8.5"/><path d="M3 3.5v5h5"/></svg>',
+        music: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="7" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><path d="M10 18V5l11-2v13"/></svg>',
+        live: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 16.2a6 6 0 0 0 0-8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 19.1a10 10 0 0 0 0-14.2"/></svg>',
+        gaming: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M7 9h10a4 4 0 0 1 4 3.6l.5 4.2a2.2 2.2 0 0 1-3.9 1.6L15.9 16H8.1l-1.7 2.4a2.2 2.2 0 0 1-3.9-1.6L3 12.6A4 4 0 0 1 7 9z"/><path d="M7.5 12.5v2.5M6.25 13.75h2.5"/><circle cx="16" cy="13" r=".6" fill="currentColor"/><circle cx="18" cy="15" r=".6" fill="currentColor"/></svg>',
+        chev: '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M7.4 9.6 12 14.2l4.6-4.6L18 11l-6 6-6-6z"/></svg>',
+        kids: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="4"/><path d="M10.5 9.3v5.4l4.5-2.7z" fill="currentColor" stroke="none"/></svg>',
+        flag: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 4h12.5l-2.6 4 2.6 4H5"/></svg>',
+        grid: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>',
+        search: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="M16 16l4.5 4.5"/></svg>',
+        mic: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
+    };
+
+    // 侧栏展开/收起状态（mini = 72px 图标窄栏，hide = 完全隐藏）
+    function applySb(m) {
+        document.documentElement.setAttribute('data-sb', m);
+        try { localStorage.setItem('yt-sb', m); } catch (e) { /* 隐私模式忽略 */ }
+    }
+    try {
+        const m0 = localStorage.getItem('yt-sb');
+        const def = window.innerWidth <= 1100 ? 'hide' : 'full';
+        document.documentElement.setAttribute('data-sb',
+            (m0 === 'mini' || m0 === 'hide' || m0 === 'full') ? m0 : def);
+    } catch (e) { document.documentElement.setAttribute('data-sb', 'full'); }
+
+    // ---------- 侧栏 HTML ----------
+    function sidebarHtml(u) {
+        const page = (location.pathname.match(/[^/]+\.html/i) || ['index.html'])[0].toLowerCase();
+        const isHome = page === 'index.html';
+        const isYou = page === 'profile.html';
+        const item = (icon, label, opts) => {
+            opts = opts || {};
+            let h = '<a class="sb-item' + (opts.active ? ' active' : '') + '"';
+            if (opts.href) h += ' href="' + opts.href + '"';
+            if (opts.toast) h += ' data-toast="' + esc(opts.toast) + '"';
+            h += ' title="' + esc(label) + '">' + icon + '<span class="sb-lbl">' + esc(label) + '</span></a>';
+            return h;
+        };
+        // 窄栏（收起态）只放四项，与 YouTube 一致
+        const rail = '<div class="sb-rail">'
+            + item(IC.home, '首页', { href: 'index.html', active: isHome })
+            + item(IC.shorts, 'Shorts', { href: 'index.html?q=' + encodeURIComponent('短视频') })
+            + item(IC.you, '你', { href: 'profile.html', active: isYou })
+            + item(IC.history, '历史', { toast: '观看历史暂未开放' })
+            + '</div>';
+        const more = ['科技', '美食', '旅行', '电影', '军事'].map(c =>
+            item(IC.grid, c, { href: 'index.html?q=' + encodeURIComponent(c) })).join('');
+        return rail + '<div class="sb-hide">'
+            + '<div class="sb-sec">'
+            + item(IC.home, '首页', { href: 'index.html', active: isHome })
+            + item(IC.shorts, 'Shorts', { href: 'index.html?q=' + encodeURIComponent('短视频') })
+            + item(IC.subs, '订阅', { href: 'profile.html' })
+            + item(IC.you, '你', { href: 'profile.html', active: isYou })
+            + item(IC.history, '历史', { toast: '观看历史暂未开放' })
+            + '</div>'
+            + (u ? '' : '<div class="sb-sec sb-guest">登录后可点赞、评论和订阅。<br><a href="login.html" class="btn sm sb-signin">' + IC.you + '登录</a></div>')
+            + '<div class="sb-sec"><div class="sb-h">探索</div>'
+            + item(IC.music, '音乐', { href: 'index.html?q=' + encodeURIComponent('音乐') })
+            + item(IC.live, '直播', { href: 'index.html?q=' + encodeURIComponent('直播') })
+            + item(IC.gaming, '游戏', { href: 'index.html?q=' + encodeURIComponent('游戏') })
+            + '<a class="sb-item" id="yt-sb-more">' + IC.chev + '<span class="sb-lbl">显示更多</span></a>'
+            + '<div class="sb-more-items" id="yt-sb-more-list">' + more + '</div>'
+            + '</div>'
+            + '<div class="sb-sec"><div class="sb-h">YouTube 的更多产品</div>'
+            + item(IC.kids, 'YouTube Kids', { toast: 'YouTube Kids 暂未开放' })
+            + '</div>'
+            + '<div class="sb-sec">'
+            + item(IC.flag, '举报历史', { toast: '举报历史暂未开放' })
+            + '</div>'
+            + '</div>';
+    }
+
+    // ---------- 侧栏挂载与交互 ----------
+    function renderSidebar(u) {
+        let nav = document.getElementById('app-sidebar');
+        if (!nav) {
+            nav = document.createElement('nav');
+            nav.id = 'app-sidebar';
+            nav.className = 'sb';
+            document.body.prepend(nav);
+        }
+        nav.innerHTML = sidebarHtml(u);
+        document.documentElement.classList.add('has-sb');
+
+        // 未开放项：点击给提示，不跳页
+        nav.querySelectorAll('[data-toast]').forEach(el => {
+            el.addEventListener('click', e => { e.preventDefault(); toast(el.dataset.toast); });
+        });
+        const moreBtn = document.getElementById('yt-sb-more');
+        const moreList = document.getElementById('yt-sb-more-list');
+        if (moreBtn && moreList) {
+            moreBtn.addEventListener('click', e => {
+                e.preventDefault();
+                const open = moreList.classList.toggle('open');
+                moreBtn.querySelector('.sb-lbl').textContent = open ? '显示更少' : '显示更多';
+                moreBtn.classList.toggle('up', open);
+            });
+        }
+    }
+
+    function bindSbToggle() {
+        const btn = document.getElementById('yt-sb-btn');
+        if (!btn || btn.dataset.bound) return;
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', () => {
+            const cur = document.documentElement.getAttribute('data-sb');
+            // full → mini → 隐藏 → full（窄屏下直接在展开/隐藏间切换）
+            if (window.innerWidth <= 1100) {
+                applySb(cur === 'hide' ? 'full' : 'hide');
+            } else if (cur === 'mini') {
+                applySb('hide');
+            } else if (cur === 'hide') {
+                applySb('full');
+            } else {
+                applySb('mini');
+            }
+        });
+    }
+
     // ---------- 顶栏渲染 ----------
     function renderHeader() {
         const box = document.getElementById('app-header');
@@ -298,14 +432,16 @@ const YT = (() => {
         const q = new URLSearchParams(location.search).get('q') || '';
         box.innerHTML = `
         <header class="hd">
+            <button class="icon-btn" id="yt-sb-btn" type="button" title="菜单">${IC.menu}</button>
             <a class="logo" href="index.html">
                 <svg viewBox="0 0 90 20" height="20"><path d="M27.97 3.12A3.51 3.51 0 0 0 25.5.64C23.27.07 14.6.07 14.6.07S5.93.07 3.7.64A3.51 3.51 0 0 0 1.23 3.12C.66 5.35.66 10 .66 10s0 4.65.57 6.88a3.51 3.51 0 0 0 2.47 2.48c2.23.57 10.9.57 10.9.57s8.67 0 10.9-.57a3.51 3.51 0 0 0 2.47-2.48c.57-2.23.57-6.88.57-6.88s0-4.65-.57-6.88z" fill="#FF0000"/><path d="M11.73 14.29L19.06 10l-7.33-4.29z" fill="#fff"/></svg>
-                <span>YouTube</span>
+                <span>YouTube</span><sup class="logo-cc">CN</sup>
             </a>
             <form class="search" id="yt-search">
-                <input id="yt-search-input" placeholder="搜索视频" value="${esc(q)}">
-                <button type="submit" title="搜索">&#128269;</button>
+                <input id="yt-search-input" placeholder="搜索" value="${esc(q)}">
+                <button type="submit" title="搜索">${IC.search}</button>
             </form>
+            <button class="icon-btn" id="yt-mic" type="button" title="语音搜索">${IC.mic}</button>
             <div class="hd-right">
                 ${typeof YT_THEME !== 'undefined' ? YT_THEME.toggleHtml() : ''}
                 ${u ? `
@@ -341,6 +477,9 @@ const YT = (() => {
             const kw = document.getElementById('yt-search-input').value.trim();
             location.href = kw ? 'index.html?q=' + encodeURIComponent(kw) : 'index.html';
         });
+        renderSidebar(u);
+        const mic = document.getElementById('yt-mic');
+        if (mic) mic.addEventListener('click', () => toast('语音搜索暂未开放'));
         const btn = document.getElementById('yt-menu-btn');
         if (btn) {
             const menu = document.getElementById('yt-menu');
@@ -349,6 +488,7 @@ const YT = (() => {
             document.getElementById('yt-logout').addEventListener('click', logout);
         }
         if (typeof YT_THEME !== 'undefined') YT_THEME.bind();
+        bindSbToggle();
         ntBind();          // 铃铛只在登录态下渲染出来，未登录时函数内部自动跳过
     }
 

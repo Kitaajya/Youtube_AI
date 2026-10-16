@@ -3,12 +3,10 @@ package org.designer.youtube.service;
 import jakarta.persistence.Cacheable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.ibatis.annotations.Param;
 import org.designer.youtube.RandomlyCreateID;
 import org.designer.youtube.common.Result;
 import org.designer.youtube.mapper.VideoMapper;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.data.repository.config.RepositoryBeanDefinitionRegistrarSupport;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -320,4 +318,8 @@ public class VideoService {
         return Result.success(k > 0 ? "已标记 " + k + " 条为已读" : "没有未读通知",
                 Map.of("success", true, "updated", k));
     }
+    //新增封面功能，添加封面
+    /** 封面图允许的格式 */
+    private static final String[] IMAGE_EXT = {"jpg", "jpeg", "png", "webp", "gif"};
+
 }

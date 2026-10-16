@@ -83,8 +83,13 @@
             const list = Array.isArray(res.data) ? res.data : [];
             if (!list.length) {
                 grid.innerHTML = '';
-                empty.textContent = kw ? `没有找到与「${kw}」相关的视频`
-                    : (u ? '还没有视频，去上传第一个吧' : '还没有视频，登录后可上传第一个视频');
+                if (kw) {
+                    empty.textContent = `没有找到与「${kw}」相关的视频`;
+                } else {
+                    empty.innerHTML = '<div class="start-card">'
+                        + '<div class="sc-t">试试搜索，开始使用</div>'
+                        + '<div class="sc-s">' + (u ? '观看视频，帮助我们为你推荐喜欢的内容。' : '登录后可点赞、评论和订阅。') + '</div></div>';
+                }
                 empty.style.display = 'block';
                 return;
             }

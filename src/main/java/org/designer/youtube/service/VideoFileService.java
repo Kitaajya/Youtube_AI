@@ -131,4 +131,58 @@ public class VideoFileService {
         int nl = m.indexOf('\n');
         return nl > 0 ? m.substring(0, nl) : m;
     }
+
+    /** 封面图允许的格式 */
+    private static final String[] IMAGE_EXT = {"jpg", "jpeg", "png", "webp", "gif"};
+
+    /** 上传/更换视频封面：只收图片，落盘到 video.storage.dir，再把路径写回 video.cover_path */
+    public Result<Map<String, Object>> uploadCover(long videoId, String userId, MultipartFile file) {
+        if (file == null || file.isEmpty()) return Result.fail("没有收到封面图");
+        if (file.getSize() > 5 * 1024 * 1024) return Result.fail("封面图不能超过 5MB");
+
+        String ext = extensionOf(file.getOriginalFilename());
+        if (!isImage(ext)) return Result.fail("封面只支持 jpg/png/webp/gif");
+
+        String fileName = "cover_" + idGen.createId().toLowerCase(Locale.ROOT) + "." + ext;
+        Path dir = Paths.get(storageDir).toAbsolutePath().normalize();
+        Path target = dir.resolve(fileName).normalize();
+        if (!target.startsWith(dir)) return Result.fail("文件名不合法");
+
+        try {
+            Files.createDirectories(dir);
+            try (InputStream in = file.getInputStream()) {
+                Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException e) {
+            log.error("封面保存失败: {}", target, e);
+            return Result.fail("封面保存失败：" + e.getMessage());
+        }
+
+        int k;
+        try {
+            k = vm.updateCover(target.toString(), videoId, userId);
+        } catch (RuntimeException e) {
+            deleteQuietly(target);
+            log.error("封面入库失败，已回收文件 {}", target, e);
+            return Result.fail("登记失败：" + rootMessage(e));
+        }
+        if (k == 0) {
+            deleteQuietly(target);
+            return Result.fail("视频不存在或无权限");
+        }
+
+        String coverUrl = publicPrefix() + "/" + fileName;
+        log.info("封面上传成功，videoId={}, 本地={}, 访问={}", videoId, target, coverUrl);
+        return Result.success("封面上传成功", Map.of(
+                "coverUrl", coverUrl,
+                "filePath", target.toString()
+        ));
+    }
+
+    /** 是不是图片扩展名 */
+    private boolean isImage(String ext) {
+        for (String p : IMAGE_EXT) if (p.equals(ext)) return true;
+        return false;
+    }
+
 }

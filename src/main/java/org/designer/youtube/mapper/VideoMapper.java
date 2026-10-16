@@ -99,6 +99,15 @@ public interface VideoMapper {
      * deleteMyVideo	        删除自己的视频
      * **/
     //按视频 ID 查询单个视频详情（带点赞数与UP主昵称，播放页一次请求拿全）
+   // @Select("""
+   // SELECT v.id, v.user_id, v.title, v.video_path, v.create_time, v.view_count,
+   //        (SELECT COUNT(*) FROM video_like vl WHERE vl.video_id = v.id) AS like_count,
+   //        u.nickname AS uploader, u.avatar AS uploader_avatar
+   // FROM video v
+   // LEFT JOIN user_information u ON v.user_id = u.user_id
+   // WHERE v.id=#{id}
+   // """)
+   // List<Map<String,Object>> selectVideoById(@Param("id")long id);
     @Select("""
     SELECT v.id, v.user_id, v.title, v.video_path, v.cover_path, v.create_time, v.view_count,
            (SELECT COUNT(*) FROM video_like vl WHERE vl.video_id = v.id) AS like_count,
@@ -107,7 +116,7 @@ public interface VideoMapper {
     LEFT JOIN user_information u ON v.user_id = u.user_id
     WHERE v.id=#{id}
     """)
-    List<Map<String,Object>> selectVideoById(@Param("id")long id);
+    List<Map<String,Object>> selectVideoById(@Param("id") long id);
     //模糊搜索
     @Select("""
     SELECT v.id, v.user_id, v.title, v.video_path, v.create_time, v.view_count,
@@ -479,8 +488,10 @@ public interface VideoMapper {
 
 
     //新增封面功能，添加封面
-    @Insert("""
-    INSERT INTO video(user_id,cover_path,id) VALUES (#{userId},#{coverPath},#{id})
+    @Update("""
+    UPDATE video SET cover_path=#{coverPath} WHERE id=#{id} AND user_id=#{userId}
     """)
-    int addCover(@Param("userId") String userId,@Param("coverPath") String coverPath,@Param("id")long id);
+    int updateCover(@Param("coverPath") String coverPath,
+                    @Param("id") long id,
+                    @Param("userId") String userId);
 }
