@@ -318,8 +318,7 @@ public class VideoService {
         return Result.success(k > 0 ? "已标记 " + k + " 条为已读" : "没有未读通知",
                 Map.of("success", true, "updated", k));
     }
-    //新增封面功能，添加封面
-    /** 封面图允许的格式 */
-    private static final String[] IMAGE_EXT = {"jpg", "jpeg", "png", "webp", "gif"};
-
+    public Result<List<Map<String,Object>>> selectHistory(String userId){
+        return Result.success(vm.selectHistory(userId));
+    }
 }
