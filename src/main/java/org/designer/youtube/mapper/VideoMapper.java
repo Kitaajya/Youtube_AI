@@ -494,4 +494,45 @@ public interface VideoMapper {
     int updateCover(@Param("coverPath") String coverPath,
                     @Param("id") long id,
                     @Param("userId") String userId);
+    //新增观看历史功能，可查询和删除，此处为查询观看历史，一次查询分200条数据，防止因数据过多而查询变慢
+    /**
+     * CREATE TABLE IF NOT EXISTS watch_history (
+     *       user_id     VARCHAR(13) NOT NULL,               -- 谁看的
+     *       video_id    BIGINT      NOT NULL,               -- 看了哪条视频（video.id 是 BIGINT，这里必须同为 BIGINT）
+     *       watch_time  DATETIME    DEFAULT CURRENT_TIMESTAMP, -- 最近一次观看时间
+     *       PRIMARY KEY (user_id, video_id),                -- 联合主键 = 同一用户同一视频只保留一条
+     *       KEY idx_wh_user_time (user_id, watch_time DESC),-- 我的历史按时间倒序走索引
+     *       KEY idx_wh_video (video_id),                    -- 反查这视频被谁看过（可选，但留着有用）
+     *       CONSTRAINT fk_wh_user FOREIGN KEY (user_id)
+     *           REFERENCES user_information(user_id) ON DELETE CASCADE,
+     *       CONSTRAINT fk_wh_video FOREIGN KEY (video_id)
+     *           REFERENCES video(id) ON DELETE CASCADE      -- 删视频，历史里的引用自动清
+     * ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+     * **/
+    @Select("""
+    SELECT h.video_id,
+           h.watch_time,
+           v.title,
+           v.video_path,
+           v.cover_path,
+           v.view_count,
+           v.like_quantity,
+           v.create_time,
+           u.nickname AS uploader
+    FROM watch_history h
+    LEFT JOIN video v            ON h.video_id = v.id
+    LEFT JOIN user_information u ON v.user_id  = u.user_id
+    WHERE h.user_id = #{userId}
+    ORDER BY h.watch_time DESC
+    LIMIT 200
+    """)
+    List<Map<String,Object>> selectHistory(@Param("userId") String userId);
+
+    //上传我看过的视频，自动上传，看过视频后就可以在历史区块里查找此视频
+    @Insert("""
+    INSERT INTO watch_history(user_id, video_id, watch_time)
+    VALUES(#{userId}, #{videoId}, NOW())
+    ON DUPLICATE KEY UPDATE watch_time = NOW()
+     """)
+    int insertHistory(@Param("userId") String userId,@Param("videoId") long videoId);
 }

@@ -308,4 +308,9 @@ public class VideoController {
     public Result<List<Map<String,Object>>> selectHistory(@RequestParam String userId){
         return vs.selectHistory(userId);
     }
+    //上传我看过的视频，自动上传，看过视频后就可以在历史区块里查找此视频
+    @PostMapping("/insert/history")
+    public Result<Map<String,Object>> insertHistory(@RequestParam String userId,@RequestParam long videoId){
+        return vs.insertHistory(userId,videoId);
+    }
 }

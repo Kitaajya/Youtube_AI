@@ -335,6 +335,7 @@ const YT = (() => {
         const page = (location.pathname.match(/[^/]+\.html/i) || ['index.html'])[0].toLowerCase();
         const isHome = page === 'index.html';
         const isYou = page === 'profile.html';
+        const isHistory = page === 'history.html';
         const item = (icon, label, opts) => {
             opts = opts || {};
             let h = '<a class="sb-item' + (opts.active ? ' active' : '') + '"';
@@ -348,7 +349,7 @@ const YT = (() => {
             + item(IC.home, '首页', { href: 'index.html', active: isHome })
             + item(IC.shorts, 'Shorts', { href: 'index.html?q=' + encodeURIComponent('短视频') })
             + item(IC.you, '你', { href: 'profile.html', active: isYou })
-            + item(IC.history, '历史', { toast: '观看历史暂未开放' })
+            + item(IC.history, '历史', { href: 'history.html', active: isHistory })
             + '</div>';
         const more = ['科技', '美食', '旅行', '电影', '军事'].map(c =>
             item(IC.grid, c, { href: 'index.html?q=' + encodeURIComponent(c) })).join('');
@@ -358,7 +359,7 @@ const YT = (() => {
             + item(IC.shorts, 'Shorts', { href: 'index.html?q=' + encodeURIComponent('短视频') })
             + item(IC.subs, '订阅', { href: 'profile.html' })
             + item(IC.you, '你', { href: 'profile.html', active: isYou })
-            + item(IC.history, '历史', { toast: '观看历史暂未开放' })
+            + item(IC.history, '历史', { href: 'history.html', active: isHistory })
             + '</div>'
             + (u ? '' : '<div class="sb-sec sb-guest">登录后可点赞、评论和订阅。<br><a href="login.html" class="btn sm sb-signin">' + IC.you + '登录</a></div>')
             + '<div class="sb-sec"><div class="sb-h">探索</div>'

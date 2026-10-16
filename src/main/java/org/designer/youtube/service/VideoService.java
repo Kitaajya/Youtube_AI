@@ -318,7 +318,14 @@ public class VideoService {
         return Result.success(k > 0 ? "已标记 " + k + " 条为已读" : "没有未读通知",
                 Map.of("success", true, "updated", k));
     }
+    //新增观看历史功能，可查询和删除，此处为查询观看历史，一次查询分200条数据，防止因数据过多而查询变慢
     public Result<List<Map<String,Object>>> selectHistory(String userId){
         return Result.success(vm.selectHistory(userId));
+    }
+    //上传我看过的视频，自动上传，看过视频后就可以在历史区块里查找此视频
+    public Result<Map<String,Object>>insertHistory(String userId,long videoId){
+        int k=vm.insertHistory(userId, videoId);
+        if(k==0) return Result.fail("出现bug！");
+        return Result.success("历史上传成功！",Map.of("success",true));
     }
 }
