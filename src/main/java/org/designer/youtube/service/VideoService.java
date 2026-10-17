@@ -231,7 +231,7 @@ public class VideoService {
         }
     }
     //把视频放进收藏夹里（SQL 用 INSERT IGNORE：重复收藏返回 0 行、不抛异常）
-    public Result<Map<String,Object>>addToLikeList(String pList, String videoId){
+    public Result<Map<String,Object>>addToLikeList(String pList, long videoId){
         int k = vm.addToLikeList(pList, videoId);
         if(k == 0) return Result.success("你已经收藏过一次了！",Map.of("success",true));
         return Result.success("收藏成功",Map.of("success",true));
