@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shorts - YouTube</title>
+    <link rel="stylesheet" href="css/vars.css">
+    <script>(function(){try{var s=localStorage.getItem('yt-theme');var d=s==='dark'||(s!=='light'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
+    <link rel="stylesheet" href="css/dark.css">
+    <link rel="stylesheet" href="css/style.css?v=2">
+    <link rel="stylesheet" href="css/shorts.css?v=1">
+</head>
+<body>
+    <div id="app-header"></div>
+
+    <!-- 竖屏滑动流：每条占满一屏，滚动吸附 -->
+    <main class="sf-wrap" id="sf-wrap"></main>
+    <div class="sf-tip" id="sf-tip" style="display:none;"></div>
+
+    <!-- 评论抽屉 -->
+    <div class="sf-mask" id="sf-mask"></div>
+    <aside class="sf-drawer" id="sf-drawer">
+        <div class="sf-dh"><span id="sf-dhead">评论</span><button type="button" id="sf-dclose">×</button></div>
+        <div class="sf-dlist" id="sf-dlist"></div>
+        <div class="sf-dfoot">
+            <textarea id="sf-dinput" placeholder="写下你的评论…"></textarea>
+            <button class="btn primary" type="button" id="sf-dsend">发送</button>
+        </div>
+    </aside>
+
+    <script src="js/theme.js?v=1"></script>
+    <script src="js/common.js?v=11"></script>
+    <script src="js/shorts.js?v=1"></script>
+</body>
+</html>

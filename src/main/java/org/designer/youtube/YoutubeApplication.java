@@ -15,5 +15,18 @@ public class YoutubeApplication {
         log.info("调试代码");
         SpringApplication.run(YoutubeApplication.class, args);
     }
-
 }
+
+/**
+ * 我的一点小巧思：
+ * from selenium import webdriver
+ * from selenium.webdriver.common.by import By
+ *
+ * driver = webdriver.Chrome()
+ * driver.get("你的网页地址")
+ *
+ * # 通过链接文字或 XPath 查找包含“点我”的元素
+ * element = driver.find_element(By.XPATH, "//*[contains(text(), '点我')]")
+ * element.click()
+ *
+ * **/
