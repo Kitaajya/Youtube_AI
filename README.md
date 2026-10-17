@@ -18,9 +18,16 @@
 </div>
 
 ---
+
 <h1>样例如下</h1>
 <img width="2559" height="1439" alt="image" src="https://github.com/user-attachments/assets/afd8fc23-8f47-48fa-a5f5-ec7005e85e6c" />
 
+<h1>短视频区域示例</h1>
+<img width="2559" height="1439" alt="image" src="https://github.com/user-attachments/assets/a5bdeeed-8111-4477-adf8-ba6c3b3c8b3e" />
+<h1>个人主页示例</h1>
+<img width="2559" height="1439" alt="image" src="https://github.com/user-attachments/assets/279127f0-8e3e-4bf3-9637-c5d4a206cae6" />
+<h1>查找历史示例</h1>
+<img width="2559" height="1439" alt="image" src="https://github.com/user-attachments/assets/523e6da2-513f-49fa-9899-a869aa71bb1c" />
 
 
 ## 📖 目录
