@@ -3,6 +3,8 @@
 # YouTube Imitate
 
 **一个从零实现的视频社区网站，前后端一体**
+<br>
+本项目为个人学习实践作品，与 YouTube 官方无任何关联。
 
 覆盖视频上传/播放/点赞/评论、动态社交、私信会话、关注粉丝、收藏夹、消息通知六大模块  
 前端为原生 HTML/CSS/JS 多页应用，后端为 Spring Boot + MyBatis + MySQL
@@ -13,11 +15,20 @@
 ![MySQL](https://img.shields.io/badge/MySQL-8.0-blue)
 ![License](https://img.shields.io/badge/license-学习项目-lightgrey)
 
-> 本项目为个人学习实践作品，与 YouTube 官方无任何关联。
-
 </div>
 
 ---
+
+<h1>样例如下</h1>
+<img width="2559" height="1439" alt="image" src="https://github.com/user-attachments/assets/afd8fc23-8f47-48fa-a5f5-ec7005e85e6c" />
+
+<h1>短视频区域示例</h1>
+<img width="2559" height="1439" alt="image" src="https://github.com/user-attachments/assets/a5bdeeed-8111-4477-adf8-ba6c3b3c8b3e" />
+<h1>个人主页示例</h1>
+<img width="2559" height="1439" alt="image" src="https://github.com/user-attachments/assets/279127f0-8e3e-4bf3-9637-c5d4a206cae6" />
+<h1>查找历史示例</h1>
+<img width="2559" height="1439" alt="image" src="https://github.com/user-attachments/assets/523e6da2-513f-49fa-9899-a869aa71bb1c" />
+
 
 ## 📖 目录
 
