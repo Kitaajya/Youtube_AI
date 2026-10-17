@@ -481,7 +481,67 @@ const YT = (() => {
         });
         renderSidebar(u);
         const mic = document.getElementById('yt-mic');
-        if (mic) mic.addEventListener('click', () => toast('语音搜索暂未开放'));
+
+        //if (mic) mic.addEventListener('click', () => toast('语音搜索暂未开放'));
+        //新增语音功能，便于搜索
+        if (mic) {
+            mic.addEventListener('click', async () => {
+                // Web Speech API 兼容检测
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!SpeechRecognition) {
+                    // 浏览器不支持 -> 提示并可选择回退到录音上传
+                    return YT.toast('当前浏览器不支持语音识别，建议使用 Chrome；或启用「录音上传」回退功能（开发中）。');
+                }
+
+                const inputEl = document.getElementById('yt-search-input');
+                const form = document.getElementById('yt-search');
+                const rec = new SpeechRecognition();
+                rec.lang = 'zh-CN';         // 根据需要设置识别语言
+                rec.interimResults = true;  // 显示临时结果（可选）
+                rec.maxAlternatives = 1;
+                let finalText = '';
+
+                // 可选：改变按钮样式以表示正在录音
+                mic.classList.add('listening');
+                YT.toast('请开始说话…');
+
+                rec.onresult = (ev) => {
+                    let interim = '';
+                    for (let i = ev.resultIndex; i < ev.results.length; i++) {
+                        const r = ev.results[i];
+                        if (r.isFinal) finalText += r[0].transcript;
+                        else interim += r[0].transcript;
+                    }
+                    // 把临时/最终识别结果显示在输入框（不自动提交，用户可编辑）
+                    inputEl.value = (finalText + interim).trim();
+                };
+
+                rec.onerror = (e) => {
+                    mic.classList.remove('listening');
+                    YT.toast('语音识别出错：' + (e.error || e.message || '未知错误'));
+                };
+
+                rec.onend = () => {
+                    mic.classList.remove('listening');
+                    // 识别结束后，如果有结果就提交搜索
+                    if (inputEl.value && inputEl.value.trim()) {
+                        // 自动跳转到搜索结果页面（与已有搜索一致）
+                        const kw = inputEl.value.trim();
+                        location.href = kw ? 'index.html?q=' + encodeURIComponent(kw) : 'index.html';
+                    } else {
+                        YT.toast('未识别到有效文本');
+                    }
+                };
+
+                try {
+                    rec.start();
+                } catch (err) {
+                    mic.classList.remove('listening');
+                    YT.toast('无法开始语音识别：' + err.message);
+                }
+            });
+        }
+
         const btn = document.getElementById('yt-menu-btn');
         if (btn) {
             const menu = document.getElementById('yt-menu');
