@@ -325,7 +325,7 @@ public class VideoService {
     //上传我看过的视频，自动上传，看过视频后就可以在历史区块里查找此视频
     public Result<Map<String,Object>>insertHistory(String userId,long videoId){
         int k=vm.insertHistory(userId, videoId);
-        if(k==0) return Result.fail("出现bug！");
+        if(k<0) return Result.fail("出现bug！");
         return Result.success("历史上传成功！",Map.of("success",true));
     }
 }
