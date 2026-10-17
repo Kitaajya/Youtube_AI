@@ -7,6 +7,7 @@ import org.designer.youtube.common.Result;
 import org.designer.youtube.mapper.VideoMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -42,24 +43,76 @@ public class VideoFileService {
     /** 浏览器原生 <video> 能直接播放的格式，其余收进来也放不出来，干脆拒收 */
     private static final String[] PLAYABLE = {"mp4", "webm", "mov", "m4v", "ogv", "ogg"};
 
-    public Result<Map<String, Object>> uploadFile(String userId, String title, MultipartFile file) {
+
+    private int probeDuration(Path file) {
+        try {
+            Process p = new ProcessBuilder(
+                    "ffprobe", "-v", "error",
+                    "-show_entries", "format=duration",
+                    "-of", "default=nw=1:nk=1",
+                    file.toString()).redirectErrorStream(true).start();
+            String out = new String(p.getInputStream().readAllBytes()).trim();
+            p.waitFor();
+            double sec = Double.parseDouble(out);
+            return (int) Math.round(sec);
+        } catch (Exception e) {
+            log.warn("ffprobe 探测时长失败: {}", file, e);
+            return 0;   // 探测失败按长视频处理，不阻断上传
+        }
+    }
+
+
+    /** 用 ffprobe 读宽高，height > width 视为竖屏；探测失败按横屏处理（不阻断上传） */
+    private int isVerticalOf(Path file) {
+        try {
+            Process p = new ProcessBuilder(
+                    "ffprobe", "-v", "error",
+                    "-select_streams", "v:0",
+                    "-show_entries", "stream=width,height",
+                    "-of", "csv=s=x:p=0",
+                    file.toString()).redirectErrorStream(true).start();
+            String out = new String(p.getInputStream().readAllBytes()).trim();
+            p.waitFor();
+            // 输出形如 "1080x1920"
+            String[] wh = out.split("x");
+            if (wh.length != 2) return 0;
+            int w = Integer.parseInt(wh[0].trim());
+            int h = Integer.parseInt(wh[1].trim());
+            return h > w ? 1 : 0;
+        } catch (Exception e) {
+            log.warn("ffprobe 探测宽高失败: {}", file, e);
+            return 0;
+        }
+    }
+
+    /**
+     * 探测时长。返回 >0 为秒数；0 表示失败（没装 ffprobe、异常退出等）。
+     * 浏览器读出的 duration 偶尔会有几秒误差（可变帧率、容器元数据不准），
+     * 与前端兜底值相差超过 5 秒时优先信前端值。
+     */
+    private int resolveDuration(int probed, int clientSec) {
+        if (probed > 0) {
+            if (clientSec > 0 && Math.abs(probed - clientSec) > 5) return clientSec;
+            return probed;
+        }
+        return clientSec > 0 ? clientSec : 0;   // 探测失败：前端值兜底，都没有就 0
+    }
+
+    @Transactional
+    public Result<Map<String, Object>> uploadFile(String userId, String title, MultipartFile file,
+                                                  int clientDurationSec, int clientVertical) {
         if (file == null || file.isEmpty()) return Result.fail("没有收到视频文件");
         if (title == null || title.trim().isEmpty()) return Result.fail("标题不能为空");
 
         String ext = extensionOf(file.getOriginalFilename());
         if (!isPlayable(ext)) {
-            return Result.fail("暂不支持 ." + ext + " 格式，浏览器无法在线播放，请上传 mp4 或 webm");
+            return Result.fail("暂不支持 ." + ext + " 格式，请上传 mp4 或 webm");
         }
 
-        // 文件名一律用随机 ID 重命名：规避中文名、重名、以及 ".." 之类的路径穿越
         String fileName = idGen.createId().toLowerCase(Locale.ROOT) + "." + ext;
-
         Path dir = Paths.get(storageDir).toAbsolutePath().normalize();
         Path target = dir.resolve(fileName).normalize();
-        if (!target.startsWith(dir)) {
-            // 双保险，理论上 resolve 单个文件名不可能越界
-            return Result.fail("文件名不合法");
-        }
+        if (!target.startsWith(dir)) return Result.fail("文件名不合法");
 
         try {
             Files.createDirectories(dir);
@@ -71,10 +124,16 @@ public class VideoFileService {
             return Result.fail("文件保存失败：" + e.getMessage());
         }
 
-        // 落盘成功，再登记数据库；登记失败要把文件删掉，否则磁盘上留下没人认领的视频
+        // 落盘成功 → 探测时长/竖屏（ffprobe 不可用时用浏览器值兜底）→ 只插一次
+        int durationSec = resolveDuration(probeDuration(target), clientDurationSec);
+        int vertical    = isVerticalOf(target) == 1 ? 1
+                        : (clientVertical == 1 ? 1 : 0);
+        boolean isShort = durationSec > 0 && durationSec <= 60;
+
         int k;
         try {
-            k = vm.uploadVideo(userId, title.trim(), target.toString());
+            k = vm.uploadVideo(userId, title.trim(), target.toString(),
+                    isShort ? 1 : 0, durationSec, vertical);
         } catch (RuntimeException e) {
             deleteQuietly(target);
             log.error("视频入库失败，已回收文件 {}", target, e);
@@ -85,15 +144,18 @@ public class VideoFileService {
             return Result.fail("上传失败");
         }
 
-        long videoId = vm.selectLastVideoId();
+        long videoId  = vm.selectLastVideoId();
         String playUrl = publicPrefix() + "/" + fileName;
-        log.info("视频上传成功，id={}, 本地={}, 访问={}", videoId, target, playUrl);
+        log.info("视频上传成功，id={}, 时长={}s, 短视频={}, 竖屏={}",
+                videoId, durationSec, isShort, vertical == 1);
 
         return Result.success(Map.of(
                 "videoId", videoId,
                 "playUrl", playUrl,
                 "filePath", target.toString(),
-                "size", file.getSize()
+                "size", file.getSize(),
+                "durationSec", durationSec,
+                "isShort", isShort
         ));
     }
 

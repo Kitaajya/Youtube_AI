@@ -56,11 +56,15 @@ public class VideoController {
     private final Logger log= LoggerFactory.getLogger(VideoController.class);
 
     //上传视频文件（文件本体真正传到服务器并落盘，返回可直接播放的 URL）
+    //clientDurationSec / clientVertical：浏览器上传前读出的时长与是否竖屏，
+    //  供服务器没有 ffprobe、探测失败时兜底判定短视频；读不出来传 -1，-1 表示不参与兜底
     @PostMapping("/upload/file")
     public Result<Map<String, Object>> uploadVideoFile(@RequestParam String userId,
                                                        @RequestParam String title,
-                                                       @RequestParam MultipartFile file) {
-        return vfs.uploadFile(userId, title, file);
+                                                       @RequestParam MultipartFile file,
+                                                       @RequestParam(defaultValue = "-1") int clientDurationSec,
+                                                       @RequestParam(defaultValue = "-1") int clientVertical) {
+        return vfs.uploadFile(userId, title, file, clientDurationSec, clientVertical);
     }
 
     //上传视频（旧方式：只登记服务器上的路径字符串，文件本体不经过服务器）
@@ -232,7 +236,7 @@ public class VideoController {
     //把视频放进收藏夹
     @PostMapping("/add/to/like")
     public Result<Map<String,Object>> addToLikeList(@RequestParam String pList,
-                                                    @RequestParam String videoId){
+                                                    @RequestParam long videoId){
         return vs.addToLikeList(pList, videoId);
     }
     //从收藏夹移出一个视频（收藏夹保留）
@@ -312,5 +316,11 @@ public class VideoController {
     @PostMapping("/insert/history")
     public Result<Map<String,Object>> insertHistory(@RequestParam String userId,@RequestParam long videoId){
         return vs.insertHistory(userId,videoId);
+    }
+    //看短视频
+    @GetMapping("/select/short")
+    public Result<List<Map<String,Object>>>selectShortFeed(@RequestParam(defaultValue ="10") int size,
+                                                           @RequestParam(defaultValue = "0") int offset) {
+        return vs.selectShortFeed(size, offset);
     }
 }

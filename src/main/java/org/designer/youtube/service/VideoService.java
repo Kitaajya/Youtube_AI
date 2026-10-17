@@ -78,7 +78,7 @@ public class VideoService {
     //上传视频
     @Transactional
     public Result<Map<String,Object>> uploadVideo(String userId, String title, String videoPath){
-        int k = vm.uploadVideo(userId, title, videoPath);
+        int k = vm.uploadVideo(userId, title, videoPath,0,0,0);
         if(k == 0) return Result.fail("上传失败");
         //取刚上传视频的自增ID：必须与 uploadVideo 在同一事务中调用（Service 方法上加 @Transactional）
         long videoId = vm.selectLastVideoId();
@@ -327,5 +327,11 @@ public class VideoService {
         int k=vm.insertHistory(userId, videoId);
         if(k<0) return Result.fail("出现bug！");
         return Result.success("历史上传成功！",Map.of("success",true));
+    }
+    //看短视频
+    public Result<List<Map<String,Object>>> selectShortFeed(int size, int offset){
+        int s = Math.min(Math.max(size, 1), 50);
+        int o = Math.max(offset, 0);
+        return Result.success(vm.selectShortFeed(s, o));
     }
 }

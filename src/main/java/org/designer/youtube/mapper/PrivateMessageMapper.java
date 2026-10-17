@@ -13,7 +13,13 @@ public interface PrivateMessageMapper {
 
     // 展示我和某人的完整对话，双向，按时间正序
     @Select("""
-    SELECT * FROM private_message
+    SELECT msg_id      AS msgId,
+           from_user   AS fromUser,
+           to_user     AS toUser,
+           contents,
+           is_read     AS isRead,
+           create_time AS createTime
+    FROM private_message
     WHERE (from_user=#{a} AND to_user=#{b}) OR (from_user=#{b} AND to_user=#{a})
     ORDER BY create_time
     """)

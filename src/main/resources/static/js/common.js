@@ -336,6 +336,7 @@ const YT = (() => {
         const isHome = page === 'index.html';
         const isYou = page === 'profile.html';
         const isHistory = page === 'history.html';
+        const isShorts = page === 'shorts.html';
         const item = (icon, label, opts) => {
             opts = opts || {};
             let h = '<a class="sb-item' + (opts.active ? ' active' : '') + '"';
@@ -347,7 +348,7 @@ const YT = (() => {
         // 窄栏（收起态）只放四项，与 YouTube 一致
         const rail = '<div class="sb-rail">'
             + item(IC.home, '首页', { href: 'index.html', active: isHome })
-            + item(IC.shorts, 'Shorts', { href: 'index.html?q=' + encodeURIComponent('短视频') })
+            + item(IC.shorts, 'Shorts', { href: 'shorts.html', active: isShorts })
             + item(IC.you, '你', { href: 'profile.html', active: isYou })
             + item(IC.history, '历史', { href: 'history.html', active: isHistory })
             + '</div>';
@@ -356,7 +357,7 @@ const YT = (() => {
         return rail + '<div class="sb-hide">'
             + '<div class="sb-sec">'
             + item(IC.home, '首页', { href: 'index.html', active: isHome })
-            + item(IC.shorts, 'Shorts', { href: 'index.html?q=' + encodeURIComponent('短视频') })
+            + item(IC.shorts, 'Shorts', { href: 'shorts.html', active: isShorts })
             + item(IC.subs, '订阅', { href: 'profile.html' })
             + item(IC.you, '你', { href: 'profile.html', active: isYou })
             + item(IC.history, '历史', { href: 'history.html', active: isHistory })

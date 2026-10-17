@@ -43,11 +43,15 @@ import java.util.Map;
 public interface VideoMapper {
     //增加我的视频，返回受影响行数（1 表示成功，0 表示失败）
     @Insert("""
-    INSERT INTO video(user_id,title,video_path) VALUES(#{userId},#{title},#{videoPath})
-    """)
+INSERT INTO video(user_id,title,video_path,is_short,duration_sec,is_vertical)
+VALUES(#{userId},#{title},#{videoPath},#{isShort},#{durationSec},#{isVertical})
+""")
     int uploadVideo(@Param("userId") String userId,
                     @Param("title") String title,
-                    @Param("videoPath") String videoPath);
+                    @Param("videoPath") String videoPath,
+                    @Param("isShort") int isShort,
+                    @Param("durationSec") int durationSec,
+                    @Param("isVertical") int isVertical);
 
     //取刚上传视频的自增ID：必须与 uploadVideo 在同一事务中调用（Service 方法上加 @Transactional）
     @Select("SELECT LAST_INSERT_ID()")
@@ -338,7 +342,7 @@ public interface VideoMapper {
     """)
     int addToLikeList(@Param("pList")  String pList,
 
-                      @Param("videoId")String videoId);
+                      @Param("videoId")long videoId);
     //取消收藏
     @Delete("""
     DELETE FROM playlist where playlist_id=#{pList} and user_id=#{userId}
@@ -535,4 +539,40 @@ public interface VideoMapper {
     ON DUPLICATE KEY UPDATE watch_time = NOW()
      """)
     int insertHistory(@Param("userId") String userId,@Param("videoId") long videoId);
+
+
+    /************************************************设计短视频模块***********************************************************/
+    /**
+     *
+     * 2026/10/17/10:02
+     *
+     *
+     *
+     *
+     *
+     *
+     *
+     *
+     *
+     *
+     *
+     */
+    //看短视频
+    @Select("""
+    SELECT v.id, v.user_id, v.title, v.video_path, v.cover_path,
+           v.view_count, v.duration_sec, v.create_time,
+           (SELECT COUNT(*) FROM video_like vl WHERE vl.video_id = v.id) AS like_count,
+           (SELECT COUNT(*) FROM video_comment vc WHERE vc.video_id = v.id) AS comment_count,
+           u.nickname AS uploader, u.avatar AS uploader_avatar,
+               CONCAT('/videos/', SUBSTRING_INDEX(SUBSTRING_INDEX(v.video_path, CHAR(92), -1), '/', -1)) AS play_url
+    FROM video v
+    LEFT JOIN user_information u ON v.user_id = u.user_id
+    WHERE v.is_short = 1
+    ORDER BY (v.view_count * 0.3 +
+              (SELECT COUNT(*) FROM video_like vl WHERE vl.video_id = v.id) * 0.7) DESC,
+             v.create_time DESC
+    LIMIT #{size} OFFSET #{offset}
+
+    """)
+    List<Map<String,Object>> selectShortFeed(@Param("size") int size, @Param("offset") int offset);
 }

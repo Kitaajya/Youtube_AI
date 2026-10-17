@@ -52,7 +52,37 @@
         } catch (e) { /* 缓存失败不影响主流程 */ }
     }
 
-    submit.onclick = () => {
+    /* 服务器上没有 ffprobe 时，探测时长会失败并把视频当成 0 秒长视频，
+     * 导致 60 秒以内的短视频进不了 Shorts。这里上传前先在浏览器里读出来，
+     * 随文件一起发给后端做兜底；读不出来（浏览器不支持该编码）就传 -1，
+     * 后端仍按 ffprobe 结果处理。 */
+    function probeByBrowser(f, timeoutMs) {
+        return new Promise(resolve => {
+            const v = document.createElement('video');
+            const url = URL.createObjectURL(f);
+            let done = false;
+            const finish = (dur, vert) => {
+                if (done) return;
+                done = true;
+                clearTimeout(timer);
+                v.removeAttribute('src'); v.load();
+                URL.revokeObjectURL(url);
+                resolve({ durationSec: dur, isVertical: vert });
+            };
+            const timer = setTimeout(() => finish(-1, -1), timeoutMs || 15000);
+            v.preload = 'metadata';
+            v.muted = true;
+            v.onloadedmetadata = () => {
+                const dur = Number.isFinite(v.duration) && v.duration > 0 ? Math.round(v.duration) : -1;
+                const vert = (v.videoWidth && v.videoHeight && v.videoHeight > v.videoWidth) ? 1 : 0;
+                finish(dur, dur < 0 ? -1 : vert);
+            };
+            v.onerror = () => finish(-1, -1);
+            v.src = url;
+        });
+    }
+
+    submit.onclick = async () => {
         tip.textContent = ''; tip.className = 'tip';
         const title = $('#title').value.trim();
         const f = fileIn.files[0];
@@ -60,12 +90,17 @@
         if (!title) return show('请填写视频标题', false);
         if (!OK.test(f.name)) return show('该格式浏览器无法在线播放，请改传 mp4 或 webm', false);
 
+        submit.disabled = true; submit.textContent = '读取视频信息…';
+        const probe = await probeByBrowser(f);
+        submit.textContent = '上传中…';
+
         const fd = new FormData();
         fd.append('userId', me.userId);
         fd.append('title', title);
         fd.append('file', f, f.name);
+        fd.append('clientDurationSec', probe.durationSec);
+        fd.append('clientVertical', probe.isVertical);
 
-        submit.disabled = true; submit.textContent = '上传中…';
         prog.style.display = 'block'; fill.style.width = '0%';
         ptxt.textContent = `上传中… 0%（共 ${(f.size / 1048576).toFixed(1)} MB）`;
 

@@ -22,9 +22,19 @@ public interface UserInformationMapper {
     @Select("SELECT COUNT(*) FROM user_information WHERE user_id = #{userId}")
     int isDuplicate(@Param("userId") String userId);
     //登录：按用户名查用户
-    @Select("SELECT * FROM user_information WHERE username = #{username}")
+    @Select("""
+    SELECT user_id     AS userId,
+           username,
+           password,
+           nickname,
+           avatar,
+           email,
+           phone,
+           create_time AS createTime
+    FROM user_information
+    WHERE username = #{username}
+    """)
     UserInformation selectByUsername(@Param("username") String username);
-
     //查看我关注了谁
     @Select("""
     SELECT u.user_id, u.nickname, u.avatar, s.create_time AS follow_time
