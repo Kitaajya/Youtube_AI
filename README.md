@@ -18,6 +18,10 @@
 </div>
 
 ---
+<h1>样例如下</h1>
+<img width="2559" height="1439" alt="image" src="https://github.com/user-attachments/assets/afd8fc23-8f47-48fa-a5f5-ec7005e85e6c" />
+
+
 
 ## 📖 目录
 
