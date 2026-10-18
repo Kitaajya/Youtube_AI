@@ -73,5 +73,18 @@ public interface PrivateMessageMapper {
        AND from_user = #{userId}
     """)
     int deleteFromMySide(@Param("msgId") String msgId, @Param("userId") String userId);
-
+    //撤回操作，规定timeWithdraw秒的时间内可以撤回信息，通常地，timeWithdraw==120s
+    //仅发送方本人、且发送时间在timeWithdraw秒内可撤回。撤回后正文清空，双方聊天记录显示"消息已撤回"
+    @Update("""
+    UPDATE private_message
+       SET is_withdrawn = 1,
+           contents     = ''
+     WHERE msg_id    = #{msgId}
+       AND from_user = #{userId}
+       AND is_withdrawn = 0
+       AND create_time >= DATE_SUB(NOW(), INTERVAL #{timeWithdraw} SECOND)
+    """)
+    int withdraw(@Param("msgId") String msgId,
+                 @Param("userId") String userId,
+                 @Param("timeWithdraw") int timeWithdraw);
 }
