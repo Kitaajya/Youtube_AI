@@ -62,4 +62,8 @@ public class PrivateMessageController {
     public Result<Map<String,Object>> send(@ModelAttribute PrivateMessage privateMessage) {
         return privateMessageService.send(privateMessage);
     }
+    //从我这里删除发出的信息，但是对方依旧能看得到。因为这不是撤回操作，软删除
+    public Result<Map<String,Object>> deleteFromMySide(@RequestParam String msgId,@RequestParam String userId){
+        return privateMessageService.deleteFromMySide(msgId, userId);
+    }
 }
