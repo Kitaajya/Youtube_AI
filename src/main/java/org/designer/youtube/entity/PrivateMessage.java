@@ -1,7 +1,6 @@
 package org.designer.youtube.entity;
 
 import lombok.Data;
-import org.springframework.context.annotation.Bean;
 
 import java.time.LocalDateTime;
 /**
@@ -29,5 +28,7 @@ public class PrivateMessage {
     private String toUser;
     private String contents;
     private int isRead;
+    private int isWithdrawn;   // 0=正常 1=已撤回（前端据此显示"撤回了一条消息"）
+    private int fromDeleted;   // 0=正常 1=发送方已单方面删除（查询时直接过滤，不返回给发送方）
     private LocalDateTime createTime;
 }

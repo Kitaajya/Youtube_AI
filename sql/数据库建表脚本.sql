@@ -139,6 +139,8 @@ CREATE TABLE IF NOT EXISTS private_message(
     to_user     VARCHAR(13) NOT NULL,                -- 收件人 user_id
     contents    TEXT        NOT NULL,                -- 消息内容
     is_read     TINYINT     NOT NULL DEFAULT 0,      -- 0=未读 1=已读（收件人视角）
+    is_withdrawn TINYINT    NOT NULL DEFAULT 0,      -- 0=正常 1=已撤回（正文清空，双方显示"已撤回"）
+    from_deleted TINYINT    NOT NULL DEFAULT 0,      -- 0=正常 1=发送方单方面删除（仅发送方查询时过滤）
     create_time DATETIME    DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (msg_id),
     KEY idx_pm_inbox (to_user, is_read, create_time),   -- 收件箱/未读数查询走索引
@@ -150,6 +152,9 @@ CREATE TABLE IF NOT EXISTS private_message(
 -- ALTER TABLE private_message ADD COLUMN create_time DATETIME DEFAULT CURRENT_TIMESTAMP;
 -- ALTER TABLE private_message ADD INDEX idx_pm_inbox (to_user, is_read, create_time);
 -- ALTER TABLE private_message ADD INDEX idx_pm_outbox (from_user, create_time);
+-- 撤回 / 单方面删除功能需要这两列（缺列时所有私信查询会直接报错）：
+-- ALTER TABLE private_message ADD COLUMN is_withdrawn TINYINT NOT NULL DEFAULT 0;  -- 1=已撤回
+-- ALTER TABLE private_message ADD COLUMN from_deleted TINYINT NOT NULL DEFAULT 0;  -- 1=发送方已单方面删除
 -- 想确认实际结构，跑这句：
 -- SHOW CREATE TABLE private_message;
 

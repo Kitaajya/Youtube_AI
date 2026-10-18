@@ -13,14 +13,17 @@ public interface PrivateMessageMapper {
 
     // 展示我和某人的完整对话，双向，按时间正序
     @Select("""
-    SELECT msg_id      AS msgId,
-           from_user   AS fromUser,
-           to_user     AS toUser,
+    SELECT msg_id       AS msgId,
+           from_user    AS fromUser,
+           to_user      AS toUser,
            contents,
-           is_read     AS isRead,
-           create_time AS createTime
+           is_read      AS isRead,
+           is_withdrawn AS isWithdrawn,
+           from_deleted AS fromDeleted,
+           create_time  AS createTime
     FROM private_message
-    WHERE (from_user=#{a} AND to_user=#{b}) OR (from_user=#{b} AND to_user=#{a})
+    WHERE ((from_user=#{a} AND to_user=#{b}) OR (from_user=#{b} AND to_user=#{a}))
+      AND NOT (from_user=#{a} AND from_deleted = 1)
     ORDER BY create_time
     """)
     List<PrivateMessage> selectOurMessage(@Param("a") String a, @Param("b") String b);
@@ -33,7 +36,7 @@ public interface PrivateMessageMapper {
     int send(PrivateMessage privateMessage);
 
     // 我的收件箱未读数（配合 idx_pm_inbox(to_user,is_read,...) 索引）
-    @Select("SELECT COUNT(*) FROM private_message WHERE to_user=#{me} AND is_read=0")
+    @Select("SELECT COUNT(*) FROM private_message WHERE to_user=#{me} AND is_read=0 AND is_withdrawn=0")
     int countUnread(@Param("me") String me);
 
     // 把某人发给我的消息标记已读
@@ -51,14 +54,16 @@ public interface PrivateMessageMapper {
            t.contents AS lastMsg,
            DATE_FORMAT(t.create_time, '%Y-%m-%d %H:%i:%S') AS lastTime,
            (SELECT COUNT(*) FROM private_message p2
-             WHERE p2.to_user=#{me} AND p2.from_user=t.peer AND p2.is_read=0) AS unread
+             WHERE p2.to_user=#{me} AND p2.from_user=t.peer AND p2.is_read=0 AND p2.is_withdrawn=0) AS unread
     FROM (
         SELECT CASE WHEN from_user=#{me} THEN to_user ELSE from_user END AS peer,
-               contents, create_time,
+               CASE WHEN is_withdrawn=1 THEN '[已撤回]' ELSE contents END AS contents,
+               create_time,
                ROW_NUMBER() OVER (PARTITION BY CASE WHEN from_user=#{me} THEN to_user ELSE from_user END
                                  ORDER BY create_time DESC, msg_id DESC) AS rn
         FROM private_message
-        WHERE from_user=#{me} OR to_user=#{me}
+        WHERE (from_user=#{me} OR to_user=#{me})
+          AND NOT (from_user=#{me} AND from_deleted = 1)
     ) t
     LEFT JOIN user_information u ON u.user_id = t.peer
     WHERE t.rn = 1

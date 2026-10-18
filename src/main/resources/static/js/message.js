@@ -49,13 +49,44 @@
     // ---------- 聊天状态 ----------
     let current = null;      // { userId, name }
     let loading = false;
+    const WITHDRAW_LIMIT_S = 120;   // 可撤回时限（秒），与后端 withdraw 接口的 timeWithdraw 保持一致
+    let curList = [];               // 当前打开的对话列表（撤回/删除操作以此为本地数据源重绘）
+
+    // 与服务器 NOW() 同口径的本地时间串（MySQL DATETIME 格式，不用 toISOString 的 UTC）
+    function localNow() {
+        const d = new Date(), p = x => String(x).padStart(2, '0');
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+    }
+
+    // 撤回时限到点后主动重绘一次，让"撤回"按钮自动消失（否则要等下一次数据变化才收掉）
+    let withdrawRefreshTimer = null;
+    function scheduleWithdrawRefresh(list) {
+        if (withdrawRefreshTimer) { clearTimeout(withdrawRefreshTimer); withdrawRefreshTimer = null; }
+        let next = Infinity;
+        const now = Date.now();
+        for (const m of list) {
+            if (String(m.fromUser) !== me.userId || Number(m.isWithdrawn || 0) === 1) continue;
+            const created = new Date(String(m.createTime).replace(' ', 'T')).getTime();
+            if (isNaN(created)) continue;
+            const end = created + WITHDRAW_LIMIT_S * 1000;
+            if (end > now && end < next) next = end;
+        }
+        if (next === Infinity) return;
+        withdrawRefreshTimer = setTimeout(() => {
+            withdrawRefreshTimer = null;
+            const atBottom = msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 40;
+            const keepTop = msgs.scrollTop;
+            renderMsgs(curList);
+            if (!atBottom) msgs.scrollTop = keepTop;   // 用户在翻历史时不抢滚动位置
+        }, next - now + 500);
+    }
 
     // ---------- 渲染 ----------
     function renderPeers() {
         const hidden = getHidden();
         const arr = getPeers().filter(p => !hidden.includes(p.userId));
         if (!arr.length) {
-            peersBox.innerHTML = '<div class="pm-empty-peers">暂无会话<br>输入对方用户ID开始聊天</div>';
+            peersBox.innerHTML = '<div class="pm-empty-peers">暂无会话<br>收到私信后会显示在这里</div>';
             return;
         }
         peersBox.innerHTML = arr.map(p => `
@@ -81,7 +112,41 @@
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
 
+    // 单条消息渲染：
+    // - 已撤回：双方都显示灰色提示气泡（正文后端已清空），我发的可继续"删除"
+    // - 我发出的正常消息：悬停出现操作按钮——时限内可"撤回"（双方同步消失），"删除"仅从我这边消失
+    function msgHtml(m) {
+        const mine = String(m.fromUser) === me.userId;
+        const withdrawn = Number(m.isWithdrawn || 0) === 1;
+        const msgId = String(m.msgId || '');
+        const time = YT.fmtFull(m.createTime);
+        const who = mine ? '我' : (current ? (current.name || current.userId) : '');
+        if (withdrawn) {
+            return `
+            <div class="pm-msg withdrawn ${mine ? 'me' : ''}" data-msg-id="${YT.esc(msgId)}">
+                <div class="bubble">${mine ? '你撤回了一条消息' : '对方撤回了一条消息'}</div>
+                ${mine ? `<div class="m-ops"><button class="m-op" data-del="${YT.esc(msgId)}" title="仅从我的记录中删除">删除</button></div>` : ''}
+            </div>`;
+        }
+        let ops = '';
+        if (mine) {
+            const created = new Date(String(m.createTime).replace(' ', 'T')).getTime();
+            const fresh = !isNaN(created) && (Date.now() - created) / 1000 <= WITHDRAW_LIMIT_S;
+            ops = '<div class="m-ops">'
+                + (fresh ? `<button class="m-op" data-withdraw="${YT.esc(msgId)}" title="${WITHDRAW_LIMIT_S} 秒内可撤回，双方记录同步消失">撤回</button>` : '')
+                + `<button class="m-op" data-del="${YT.esc(msgId)}" title="单方面删除：仅从我这里消失，对方仍可见">删除</button>`
+                + '</div>';
+        }
+        return `
+            <div class="pm-msg ${mine ? 'me' : ''}" data-msg-id="${YT.esc(msgId)}">
+                <div class="bubble">${YT.esc(m.contents)}</div>
+                <span class="m-time">${YT.esc(who)} · ${YT.esc(time)}</span>
+                ${ops}
+            </div>`;
+    }
+
     function renderMsgs(list) {
+        curList = list;
         if (!list.length) {
             msgs.innerHTML = '<div class="empty">还没有消息，发第一条吧</div>';
             return;
@@ -90,20 +155,16 @@
         for (const m of list) {
             const day = dayTag(m.createTime);
             if (day && day !== lastDay) { html += `<div class="pm-day">${day}</div>`; lastDay = day; }
-            const mine = String(m.fromUser) === me.userId;
-            html += `
-            <div class="pm-msg ${mine ? 'me' : ''}">
-                <div class="bubble">${YT.esc(m.contents)}</div>
-                <span class="m-time">${YT.esc(mine ? '我' : (current.name || current.userId))} · ${YT.fmtFull(m.createTime)}</span>
-            </div>`;
+            html += msgHtml(m);
         }
         msgs.innerHTML = html;
         msgs.scrollTop = msgs.scrollHeight;
+        scheduleWithdrawRefresh(list);   // 有消息快到撤回时限就登记一次到期重绘
     }
 
     function renderHead() {
         if (!current) {
-            head.textContent = '选择左侧会话，或输入对方用户ID开始聊天';
+            head.textContent = '选择左侧会话开始聊天';
             return;
         }
         head.innerHTML = `
@@ -136,10 +197,14 @@
         ].join('|')).join(';');
     }
 
-    // 当前对话指纹：条数 + 最后一条的标识，足以判断"有没有新消息"
+    // 当前对话指纹：条数 + 已撤回条数 + 最后一条标识。
+    // 必须带上撤回计数：撤回不改变条数、也不改变最后一条 msgId，
+    // 否则对方撤回后我这边指纹不变，1 秒轮询会认为"没变化"而不重绘。
     function chatSig(list) {
         const last = list[list.length - 1];
-        return list.length + '|' + (last ? (last.msgId || last.createTime) : '');
+        let w = 0;
+        for (const m of list) { if (Number(m.isWithdrawn || 0) === 1) w++; }
+        return list.length + '|' + w + '|' + (last ? (last.msgId || last.createTime) : '');
     }
 
     // 用已取到的服务器会话数据做合并与渲染（首次加载与轮询共用，避免重复请求）
@@ -204,8 +269,9 @@
             lastChatSig = chatSig(list);   // 记下基线：轮询发现同样内容时不再重绘
             // 用最后一条消息 + 对方昵称回写镜像；刚打开视为已读，未读清零
             const last = list[list.length - 1];
+            const lastPreview = last ? (Number(last.isWithdrawn || 0) === 1 ? '[已撤回]' : String(last.contents).slice(0, 30)) : undefined;
             touchPeer(userId, name,
-                last ? String(last.contents).slice(0, 30) : undefined,
+                lastPreview,
                 last ? last.createTime : '', 0);
             renderMsgs(list);
             // 把对方发给我的消息标记已读（没有未读时 UPDATE 影响 0 行，无副作用）
@@ -234,14 +300,18 @@
             if (!r.success) { YT.toast(r.message || '发送失败'); return; }
             ta.value = '';
             const sentMsgId = String((r.data && r.data.msgId) || '');
-            // 本地先上屏（避免等一次刷新），再异步和服务器收件箱对账
-            msgs.innerHTML += `
-                <div class="pm-msg me">
-                    <div class="bubble">${YT.esc(content)}</div>
-                    <span class="m-time">我 · 刚刚</span>
-                </div>`;
+            // 乐观上屏：带上真实 msgId 与时间，保证刚发出的消息能立即撤回/删除。
+            // 必须用本地时间格式：toISOString() 是 UTC，与服务器时间差 8 小时，
+            // 会让刚发出的消息被误判为"早已超出撤回时限"，撤回按钮永远不出现。
+            const nowMsg = {
+                msgId: sentMsgId, fromUser: me.userId, toUser: current.userId,
+                contents: content, createTime: localNow(),
+            };
+            curList = [...curList, nowMsg];
+            msgs.insertAdjacentHTML('beforeend', msgHtml(nowMsg));
             msgs.scrollTop = msgs.scrollHeight;
-            touchPeer(current.userId, current.name, content.slice(0, 30), new Date().toISOString().replace('T', ' ').slice(0, 19));
+            scheduleWithdrawRefresh(curList);   // 刚发的这条 2 分钟后到期，登记收起撤回按钮
+            touchPeer(current.userId, current.name, content.slice(0, 30), nowMsg.createTime);
 
             // 把 lastChatSig 对齐到"已乐观上屏"的内容，否则 1 秒后轮询发现指纹是旧的，
             // 会整块重绘，把"我 · 刚刚"换成真实时间戳——那就是一次可见的界面动作。
@@ -352,13 +422,53 @@
         }
     });
 
+    // ---------- 撤回 / 单方面删除 ----------
+    // 撤回：仅我发出的、发送 WITHDRAW_LIMIT_S 秒内有效，成功后双方记录都变成"已撤回"提示。
+    // 删除：仅从我这里消失（后端软删 from_deleted），对方仍能看到原文，所以不发撤回提示。
+    // 两者都在请求成功后就地更新本地列表与 DOM，避免等 1 秒轮询造成闪动。
+    async function doWithdraw(msgId, node) {
+        if (loading) return;
+        try {
+            const r = await YT.api.post('/api/private_message/withdraw/private/message', {
+                msgId, userId: me.userId, timeWithdraw: WITHDRAW_LIMIT_S,
+            });
+            if (!r.success) { YT.toast(r.message || '撤回失败'); return; }
+            const m = curList.find(x => String(x.msgId) === msgId);
+            if (m) m.isWithdrawn = 1;
+            if (node && m) node.outerHTML = msgHtml({ ...m, contents: '' });
+            lastChatSig = chatSig(curList);   // 本地已与服务器一致，对齐指纹免得轮询再重绘一次
+            YT.toast(r.message || '已撤回');
+            loadInbox();   // 会话列表预览要同步成"[已撤回]"
+        } catch (e) {
+            YT.toast('撤回失败：' + e.message);
+        }
+    }
+
+    async function doDeleteFromMySide(msgId, node) {
+        if (loading) return;
+        try {
+            const r = await YT.api.post('/api/private_message/delete/private/message', {
+                msgId, userId: me.userId,
+            });
+            if (!r.success) { YT.toast(r.message || '删除失败'); return; }
+            curList = curList.filter(x => String(x.msgId) !== msgId);
+            if (node) node.remove();
+            if (!curList.length) msgs.innerHTML = '<div class="empty">还没有消息，发第一条吧</div>';
+            YT.toast(r.message || '已从我这边删除（对方仍可见）');
+            loadInbox();   // 最后一条被删时，会话列表预览要换上一条
+        } catch (e) {
+            YT.toast('删除失败：' + e.message);
+        }
+    }
+
+    msgs.addEventListener('click', e => {
+        const w = e.target.closest('[data-withdraw]');
+        if (w) { doWithdraw(w.dataset.withdraw, w.closest('.pm-msg')); return; }
+        const d = e.target.closest('[data-del]');
+        if (d) { doDeleteFromMySide(d.dataset.del, d.closest('.pm-msg')); }
+    });
+
     // ---------- 事件 ----------
-    $('#pm-open').addEventListener('click', () => {
-        openChat($('#pm-peer-id').value.trim(), $('#pm-peer-name').value.trim());
-    });
-    $('#pm-peer-id').addEventListener('keydown', e => {
-        if (e.key === 'Enter') $('#pm-open').click();
-    });
     ta.addEventListener('keydown', e => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
     });

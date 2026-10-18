@@ -20,7 +20,10 @@ import java.util.Map;
  *
  *
  *
- *
+ * 截止2026/10/16/8:34，我已经修复了通知红点bug，
+ * 以上的红点bug注释作废.前端部分进行了重构，使之与原YouTube更相似。
+ * 新增了历史功能->查询与自动插入观看历史。2026/10/17/11:00短视频模块搭建完成。
+ * 短视频原本默认无声，现在改成了有声。新增搜索栏的语音功能
  *
  *
  *
@@ -63,10 +66,12 @@ public class PrivateMessageController {
         return privateMessageService.send(privateMessage);
     }
     //从我这里删除发出的信息，但是对方依旧能看得到。因为这不是撤回操作，软删除
+    @PostMapping("/delete/private/message")
     public Result<Map<String,Object>> deleteFromMySide(@RequestParam String msgId,@RequestParam String userId){
         return privateMessageService.deleteFromMySide(msgId, userId);
     }
     //撤回操作
+    @PostMapping("/withdraw/private/message")
     public Result<Map<String,Object>> withdraw(@RequestParam String msgId,@RequestParam String userId,@RequestParam int timeWithdraw){
         return privateMessageService.withdraw(msgId, userId, timeWithdraw);
     }
