@@ -65,4 +65,13 @@ public interface PrivateMessageMapper {
     ORDER BY t.create_time DESC
     """)
     List<Map<String, Object>> selectInbox(@Param("me") String me);
+    //从我这里删除发出的信息，但是对方依旧能看得到。因为这不是撤回操作，软删除
+    @Update("""
+    UPDATE private_message
+       SET from_deleted = 1
+     WHERE msg_id = #{msgId}
+       AND from_user = #{userId}
+    """)
+    int deleteFromMySide(@Param("msgId") String msgId, @Param("userId") String userId);
+
 }
