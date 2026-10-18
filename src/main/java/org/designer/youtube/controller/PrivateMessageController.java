@@ -66,4 +66,8 @@ public class PrivateMessageController {
     public Result<Map<String,Object>> deleteFromMySide(@RequestParam String msgId,@RequestParam String userId){
         return privateMessageService.deleteFromMySide(msgId, userId);
     }
+    //撤回操作
+    public Result<Map<String,Object>> withdraw(@RequestParam String msgId,@RequestParam String userId,@RequestParam int timeWithdraw){
+        return privateMessageService.withdraw(msgId, userId, timeWithdraw);
+    }
 }

@@ -6,6 +6,7 @@ import org.designer.youtube.common.Result;
 import org.designer.youtube.entity.PrivateMessage;
 import org.designer.youtube.mapper.PrivateMessageMapper;
 import org.jspecify.annotations.NonNull;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
@@ -72,5 +73,26 @@ public class PrivateMessageService {
         int k= privateMessageMapper.send(privateMessage);
         if(k==0) return Result.fail("发送失败！");
         return Result.success("发送成功！",Map.of("msgId",privateMessage.getMsgId()));
+    }
+
+    //从我这里删除发出的信息，但是对方依旧能看得到。因为这不是撤回操作，软删除
+    public Result<Map<String,Object>> deleteFromMySide(String msgId,String userId){
+        try{
+            int k= privateMessageMapper.deleteFromMySide(msgId, userId);
+            if(k!=0) return Result.success("删除成功！",Map.of("success",true));
+        }catch (DuplicateKeyException esq){
+            return Result.success("已经删除过一次了！",Map.of("success",true));
+        }
+        return Result.fail("删除失败！");
+    }
+    //撤回操作
+    public Result<Map<String,Object>> withdraw(String msgId,String userId,int timeWithdraw){
+        try {
+            int k= privateMessageMapper.withdraw(msgId, userId, timeWithdraw);
+            if(k!=0) return Result.success("撤回成功！",Map.of("success",true));
+        }catch (DuplicateKeyException esq){
+            return Result.success("你已经撤回过一次了！",Map.of("success",true));
+        }
+        return Result.fail("撤回失败！");
     }
 }

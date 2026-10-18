@@ -84,7 +84,7 @@ public interface PrivateMessageMapper {
        AND is_withdrawn = 0
        AND create_time >= DATE_SUB(NOW(), INTERVAL #{timeWithdraw} SECOND)
     """)
-    int withdraw(@Param("msgId") String msgId,
-                 @Param("userId") String userId,
+    int withdraw(@Param("msgId")        String msgId,
+                 @Param("userId")       String userId,
                  @Param("timeWithdraw") int timeWithdraw);
 }

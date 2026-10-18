@@ -575,4 +575,5 @@ VALUES(#{userId},#{title},#{videoPath},#{isShort},#{durationSec},#{isVertical})
 
     """)
     List<Map<String,Object>> selectShortFeed(@Param("size") int size, @Param("offset") int offset);
+
 }
