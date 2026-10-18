@@ -75,4 +75,9 @@ public class PrivateMessageController {
     public Result<Map<String,Object>> withdraw(@RequestParam String msgId,@RequestParam String userId,@RequestParam int timeWithdraw){
         return privateMessageService.withdraw(msgId, userId, timeWithdraw);
     }
+    //私信功能要求不仅仅是可以互相发送文字，还可以发送视频与图片
+    @PostMapping("/send/picture/video")
+    public Result<Map<String,Object>> sendPictureOfVideo(@RequestParam PrivateMessage privateMessage){
+        return privateMessageService.sendPictureOrVideo(privateMessage);
+    }
 }
