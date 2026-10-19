@@ -323,4 +323,10 @@ public class VideoController {
                                                            @RequestParam(defaultValue = "0") int offset) {
         return vs.selectShortFeed(size, offset);
     }
+    //给这条视频下的评论点个赞，顺便显示这条评论的点赞数。
+
+    public Result<Map<String,Object>> toggleCommentLike(@RequestParam String me,@RequestParam String commentId){
+        return vs.toggleCommentLike(me, commentId);
+    }
+
 }
