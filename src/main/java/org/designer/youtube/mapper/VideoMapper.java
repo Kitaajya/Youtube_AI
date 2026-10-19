@@ -277,6 +277,46 @@ VALUES(#{userId},#{title},#{videoPath},#{isShort},#{durationSec},#{isVertical})
     SELECT COUNT(*) FROM video_like WHERE video_id=#{id} AND user_id=#{userId}
     """)
     int selectMyLike(@Param("id") long id, @Param("userId") String userId);
+    /**
+     * 评论区点赞，在视频 id为id的情况下点赞此评论
+     * 2026/10/19/14:15
+     *
+     *-- 评论区点赞，本人给他点赞
+     * CREATE TABLE IF NOT EXISTS comment_like(
+     *     user_id     VARCHAR(13) NOT NULL,   -- 谁点的赞
+     *     comment_id  VARCHAR(13) NOT NULL,   -- 赞了哪条评论
+     *     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+     *     PRIMARY KEY (user_id, comment_id),   -- 一人一评论只能赞一次
+     *     CONSTRAINT fk_cl_user    FOREIGN KEY (user_id)    REFERENCES user_information(user_id) ON DELETE CASCADE,
+     *     CONSTRAINT fk_cl_comment FOREIGN KEY (comment_id) REFERENCES video_comment(comment_id) ON DELETE CASCADE
+     * );
+     *
+     *
+     *
+     * **/
+    //点赞：插入一条 (user_id, comment_id)。联合主键保证同一人同一评论只能赞一次，
+    //重复点赞会抛 DuplicateKeyException，由 Service 捕获处理。
+    @Insert("""
+    INSERT INTO comment_like(user_id, comment_id) VALUES(#{me}, #{commentId})
+    """)
+    int addCommentLike(@Param("me") String me, @Param("commentId") String commentId);
+
+    // 取消点赞：删掉那一行，返回1=成功取消，0=本来就没赞过
+    @Delete("""
+    DELETE FROM comment_like WHERE user_id=#{me} AND comment_id=#{commentId}
+    """)
+    int removeCommentLike(@Param("me") String me, @Param("commentId") String commentId);
+
+    // 某条评论的赞数
+    @Select("SELECT COUNT(*) FROM comment_like WHERE comment_id=#{commentId}")
+    int countCommentLikes(@Param("commentId") String commentId);
+
+    // 我赞没赞过这条（前端按钮实心/空心）
+    @Select("SELECT COUNT(*) FROM comment_like WHERE user_id=#{me} AND comment_id=#{commentId}")
+    int likedByMe(@Param("me") String me, @Param("commentId") String commentId);
+    
+
+
 
     //播放计数加一（只做一次 UPDATE，新值请调 selectViewCount 回读）
     @Update("""
