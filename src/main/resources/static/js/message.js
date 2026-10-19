@@ -19,6 +19,8 @@
     const $ = s => document.querySelector(s);
     const peersBox = $('#pm-peers'), msgs = $('#pm-msgs'), head = $('#pm-chat-head'), sideHead = $('#pm-side-head');
     const ta = $('#pm-content'), sendBtn = $('#pm-send');
+    const picBtn = $('#pm-pic-btn'), videoBtn = $('#pm-video-btn');
+    const picInput = $('#pm-pic-input'), videoInput = $('#pm-video-input');
 
     // ---------- 本地镜像：会话缓存（含备注名）+ 隐藏名单 ----------
     const peerKey = 'yt_pm_peers_' + me.userId;
@@ -137,9 +139,19 @@
                 + `<button class="m-op" data-del="${YT.esc(msgId)}" title="单方面删除：仅从我这里消失，对方仍可见">删除</button>`
                 + '</div>';
         }
+        let bodyHtml;
+        const mtype = String(m.msgType || 'text').toLowerCase();
+        const mediaFile = String(m.mediaPath || '');
+        if (mtype === 'image' && mediaFile) {
+            bodyHtml = `<div class="bubble media"><img src="${YT.mediaUrl(mediaFile)}" alt="" loading="lazy"></div>`;
+        } else if (mtype === 'video' && mediaFile) {
+            bodyHtml = `<div class="bubble media"><video controls preload="metadata" playsinline src="${YT.mediaUrl(mediaFile)}"></video></div>`;
+        } else {
+            bodyHtml = `<div class="bubble">${YT.esc(m.contents)}</div>`;
+        }
         return `
             <div class="pm-msg ${mine ? 'me' : ''}" data-msg-id="${YT.esc(msgId)}">
-                <div class="bubble">${YT.esc(m.contents)}</div>
+                ${bodyHtml}
                 <span class="m-time">${YT.esc(who)} · ${YT.esc(time)}</span>
                 ${ops}
             </div>`;
@@ -171,6 +183,15 @@
             <span class="avatar">${YT.esc((current.name || current.userId).slice(0, 1).toUpperCase())}</span>
             <b>${YT.esc(current.name || '对方')}</b>
             <span class="w-stats">ID: ${YT.esc(current.userId)}</span>`;
+    }
+
+    // 会话列表一行预览文字：撤回/图片/视频各有占位，文字取前 30 字
+    function previewOf(m) {
+        if (Number(m.isWithdrawn || 0) === 1) return '[已撤回]';
+        const t = String(m.msgType || 'text').toLowerCase();
+        if (t === 'image') return '[图片]';
+        if (t === 'video') return '[视频]';
+        return String(m.contents || '').slice(0, 30);
     }
 
     // ---------- 服务器数据 ----------
@@ -269,7 +290,7 @@
             lastChatSig = chatSig(list);   // 记下基线：轮询发现同样内容时不再重绘
             // 用最后一条消息 + 对方昵称回写镜像；刚打开视为已读，未读清零
             const last = list[list.length - 1];
-            const lastPreview = last ? (Number(last.isWithdrawn || 0) === 1 ? '[已撤回]' : String(last.contents).slice(0, 30)) : undefined;
+            const lastPreview = last ? previewOf(last) : undefined;
             touchPeer(userId, name,
                 lastPreview,
                 last ? last.createTime : '', 0);
@@ -333,6 +354,70 @@
         } finally {
             loading = false;
             sendBtn.disabled = false;
+            ta.focus();
+        }
+    }
+
+    // ---------- 发送图片 / 视频 ----------
+    // 两步：① multipart 上传文件 → 后端落盘返回 {mediaPath,url}；
+    //       ② 表单调 /send/picture/video 入库（msgType 由后端按扩展名推导，前端不传）。
+    // 上传接口要发 FormData，YT.api 只会 urlencoded，所以 fetch 手写第一步。
+    async function sendMedia(file) {
+        if (!current) { YT.toast('请先选择聊天对象'); return; }
+        if (loading) return;
+        if (!file) return;
+        const isImage = file.type.startsWith('image/');
+        const limitMb = isImage ? 20 : 100;
+        if (file.size > limitMb * 1024 * 1024) { YT.toast(`文件超过 ${limitMb}MB 上限`); return; }
+
+        loading = true;
+        picBtn.disabled = true; videoBtn.disabled = true;
+        try {
+            // ① 上传文件本体
+            const fd = new FormData();
+            fd.append('file', file);
+            const upRes = await fetch('/api/private_message/upload/media', { method: 'POST', body: fd });
+            const up = await upRes.json();
+            if (!up.success) { YT.toast(up.message || '上传失败'); return; }
+            const mediaPath = String(up.data && up.data.mediaPath || '');
+            if (!mediaPath) { YT.toast('上传异常：未拿到文件名'); return; }
+
+            // ② 登记为一条私信消息
+            const r = await YT.api.post('/api/private_message/send/picture/video', {
+                fromUser: me.userId, toUser: current.userId, mediaPath,
+            });
+            if (!r.success) { YT.toast(r.message || '发送失败'); return; }
+
+            // ③ 乐观上屏 + 会话预览（和文字发送同一套路，防止轮询抢先重绘重复显示）
+            const sentMsgId = String((r.data && r.data.msgId) || '');
+            const nowMsg = {
+                msgId: sentMsgId, fromUser: me.userId, toUser: current.userId,
+                contents: '', msgType: isImage ? 'image' : 'video',
+                mediaPath, createTime: localNow(),
+            };
+            curList = [...curList, nowMsg];
+            msgs.insertAdjacentHTML('beforeend', msgHtml(nowMsg));
+            msgs.scrollTop = msgs.scrollHeight;
+            scheduleWithdrawRefresh(curList);
+            touchPeer(current.userId, current.name, previewOf(nowMsg), nowMsg.createTime);
+
+            try {
+                const chk = await YT.api.get('/api/private_message/select/message', { a: me.userId, b: current.userId });
+                const list = Array.isArray(chk.data) ? chk.data : [];
+                const lastItem = list[list.length - 1];
+                lastChatSig = chatSig(list);
+                if (list.length && !(sentMsgId && String(lastItem.msgId) === sentMsgId)) {
+                    renderMsgs(list);
+                    msgs.scrollTop = msgs.scrollHeight;
+                }
+            } catch (e) { /* 拉取失败就交给轮询兜底 */ }
+
+            loadInbox();
+        } catch (e) {
+            YT.toast('发送失败：' + e.message);
+        } finally {
+            loading = false;
+            picBtn.disabled = false; videoBtn.disabled = false;
             ta.focus();
         }
     }
@@ -473,6 +558,13 @@
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
     });
     sendBtn.addEventListener('click', doSend);
+
+    // 图片/视频：按钮只做"打开文件选择器"，真正发送在 change 里；
+    // 每次选完把 value 清空，保证连续选同一个文件也能再次触发 change
+    picBtn.addEventListener('click', () => { picInput.value = ''; picInput.click(); });
+    videoBtn.addEventListener('click', () => { videoInput.value = ''; videoInput.click(); });
+    picInput.addEventListener('change', () => { const f = picInput.files[0]; picInput.value = ''; if (f) sendMedia(f); });
+    videoInput.addEventListener('change', () => { const f = videoInput.files[0]; videoInput.value = ''; if (f) sendMedia(f); });
 
     peersBox.addEventListener('click', e => {
         const rm = e.target.closest('[data-remove]');

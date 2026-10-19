@@ -143,6 +143,47 @@
 }
 .pm-msg .m-time { font-size: 11px; color: var(--text-tertiary); padding: 0 4px; }
 
+/* ---------- 图片 / 视频消息 ---------- */
+/* 媒体气泡去掉内边距和文字底色，边框/圆角直接包着图，观感接近微信 */
+/* width: fit-content 强制气泡按媒体实际大小收缩，不被媒体原始分辨率撑开 */
+.pm-msg .bubble.media {
+    width: fit-content;
+    max-width: 100%;
+    padding: 3px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+}
+.pm-msg .bubble.media img,
+.pm-msg .bubble.media video {
+    display: block;
+    /* 必须是确定的像素值：写成 min(320px, 100%) 时，百分比在收缩宽度
+       计算阶段无法解析，浏览器会忽略整个 max-width，视频按原始分辨率
+       把气泡撑满整行（之前"大灰框套小视频"就是这么来的） */
+    max-width: 320px;
+    max-height: 360px;
+    border-radius: 10px;
+    object-fit: contain;
+    background: #000;   /* 视频留黑边，图片加载失败也不刺眼 */
+}
+.pm-msg.me .bubble.media { background: var(--surface-2); border-color: var(--border); }
+
+/* ---------- 输入区左侧的媒体工具按钮 ---------- */
+.pm-tools { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+.pm-tool {
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-2);
+    color: var(--text-secondary);
+    font-size: 17px;
+    line-height: 1;
+    cursor: pointer;
+}
+.pm-tool:hover { border-color: var(--focus-ring); color: var(--text-primary); }
+.pm-tool:disabled { opacity: .5; cursor: not-allowed; }
+
 /* ---------- 撤回提示 & 单条操作按钮 ---------- */
 /* 已撤回：灰色居中提示，不再显示正文气泡底色 */
 .pm-msg.withdrawn { align-self: center; max-width: 100%; align-items: center; }

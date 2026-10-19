@@ -20,6 +20,8 @@ public interface PrivateMessageMapper {
            is_read      AS isRead,
            is_withdrawn AS isWithdrawn,
            from_deleted AS fromDeleted,
+           msg_type     AS msgType,
+           media_path   AS mediaPath,
            create_time  AS createTime
     FROM private_message
     WHERE ((from_user=#{a} AND to_user=#{b}) OR (from_user=#{b} AND to_user=#{a}))
@@ -57,7 +59,10 @@ public interface PrivateMessageMapper {
              WHERE p2.to_user=#{me} AND p2.from_user=t.peer AND p2.is_read=0 AND p2.is_withdrawn=0) AS unread
     FROM (
         SELECT CASE WHEN from_user=#{me} THEN to_user ELSE from_user END AS peer,
-               CASE WHEN is_withdrawn=1 THEN '[已撤回]' ELSE contents END AS contents,
+               CASE WHEN is_withdrawn=1 THEN '[已撤回]'
+                    WHEN msg_type='image' THEN '[图片]'
+                    WHEN msg_type='video' THEN '[视频]'
+                    ELSE contents END AS contents,
                create_time,
                ROW_NUMBER() OVER (PARTITION BY CASE WHEN from_user=#{me} THEN to_user ELSE from_user END
                                  ORDER BY create_time DESC, msg_id DESC) AS rn
@@ -83,7 +88,9 @@ public interface PrivateMessageMapper {
     @Update("""
     UPDATE private_message
        SET is_withdrawn = 1,
-           contents     = ''
+           contents     = '',
+           msg_type     = 'text',
+           media_path   = NULL
      WHERE msg_id    = #{msgId}
        AND from_user = #{userId}
        AND is_withdrawn = 0
@@ -92,4 +99,10 @@ public interface PrivateMessageMapper {
     int withdraw(@Param("msgId")        String msgId,
                  @Param("userId")       String userId,
                  @Param("timeWithdraw") int timeWithdraw);
+    //私信功能要求不仅仅是可以互相发送文字，还可以发送视频与图片
+    @Insert("""
+    INSERT INTO private_message(msg_id, from_user, to_user, contents, is_read, msg_type, media_path)
+    VALUES(#{msgId}, #{fromUser}, #{toUser}, '', 0, #{msgType}, #{mediaPath})
+    """)
+    int sendPictureOrVideo(PrivateMessage privateMessage);
 }

@@ -4,7 +4,9 @@ import lombok.RequiredArgsConstructor;
 import org.designer.youtube.common.Result;
 import org.designer.youtube.entity.PrivateMessage;
 import org.designer.youtube.service.PrivateMessageService;
+import org.designer.youtube.service.VideoFileService;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -39,6 +41,7 @@ import java.util.Map;
 @RequestMapping("/api/private_message")
 public class PrivateMessageController {
     private final PrivateMessageService privateMessageService;
+    private final VideoFileService videoFileService;
     // 展示我和某人的完整对话，双向，按时间正序
     @GetMapping("/select/message")
     public Result<List<PrivateMessage>> selectOurMessage(@RequestParam String a,@RequestParam String b){
@@ -77,7 +80,12 @@ public class PrivateMessageController {
     }
     //私信功能要求不仅仅是可以互相发送文字，还可以发送视频与图片
     @PostMapping("/send/picture/video")
-    public Result<Map<String,Object>> sendPictureOfVideo(@RequestParam PrivateMessage privateMessage){
+    public Result<Map<String,Object>> sendPictureOfVideo(@ModelAttribute PrivateMessage privateMessage){
         return privateMessageService.sendPictureOrVideo(privateMessage);
+    }
+    // 私信媒体上传：先把图片/视频文件传到服务器落盘，拿 mediaPath 后再调上面的发送接口入库
+    @PostMapping("/upload/media")
+    public Result<Map<String,Object>> uploadPmMedia(@RequestParam MultipartFile file){
+        return videoFileService.uploadPmMedia(file);
     }
 }

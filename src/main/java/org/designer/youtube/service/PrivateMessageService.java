@@ -95,4 +95,26 @@ public class PrivateMessageService {
         }
         return Result.fail("撤回失败！");
     }
+    //私信功能要求不仅仅是可以互相发送文字，还可以发送视频与图片
+    public Result<Map<String,Object>> sendPictureOrVideo(PrivateMessage privateMessage){
+        if (privateMessage.getFromUser() == null) return Result.fail("发件人不能为空");
+        if (privateMessage.getToUser() == null) return Result.fail("目标人不能为空");
+        String mediaPath = privateMessage.getMediaPath();
+        if (mediaPath == null || mediaPath.isEmpty()) return Result.fail("媒体文件不能为空");
+
+        String ext = mediaPath.contains(".")
+                ? mediaPath.substring(mediaPath.lastIndexOf('.') + 1).toLowerCase()
+                : "";
+        if (List.of("jpg","jpeg","png","gif","webp","bmp").contains(ext)) privateMessage.setMsgType("image");
+        else if (List.of("mp4","webm","mov","m4v").contains(ext)) privateMessage.setMsgType("video");
+        else return Result.fail("不支持的媒体类型：" + ext);   // 防乱上传
+
+        privateMessage.setContents("");
+        RandomlyCreateID id = new RandomlyCreateID();
+        privateMessage.setMsgId(id.createId());
+        privateMessage.setIsRead(0);
+        int k = privateMessageMapper.sendPictureOrVideo(privateMessage);
+        if (k == 0) return Result.fail("发送失败！");
+        return Result.success("发送成功！", Map.of("msgId", privateMessage.getMsgId()));
+    }
 }

@@ -247,4 +247,43 @@ public class VideoFileService {
         return false;
     }
 
+    /** 私信媒体允许的格式：图片 + 浏览器可直接播放的视频 */
+    private boolean isPmMedia(String ext) {
+        for (String p : IMAGE_EXT) if (p.equals(ext)) return true;
+        for (String p : PLAYABLE) if (p.equals(ext)) return true;
+        return false;
+    }
+
+    /**
+     * 私信图片/视频上传：只负责落盘并返回文件名与访问 URL，
+     * 入库由前端拿着 mediaPath 再调 /api/private_message/send/picture/video 完成。
+     */
+    public Result<Map<String, Object>> uploadPmMedia(MultipartFile file) {
+        if (file == null || file.isEmpty()) return Result.fail("没有收到文件");
+        if (file.getSize() > 100 * 1024 * 1024) return Result.fail("文件不能超过 100MB");
+
+        String ext = extensionOf(file.getOriginalFilename());
+        if (!isPmMedia(ext)) return Result.fail("仅支持 jpg/png/webp/gif 图片或 mp4/webm/mov/m4v 视频");
+
+        String fileName = "pm_" + idGen.createId().toLowerCase(Locale.ROOT) + "." + ext;
+        Path dir = Paths.get(storageDir).toAbsolutePath().normalize();
+        Path target = dir.resolve(fileName).normalize();
+        if (!target.startsWith(dir)) return Result.fail("文件名不合法");
+
+        try {
+            Files.createDirectories(dir);
+            try (InputStream in = file.getInputStream()) {
+                Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException e) {
+            log.error("私信媒体保存失败: {}", target, e);
+            return Result.fail("文件保存失败：" + e.getMessage());
+        }
+
+        return Result.success("上传成功", Map.of(
+                "mediaPath", fileName,                                  // 入库只存文件名
+                "url", publicPrefix() + "/" + fileName                  // 前端直接可显示的地址
+        ));
+    }
+
 }
