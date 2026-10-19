@@ -366,6 +366,56 @@ html.has-sb[data-sb="mini"] body { padding-left: 72px; }
 .comment .ops span:hover { color: var(--text-primary); }
 .replies { margin-top: 10px; }
 .replies .comment { margin-bottom: 14px; }
+
+/* ---------- YouTube 风格评论区（嵌套 + 折叠 + 连接线） ---------- */
+/* 操作按钮：胶囊形，悬停灰底 */
+.comment .ops { display: flex; gap: 6px; font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+.comment .ops .op-btn {
+    cursor: pointer; padding: 5px 12px; border-radius: 100px; line-height: 1;
+}
+.comment .ops .op-btn:hover { background: var(--surface-hover); color: var(--text-primary); }
+
+/* "查看N条回复 / 收起回复"：蓝色胶囊按钮 */
+.toggle-replies {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin-top: 6px; padding: 6px 16px;
+    border: none; border-radius: 100px;
+    background: transparent; color: var(--link);
+    font-size: 14px; font-weight: 500; font-family: inherit; cursor: pointer;
+}
+.toggle-replies:hover { background: color-mix(in srgb, var(--link) 12%, transparent); }
+.toggle-replies .tri { font-size: 11px; }
+
+/* 楼中楼容器：默认折叠 */
+.replies { display: none; margin-top: 8px; }
+.replies.open { display: block; }
+
+/* 回复头像缩小（YouTube 回复用 24px 头像） */
+.comment.is-reply > .avatar { width: 24px; height: 24px; font-size: 11px; }
+
+/* 连接线：从"查看N条回复"按钮左侧向下引出弧线，再接横向短线到回复头像 */
+.toggle-replies { position: relative; }
+.toggle-replies::before {
+    content: ''; position: absolute;
+    left: -12px; top: 50%; width: 12px; height: 50%;
+    border-left: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    border-bottom-left-radius: 10px;
+}
+.replies.open::before {
+    content: ''; display: block;
+    margin-left: -12px; width: 12px; height: 10px;
+    border-left: 1px solid var(--border);
+}
+.replies.open .comment { margin-left: -12px; }
+.replies.open .comment::before {
+    content: ''; flex-shrink: 0; align-self: flex-start;
+    width: 12px; height: 17px;
+    border-left: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    border-bottom-left-radius: 10px;
+    margin-right: -1px;
+}
 .reply-form { margin-top: 8px; display: none; }
 .reply-form.open { display: block; }
 .edit-form textarea {

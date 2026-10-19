@@ -334,4 +334,18 @@ public class VideoService {
         int o = Math.max(offset, 0);
         return Result.success(vm.selectShortFeed(s, o));
     }
+    //给这条视频下的评论点个赞，顺便显示这条评论的点赞数。
+    public Result<Map<String,Object>> toggleCommentLike(String me, String commentId){
+        if (vm.likedByMe(me, commentId) > 0) vm.removeCommentLike(me, commentId);
+        else {
+            try {
+                vm.addCommentLike(me, commentId);
+            }
+            catch (DuplicateKeyException e){ /*我认为几乎不可能出现这种情况，所以就不理它*/ }
+        }
+        return Result.success("操作成功", Map.of(
+                "liked", vm.likedByMe(me, commentId) > 0,
+                "count", vm.countCommentLikes(commentId)));
+    }
+
 }

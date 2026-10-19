@@ -368,9 +368,9 @@
 
     function opBtns(c, isMine) {
         return `<div class="ops">
-            <span data-reply="${YT.esc(YT.pick(c, 'comment_id'))}">回复</span>
-            ${isMine ? `<span data-edit="${YT.esc(YT.pick(c, 'comment_id'))}">修改</span>
-                       <span data-del="${YT.esc(YT.pick(c, 'comment_id'))}" style="color:var(--danger);">删除</span>` : ''}
+            <span class="op-btn" data-reply="${YT.esc(YT.pick(c, 'comment_id'))}">回复</span>
+            ${isMine ? `<span class="op-btn" data-edit="${YT.esc(YT.pick(c, 'comment_id'))}">修改</span>
+                       <span class="op-btn" style="color:var(--danger);" data-del="${YT.esc(YT.pick(c, 'comment_id'))}">删除</span>` : ''}
         </div>`;
     }
 
@@ -381,13 +381,19 @@
         // 游客：回复框仍可查看已有回复，但输入框设为只读，避免打完字提交时才被拦导致内容丢失
         const roAttr = me ? '' : ' readonly';
         const roPh = me ? `回复 ${YT.esc(who)}…` : '登录后即可回复…';
+        // 楼中楼扁平化：回复的回复也挂在根评论下（data-root 记录归属），与 YouTube 一致
+        const rootAttr = isReply ? ` data-root="${YT.esc(cid)}"` : '';
+        // 头像：用户传过头像就用图，否则退回昵称首字母
+        const av = String(YT.pick(c, 'commenter_avatar', 'commenterAvatar') || '');
+        const avInner = av ? `<img src="${YT.mediaUrl(av)}" alt="">` : YT.esc(who.slice(0, 1).toUpperCase());
         return `
-        <div class="comment" data-cid="${YT.esc(cid)}">
-            <span class="avatar ${isReply ? '' : ''}">${YT.esc(who.slice(0, 1).toUpperCase())}</span>
+        <div class="comment${isReply ? ' is-reply' : ''}" data-cid="${YT.esc(cid)}" data-who="${YT.esc(who)}"${rootAttr}>
+            <span class="avatar">${avInner}</span>
             <div class="body">
-                <div class="who">${YT.esc(who)}<span class="time">${YT.timeAgo(YT.pick(c, 'create_time'))}</span></div>
+                <div class="who">@${YT.esc(who)}<span class="time">${YT.timeAgo(YT.pick(c, 'create_time'))}</span></div>
                 <div class="text">${YT.esc(YT.pick(c, 'contents'))}</div>
                 ${opBtns(c, isMine)}
+                ${isReply ? '' : `<button class="toggle-replies" data-toggle="${YT.esc(cid)}" hidden></button>`}
                 <div class="edit-form" style="display:none;"></div>
                 <div class="reply-form">
                     <textarea placeholder="${roPh}" rows="2"${roAttr} style="width:100%;font-family:inherit;font-size:13px;border:1px solid var(--input-border);border-radius:8px;padding:8px;outline:none;background:var(--input-bg);color:var(--text-primary);"></textarea>
@@ -401,11 +407,24 @@
         </div>`;
     }
 
+    // 把一组回复渲染进根评论的折叠区，并更新"查看N条回复/收起回复"按钮
+    function mountReplies(rootCid, replyList) {
+        const root = list.querySelector(`.comment[data-cid="${CSS.escape(rootCid)}"]`);
+        if (!root) return;
+        const box = root.querySelector(`:scope > .body > [data-replies="${CSS.escape(rootCid)}"]`);
+        const toggle = root.querySelector(`:scope > .body > .toggle-replies[data-toggle="${CSS.escape(rootCid)}"]`);
+        if (!box || !toggle) return;
+        box.innerHTML = replyList.map(c => item(c, true)).join('');
+        box.classList.remove('open');           // 默认收起（YouTube 行为）
+        toggle.hidden = replyList.length === 0;
+        toggle.dataset.count = replyList.length;
+        toggle.innerHTML = `查看 ${replyList.length} 条回复 <span class="tri">▾</span>`;
+    }
+
     async function loadReplies(cid, box) {
         try {
             const r = await YT.api.get('/api/video/select/parent/comments', { parentId: cid });
-            const rs = r.data || [];
-            box.innerHTML = rs.map(c => item(c, true)).join('');
+            box.innerHTML = (r.data || []).map(c => item(c, true)).join('');
         } catch (e) { /* 忽略 */ }
     }
 
@@ -425,13 +444,23 @@
         if (!data.length) { list.innerHTML = '<div class="empty" style="padding:20px;">还没有评论，来说两句吧</div>'; return; }
         list.innerHTML = roots.map(c => item(c, false)).join('');
 
-        // 把已查到的回复直接归位（省一次请求），同时支持展开楼中楼
-        roots.forEach(rc => {
-            const cid = String(YT.pick(rc, 'comment_id'));
-            const box = list.querySelector(`[data-replies="${CSS.escape(cid)}"]`);
-            const mine = replies.filter(r => String(YT.pick(r, 'parent_id') || YT.pick(r, 'parentId')) === cid);
-            if (box && mine.length) box.innerHTML = mine.map(c => item(c, true)).join('');
+        // 回复的回复也归位到根评论（沿 parent 链向上找根），整组默认折叠
+        const byId = new Map(data.map(c => [String(YT.pick(c, 'comment_id')), c]));
+        const rootOf = c => {
+            let cur = c, guard = 0;
+            while (cur && (cur.parent_id || cur.parentId) && guard++ < 50) {
+                cur = byId.get(String(cur.parent_id || cur.parentId));
+            }
+            return cur;
+        };
+        const groups = new Map();
+        replies.forEach(rc => {
+            const root = rootOf(rc);
+            if (!root) return;
+            const rid = String(YT.pick(root, 'comment_id'));
+            (groups.get(rid) || groups.set(rid, []).get(rid)).push(rc);
         });
+        groups.forEach((arr, rid) => mountReplies(rid, arr));
     }
 
     // ---------- 交互 ----------
@@ -450,12 +479,31 @@
     list.addEventListener('click', async e => {
         const t = e.target, cid = t.dataset;
 
+        // "查看N条回复 / 收起回复" 折叠切换
+        if (cid.toggle) {
+            const root = t.closest('.comment');
+            const box = root.querySelector(`:scope > .body > [data-replies="${CSS.escape(cid.toggle)}"]`);
+            const open = box.classList.toggle('open');
+            const n = box.children.length;
+            t.innerHTML = open ? `收起回复 <span class="tri">▴</span>`
+                               : `查看 ${n} 条回复 <span class="tri">▾</span>`;
+            return;
+        }
+
         if (cid.reply) {
             const box = t.closest('.comment').querySelector('.reply-form');
             box.classList.toggle('open');
-            if (box.classList.contains('open') && !box.dataset.loaded) {
-                await loadReplies(cid.reply, box.closest('.body').querySelector(`[data-replies="${CSS.escape(cid.reply)}"]`));
-                box.dataset.loaded = '1';
+            // 回复根评论时，若楼中楼处于折叠态则自动展开（YouTube 行为）
+            if (box.classList.contains('open')) {
+                const root = t.closest('.comment');
+                const rp = root.querySelector(`:scope > .body > [data-replies="${CSS.escape(cid.reply)}"]`);
+                const tg = root.querySelector(`:scope > .body > .toggle-replies[data-toggle="${CSS.escape(cid.reply)}"]`);
+                if (rp && tg && !tg.hidden && !rp.classList.contains('open')) {
+                    rp.classList.add('open');
+                    tg.innerHTML = `收起回复 <span class="tri">▴</span>`;
+                }
+                const ta = box.querySelector('textarea');
+                if (ta && !ta.value && me) ta.value = '';   // 根评论回复无需@前缀
             }
             return;
         }
@@ -464,12 +512,19 @@
         if (cid.sendReply) {
             if (!YT.requireLogin()) return;
             const form = t.closest('.reply-form');
-            const content = form.querySelector('textarea').value.trim();
+            const ta = form.querySelector('textarea');
+            let content = ta.value.trim();
             if (!content) return YT.toast('回复不能为空');
+            // 楼中楼扁平化：回复"回复"时自动带上 @对方，与被回复者信息不丢失
+            const target = t.closest('.comment');
+            if (target.classList.contains('is-reply')) {
+                const who = target.dataset.who || '';
+                if (who && !content.startsWith('@' + who)) content = `@${who} ${content}`;
+            }
             const r = await YT.api.post('/api/video/add/my/comments', {
                 commentId: YT.randId(), videoId: id, userId: me.userId, content, parentId: cid.sendReply
             });
-            if (r.success) { form.querySelector('textarea').value = ''; form.classList.remove('open'); YT.toast('回复成功'); loadComments(); }
+            if (r.success) { ta.value = ''; form.classList.remove('open'); YT.toast('回复成功'); loadComments(); }
             else YT.toast(r.message || '回复失败');
             return;
         }
