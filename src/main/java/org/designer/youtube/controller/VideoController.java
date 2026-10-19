@@ -324,7 +324,7 @@ public class VideoController {
         return vs.selectShortFeed(size, offset);
     }
     //给这条视频下的评论点个赞，顺便显示这条评论的点赞数。
-
+    @PostMapping("/add/comment/like")
     public Result<Map<String,Object>> toggleCommentLike(@RequestParam String me,@RequestParam String commentId){
         return vs.toggleCommentLike(me, commentId);
     }
