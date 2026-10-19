@@ -88,4 +88,15 @@ public class PrivateMessageController {
     public Result<Map<String,Object>> uploadPmMedia(@RequestParam MultipartFile file){
         return videoFileService.uploadPmMedia(file);
     }
+
+    //发送表情包
+    @PostMapping("/send/emoji")
+    public Result<Map<String,Object>> sendEmoji(@ModelAttribute PrivateMessage privateMessage){
+        return privateMessageService.sendEmoji(privateMessage);
+    }
+    //查看表情包列表（选择器用）
+    @GetMapping("/emoji/list")
+    public Result<List<Map<String,Object>>> emojiList(){
+        return privateMessageService.selectEmojiList();
+    }
 }

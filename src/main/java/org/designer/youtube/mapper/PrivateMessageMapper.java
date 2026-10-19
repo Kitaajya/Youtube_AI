@@ -62,6 +62,7 @@ public interface PrivateMessageMapper {
                CASE WHEN is_withdrawn=1 THEN '[已撤回]'
                     WHEN msg_type='image' THEN '[图片]'
                     WHEN msg_type='video' THEN '[视频]'
+                    WHEN msg_type='emoji' THEN '[表情]'
                     ELSE contents END AS contents,
                create_time,
                ROW_NUMBER() OVER (PARTITION BY CASE WHEN from_user=#{me} THEN to_user ELSE from_user END
@@ -105,4 +106,28 @@ public interface PrivateMessageMapper {
     VALUES(#{msgId}, #{fromUser}, #{toUser}, '', 0, #{msgType}, #{mediaPath})
     """)
     int sendPictureOrVideo(PrivateMessage privateMessage);
+    //发送表情包（msgType固定emoji，mediaPath存emoji_item里的 file_name）
+    @Insert("""
+    INSERT INTO private_message(msg_id, from_user, to_user, contents, is_read, msg_type, media_path)
+    VALUES(#{msgId}, #{fromUser}, #{toUser}, '', 0, 'emoji', #{mediaPath})
+    """)
+    int sendEmoji(PrivateMessage privateMessage);
+    //查看表情包（前端选择器用：只取上架的，按套图和排序展示）
+    @Select("""
+    SELECT emoji_id  AS emojiId,
+           name,
+           file_name AS fileName,
+           pack,
+           sort_no   AS sortNo
+    FROM emoji_item
+    WHERE enabled = 1
+    ORDER BY pack, sort_no, emoji_id
+    """)
+    List<Map<String, Object>> selectEmojiList();
+    //撤回表情包无需单独方法：通用 withdraw 按 msg_id 匹配、与 msg_type 无关，
+    //会把 msg_type 重置回 text、media_path 清空，表情/图片/视频/文字均复用同一条 SQL。
+    //表情包白名单
+    @Select("SELECT COUNT(*) FROM emoji_item WHERE file_name = #{fileName} AND enabled = 1")
+    int countEnabledEmoji(@Param("fileName") String fileName);
+
 }

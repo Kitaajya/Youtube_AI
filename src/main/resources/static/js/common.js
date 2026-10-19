@@ -316,6 +316,8 @@ const YT = (() => {
         grid: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>',
         search: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="M16 16l4.5 4.5"/></svg>',
         mic: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
+        // 通知铃铛：描边钟体 + 底部短横锤舌（替代原 emoji 🔔，风格同 search/mic）
+        bell: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 10a6 6 0 0 1 12 0c0 4.2 1.6 5.6 1.6 5.6H4.4S6 14.2 6 10"/><path d="M10.2 19h3.6"/></svg>',
     };
 
     // 侧栏展开/收起状态（mini = 72px 图标窄栏，hide = 完全隐藏）
@@ -450,7 +452,7 @@ const YT = (() => {
                     <a href="upload.html" class="icon-btn" title="上传视频">&#8679;</a>
                     <a href="dynamic.html" class="icon-btn" title="动态">&#9993;</a>
                     <div class="nt-wrap">
-                        <button class="icon-btn" id="nt-btn" title="消息提醒">&#128276;<span class="nt-badge" id="nt-badge" style="display:none;">0</span></button>
+                        <button class="icon-btn" id="nt-btn" title="消息提醒">${IC.bell}<span class="nt-badge" id="nt-badge" style="display:none;">0</span></button>
                         <div class="nt-panel" id="nt-panel">
                             <div class="nt-head">消息提醒</div>
                             <div class="nt-list" id="nt-list"><div class="nt-empty">加载中…</div></div>

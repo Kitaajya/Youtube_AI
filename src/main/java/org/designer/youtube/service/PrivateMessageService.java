@@ -117,4 +117,24 @@ public class PrivateMessageService {
         if (k == 0) return Result.fail("发送失败！");
         return Result.success("发送成功！", Map.of("msgId", privateMessage.getMsgId()));
     }
+
+    //发送表情包（INSERT 已固定 contents=''/is_read=0/msg_type='emoji'，实体只需备好 msgId/fromUser/toUser/mediaPath）
+    public Result<Map<String,Object>> sendEmoji(PrivateMessage privateMessage){
+        if (privateMessage.getFromUser() == null) return Result.fail("发件人不能为空");
+        if (privateMessage.getToUser() == null)   return Result.fail("目标人不能为空");
+        String fileName = privateMessage.getMediaPath();
+        if (fileName == null || fileName.isEmpty()) return Result.fail("表情不能为空");
+        // 白名单：只认 emoji_item 里登记过且未下架的文件
+        if (privateMessageMapper.countEnabledEmoji(fileName) == 0) return Result.fail("表情不存在或已下架");
+
+        RandomlyCreateID id = new RandomlyCreateID();
+        privateMessage.setMsgId(id.createId());
+        int k = privateMessageMapper.sendEmoji(privateMessage);
+        if (k == 0) return Result.fail("发送失败！");
+        return Result.success("发送成功！", Map.of("msgId", privateMessage.getMsgId()));
+    }
+    //查看表情包
+    public Result<List<Map<String,Object>>> selectEmojiList(){
+        return Result.success(privateMessageMapper.selectEmojiList());
+    }
 }

@@ -21,6 +21,7 @@
     const ta = $('#pm-content'), sendBtn = $('#pm-send');
     const picBtn = $('#pm-pic-btn'), videoBtn = $('#pm-video-btn');
     const picInput = $('#pm-pic-input'), videoInput = $('#pm-video-input');
+    const emojiBtn = $('#pm-emoji-btn'), emojiPanel = $('#pm-emoji-panel');
 
     // ---------- 本地镜像：会话缓存（含备注名）+ 隐藏名单 ----------
     const peerKey = 'yt_pm_peers_' + me.userId;
@@ -142,7 +143,9 @@
         let bodyHtml;
         const mtype = String(m.msgType || 'text').toLowerCase();
         const mediaFile = String(m.mediaPath || '');
-        if (mtype === 'image' && mediaFile) {
+        if (mtype === 'emoji' && mediaFile) {
+            bodyHtml = `<div class="bubble emoji"><img src="${emojiSrc(mediaFile)}" alt="${YT.esc(mediaFile.replace(/\.[a-z0-9]+$/i, ''))}" loading="lazy"></div>`;
+        } else if (mtype === 'image' && mediaFile) {
             bodyHtml = `<div class="bubble media"><img src="${YT.mediaUrl(mediaFile)}" alt="" loading="lazy"></div>`;
         } else if (mtype === 'video' && mediaFile) {
             bodyHtml = `<div class="bubble media"><video controls preload="metadata" playsinline src="${YT.mediaUrl(mediaFile)}"></video></div>`;
@@ -155,6 +158,11 @@
                 <span class="m-time">${YT.esc(who)} · ${YT.esc(time)}</span>
                 ${ops}
             </div>`;
+    }
+
+    // 表情文件走静态目录 /emoji/（区别于上传媒体的 /videos/）；文件名含中文必须编码
+    function emojiSrc(fileName) {
+        return 'emoji/' + encodeURIComponent(String(fileName));
     }
 
     function renderMsgs(list) {
@@ -185,12 +193,13 @@
             <span class="w-stats">ID: ${YT.esc(current.userId)}</span>`;
     }
 
-    // 会话列表一行预览文字：撤回/图片/视频各有占位，文字取前 30 字
+    // 会话列表一行预览文字：撤回/图片/视频/表情各有占位，文字取前 30 字
     function previewOf(m) {
         if (Number(m.isWithdrawn || 0) === 1) return '[已撤回]';
         const t = String(m.msgType || 'text').toLowerCase();
         if (t === 'image') return '[图片]';
         if (t === 'video') return '[视频]';
+        if (t === 'emoji') return '[表情]';
         return String(m.contents || '').slice(0, 30);
     }
 
@@ -422,6 +431,85 @@
         }
     }
 
+    // ---------- 表情包 ----------
+    // 面板首次打开时从 /emoji/list 拉一次并缓存（表情是全局静态资源，不随会话变化）。
+    // 点击表情 → 表单调 /send/emoji 入库（后端按 file_name 白名单校验，前端只传文件名）。
+    let emojiCache = null;      // 已拉取的表情列表
+    let emojiLoading = false;
+
+    async function loadEmojiPanel() {
+        if (emojiLoading) return;
+        if (!emojiCache) {
+            emojiLoading = true;
+            try {
+                const r = await YT.api.get('/api/private_message/emoji/list');
+                emojiCache = Array.isArray(r.data) ? r.data : [];
+            } catch (e) {
+                emojiPanel.innerHTML = '<div class="pm-empty-emoji">表情加载失败，点击重试</div>';
+                emojiLoading = false;
+                return;
+            }
+            emojiLoading = false;
+        }
+        if (!emojiCache.length) {
+            emojiPanel.innerHTML = '<div class="pm-empty-emoji">暂无可用表情</div>';
+            return;
+        }
+        // 不分类：全部表情平铺在一个网格里，顺序跟接口返回（按 sort_no）一致
+        const cells = emojiCache
+            .map(e => ({
+                file: String(YT.pick(e, 'fileName', 'file_name') || ''),
+                name: String(YT.pick(e, 'name') || ''),
+            }))
+            .filter(it => it.file)
+            .map(it => `
+            <button class="pm-emoji" data-emoji="${YT.esc(it.file)}" title="${YT.esc(it.name || it.file)}">
+                <img src="${emojiSrc(it.file)}" alt="${YT.esc(it.name || it.file)}" loading="lazy">
+            </button>`)
+            .join('');
+        emojiPanel.innerHTML = `<div class="pm-emoji-cells">${cells}</div>`;
+    }
+
+    function toggleEmojiPanel(forceHide) {
+        const show = !forceHide && emojiPanel.hidden;
+        emojiPanel.hidden = !show;
+        emojiBtn.classList.toggle('on', show);
+        if (show) loadEmojiPanel();
+    }
+
+    async function doSendEmoji(fileName) {
+        if (!current) { YT.toast('请先选择聊天对象'); return; }
+        if (loading) return;
+        loading = true;
+        emojiBtn.disabled = true;
+        try {
+            const r = await YT.api.post('/api/private_message/send/emoji', {
+                fromUser: me.userId, toUser: current.userId, mediaPath: fileName,
+            });
+            if (!r.success) { YT.toast(r.message || '发送失败'); return; }
+
+            // 乐观上屏（与文字/图片同套路）；发送成功后收起面板，观感同微信
+            toggleEmojiPanel(true);
+            const sentMsgId = String((r.data && r.data.msgId) || '');
+            const nowMsg = {
+                msgId: sentMsgId, fromUser: me.userId, toUser: current.userId,
+                contents: '', msgType: 'emoji', mediaPath: fileName, createTime: localNow(),
+            };
+            curList = [...curList, nowMsg];
+            msgs.insertAdjacentHTML('beforeend', msgHtml(nowMsg));
+            msgs.scrollTop = msgs.scrollHeight;
+            scheduleWithdrawRefresh(curList);
+            touchPeer(current.userId, current.name, previewOf(nowMsg), nowMsg.createTime);
+            loadInbox();
+        } catch (e) {
+            YT.toast('发送失败：' + e.message);
+        } finally {
+            loading = false;
+            emojiBtn.disabled = false;
+            ta.focus();
+        }
+    }
+
     // ---------- 静默轮询（1 秒）----------
     // 用 setTimeout 链而非 setInterval：某轮请求慢于 1 秒时不会堆积并发请求。
     // 三道闸门共同保证"数据没变 → 界面零动作"：
@@ -565,6 +653,19 @@
     videoBtn.addEventListener('click', () => { videoInput.value = ''; videoInput.click(); });
     picInput.addEventListener('change', () => { const f = picInput.files[0]; picInput.value = ''; if (f) sendMedia(f); });
     videoInput.addEventListener('change', () => { const f = videoInput.files[0]; videoInput.value = ''; if (f) sendMedia(f); });
+
+    // 表情：按钮开合面板；面板里点空白提示重试加载；点表情格发送
+    emojiBtn.addEventListener('click', () => toggleEmojiPanel());
+    emojiPanel.addEventListener('click', e => {
+        if (e.target.closest('.pm-empty-emoji')) { loadEmojiPanel(); return; }
+        const cell = e.target.closest('[data-emoji]');
+        if (cell) doSendEmoji(cell.dataset.emoji);
+    });
+    // 点击面板与按钮以外的任何地方收起面板
+    document.addEventListener('click', e => {
+        if (emojiPanel.hidden) return;
+        if (!emojiPanel.contains(e.target) && !emojiBtn.contains(e.target)) toggleEmojiPanel(true);
+    });
 
     peersBox.addEventListener('click', e => {
         const rm = e.target.closest('[data-remove]');
