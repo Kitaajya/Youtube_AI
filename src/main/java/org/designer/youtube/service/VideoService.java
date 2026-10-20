@@ -347,5 +347,33 @@ public class VideoService {
                 "liked", vm.likedByMe(me, commentId) > 0,
                 "count", vm.countCommentLikes(commentId)));
     }
-
+    /**
+     * 评论区的点赞通知
+     * 2026/10/20/11:11
+     * Kitaajya
+     *
+     * **/
+    // 评论点赞通知
+    private void sendCommentLikeNotify(String commentId, String fromUser) {
+        try {
+            //查这条评论的作者、视频ID和内容
+            Map<String, Object> info = vm.selectCommentInfoForNotify(commentId);
+            if (info == null) return;
+            String toUser = String.valueOf(info.get("user_id")); // 评论作者
+            Long videoId = Long.valueOf(String.valueOf(info.get("video_id")));
+            String content = String.valueOf(info.get("contents"));
+            //如果是自己赞自己，不发通知
+            if (toUser.equals(fromUser)) return;
+            //拼接摘要内容
+            String brief = content == null ? "" : content;
+            if (brief.length() > 30) brief = brief.substring(0, 30) + "...";
+            String contents = "赞了你的评论：" + brief;
+            if (contents.length() > 200) contents = contents.substring(0, 200);
+            //写入数据库（type 定义为 "comment_like"）
+            RandomlyCreateID e = new RandomlyCreateID();
+            vm.insertNotify(e.createId(), toUser, fromUser, "comment_like", videoId, commentId, contents);
+        } catch (Exception e) {
+            log.warn("评论点赞通知写入失败 commentId={}", commentId, e);
+        }
+    }
 }
