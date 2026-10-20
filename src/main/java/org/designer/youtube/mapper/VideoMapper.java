@@ -186,7 +186,8 @@ VALUES(#{userId},#{title},#{videoPath},#{isShort},#{durationSec},#{isVertical})
     //查看此视频的所有评论，根据id（视频id）；关联用户表带出昵称与头像
     @Select("""
     SELECT vc.comment_id, vc.video_id, vc.user_id, vc.contents, vc.parent_id, vc.create_time,
-           u.nickname AS commenter, u.avatar AS commenter_avatar
+           u.nickname AS commenter, u.avatar AS commenter_avatar,
+           (SELECT COUNT(*) FROM comment_like cl WHERE cl.comment_id = vc.comment_id) AS like_count
     FROM video_comment vc
     LEFT JOIN user_information u ON vc.user_id = u.user_id
     WHERE vc.video_id=#{videoId}
