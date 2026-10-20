@@ -164,6 +164,8 @@ const YT = (() => {
         reply:    { icon: '\u21A9\uFE0F', label: '回复了你的评论' },
         favorite: { icon: '\u{1F516}', label: '收藏了你的视频' },
         follow:   { icon: '\u{1F464}', label: '关注了你' },
+        comment_like:   { icon: '\u{1F44D}', label: '赞了你的评论' }, //新增这一行点赞评论通知
+
     };
     let ntTimer = null, ntBusy = false, ntStarted = false, ntOpen = false, ntLastSig = '';
 
