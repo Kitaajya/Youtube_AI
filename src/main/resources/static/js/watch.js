@@ -141,7 +141,7 @@
 
     // ---------- 视频点赞 ----------
     const likeBtn = $('#btn-like'), likeIc = $('#like-ic'), likeNum = $('#like-num');
-    let likeCount = Number(YT.pick(video, 'like_count') || 0);
+    let likeCount = YT.pick(video, 'like_count');
     let liked = false;
     let likeBusy = false;
 
@@ -153,41 +153,66 @@
         likeBtn.classList.toggle('light', liked);
         likeBtn.setAttribute('aria-pressed', liked ? 'true' : 'false');
         if (likeIc) likeIc.innerHTML = liked ? svgLiked : svgLike;
-        if (likeNum) likeNum.textContent = likeCount > 0 ? YT.fmtNum(likeCount) : '0';
+
+        if (likeNum) {
+            if (likeCount === null || likeCount === undefined || likeCount === '') {
+                likeNum.textContent = '';
+            } else {
+                const n = Number(likeCount);
+                likeNum.textContent = n > 0 ? YT.fmtNum(n) : '0';
+            }
+        }
     }
 
     function applyLike(d) {
-        if (d && d.like_count !== undefined && d.like_count !== null) likeCount = Number(d.like_count) || 0;
+        if (d && d.like_count !== undefined && d.like_count !== null) {
+            const n = Number(d.like_count);
+            if (Number.isFinite(n)) likeCount = n;
+        }
         if (d && typeof d.liked === 'boolean') liked = d.liked;
         paintLike();
     }
+
     paintLike();
 
     YT.api.get('/api/video/select/like/count', me ? { id, userId: me.userId } : { id })
-        .then(r => { if (r.success) applyLike(r.data); }).catch(() => { });
-
-    likeBtn.onclick = async () => {
-        if (!YT.requireLogin()) return;
-        if (likeBusy) return;
-        likeBusy = true;
-        likeBtn.disabled = true;
-        const wasLiked = liked;
-        try {
-            const url = liked ? '/api/video/cancel/like' : '/api/video/add/like';
-            const r = await YT.api.post(url, { id, userId: me.userId });
-            if (r.success) {
+        .then(r => {
+            if (r.success && r.data) {
                 applyLike(r.data);
-                YT.toast(r.message || (wasLiked ? '已取消点赞' : '点赞成功'));
             } else {
-                YT.toast(r.message || '操作失败，请重试');
+                if (likeCount === null || likeCount === undefined) likeCount = 0;
+                paintLike();
             }
-        } catch (e) {
-            YT.toast('请求失败：' + e.message);
-        } finally {
-            likeBusy = false;
-            likeBtn.disabled = false;
-        }
-    };
+        })
+        .catch(() => {
+            if (likeCount === null || likeCount === undefined) likeCount = 0;
+            paintLike();
+        });
+
+    if (likeBtn) {
+        likeBtn.onclick = async () => {
+            if (!YT.requireLogin()) return;
+            if (likeBusy) return;
+            likeBusy = true;
+            likeBtn.disabled = true;
+            const wasLiked = liked;
+            try {
+                const url = liked ? '/api/video/cancel/like' : '/api/video/add/like';
+                const r = await YT.api.post(url, { id, userId: me.userId });
+                if (r.success) {
+                    applyLike(r.data);
+                    YT.toast(r.message || (wasLiked ? '已取消点赞' : '点赞成功'));
+                } else {
+                    YT.toast(r.message || '操作失败，请重试');
+                }
+            } catch (e) {
+                YT.toast('请求失败：' + e.message);
+            } finally {
+                likeBusy = false;
+                likeBtn.disabled = false;
+            }
+        };
+    }
 
     // ---------- 收藏 ----------
     const favBtn = $('#btn-fav');
@@ -333,17 +358,19 @@
 
     const list = $('#c-list');
 
-    // 评论操作按钮（包含点赞）
+    // 评论操作按钮（完美复用视频点赞的图标模板）
     function opBtns(c, isMine) {
         const cid = YT.esc(YT.pick(c, 'comment_id'));
+        // 取后端返回的初始点赞数
+        const cLikeCount = Number(c.like_count || 0);
+
+        // 复制视频点赞那里的 SVG
+        const cSvgLike = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10.5 12 4h1.6c.9 0 1.5.8 1.3 1.6L14 10h4.2a2 2 0 0 1 1.95 2.45l-1.3 5.5A2 2 0 0 1 16.9 19H7"/><path d="M7 10.5V19"/><path d="M4 10.5h3V19H4z"/></svg>';
+
         return `<div class="ops">
-            <button class="cmt-like-btn" data-comment-like="${cid}" type="button" style="display:inline-flex;align-items:center;gap:4px;background:none;border:none;color:var(--text-secondary);cursor:pointer;padding:0;font-size:13px;margin-right:8px;">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M7 10.5 12 4h1.6c.9 0 1.5.8 1.3 1.6L14 10h4.2a2 2 0 0 1 1.95 2.45l-1.3 5.5A2 2 0 0 1 16.9 19H7"></path>
-                    <path d="M7 10.5V19"></path>
-                    <path d="M4 10.5h3V19H4z"></path>
-                </svg>
-                <span class="cmt-like-count"></span>
+            <button class="js-cmt-like" data-comment-like="${cid}" type="button" style="display:inline-flex;align-items:center;gap:4px;background:none;border:none;color:var(--text-secondary);cursor:pointer;padding:0;font-size:13px;margin-right:8px;transition:color 0.2s;">
+                <span class="cmt-like-ic" style="display:flex;align-items:center;">${cSvgLike}</span>
+                <span class="cmt-like-count">${cLikeCount > 0 ? YT.fmtNum(cLikeCount) : ''}</span>
             </button>
             <span class="op-btn" data-reply="${cid}">回复</span>
             ${isMine ? `<span class="op-btn" data-edit="${cid}">修改</span>
@@ -440,35 +467,58 @@
         else YT.toast(r.message || '评论失败');
     };
 
-    list.addEventListener('click', async e => {
+    // =========================================================
+    // 终极防弹版：直接监听整个文档的点击事件，防止被其他报错脚本卡死
+    // =========================================================
+    document.addEventListener('click', async function(e) {
         const t = e.target;
 
-        // ====== 评论点赞拦截 ======
-        const likeBtn = t.closest('[data-comment-like]');
+        // 1. 强行拦截【评论点赞】
+        const likeBtn = t.closest('.js-cmt-like');
         if (likeBtn) {
             if (!YT.requireLogin()) return;
+
+            // 防连点
+            if (likeBtn.dataset.busy) return;
+            likeBtn.dataset.busy = '1';
+            likeBtn.disabled = true;
+
             const commentId = likeBtn.dataset.commentLike;
             try {
                 const r = await YT.api.post('/api/video/add/comment/like', { me: me.userId, commentId });
+
                 if (r.success && r.data) {
                     const countEl = likeBtn.querySelector('.cmt-like-count');
-                    const svgEl = likeBtn.querySelector('svg');
+                    const icEl = likeBtn.querySelector('.cmt-like-ic');
+
+                    // 后端返回了 { liked: boolean, count: int }
                     if (r.data.liked) {
-                        likeBtn.style.color = 'var(--link)';
-                        svgEl.setAttribute('fill', 'currentColor');
+                        likeBtn.style.color = 'var(--link)'; // 变蓝
+                        icEl.innerHTML = svgLiked;           // 变成实心图标
                     } else {
-                        likeBtn.style.color = 'var(--text-secondary)';
-                        svgEl.setAttribute('fill', 'none');
+                        likeBtn.style.color = 'var(--text-secondary)'; // 变灰
+                        icEl.innerHTML = svgLike;                      // 变成空心图标
                     }
-                    if (countEl) countEl.textContent = r.data.count > 0 ? YT.fmtNum(r.data.count) : '';
+
+                    if (countEl) {
+                        countEl.textContent = r.data.count > 0 ? YT.fmtNum(r.data.count) : '';
+                    }
+                    YT.toast(r.data.liked ? '已点赞' : '已取消');
+                } else {
+                    YT.toast(r.message || '操作失败');
                 }
-            } catch (err) { YT.toast('点赞失败：' + err.message); }
-            return;
+            } catch (err) {
+                console.error('评论点赞失败', err);
+                YT.toast('点赞失败：' + err.message);
+            } finally {
+                likeBtn.dataset.busy = '';
+                likeBtn.disabled = false;
+            }
+            return; // 结束点赞逻辑，不再往下走
         }
-        // ==========================
 
+        // 2. 强行拦截【回复/删除/修改等操作】 (原逻辑保留)
         const cid = t.dataset;
-
         if (cid.toggle) {
             const root = t.closest('.comment');
             const box = root.querySelector(`:scope > .body > [data-replies="${CSS.escape(cid.toggle)}"]`);
@@ -490,8 +540,6 @@
                     rp.classList.add('open');
                     tg.innerHTML = `收起回复 <span class="tri">▴</span>`;
                 }
-                const ta = box.querySelector('textarea');
-                if (ta && !ta.value && me) ta.value = '';
             }
             return;
         }
@@ -549,5 +597,6 @@
         }
     });
 
+    // 最后加载评论
     loadComments();
 })();
