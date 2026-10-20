@@ -347,7 +347,6 @@ public class VideoService {
                  * 我认为几乎不可能出现，所以不予理会
                  * **/
             }
-            catch (DuplicateKeyException e){ /*我认为几乎不可能出现这种情况，所以就不理它*/ }
         }
         return Result.success("操作成功", Map.of(
                 "liked", vm.likedByMe(me, commentId) > 0,

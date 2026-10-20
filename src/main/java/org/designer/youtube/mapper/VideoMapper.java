@@ -616,4 +616,13 @@ VALUES(#{userId},#{title},#{videoPath},#{isShort},#{durationSec},#{isVertical})
     // 我赞没赞过这条（前端按钮实心/空心）
     @Select("SELECT COUNT(*) FROM comment_like WHERE user_id=#{me} AND comment_id=#{commentId}")
     int likedByMe(@Param("me") String me, @Param("commentId") String commentId);
+    /**
+     * 评论区的点赞通知
+     * 2026/10/20/11:11
+     * Kitaajya
+     *
+     * **/
+    // 查评论的作者、所属视频ID、评论内容（用于发点赞通知）
+    @Select("SELECT user_id, video_id, contents FROM video_comment WHERE comment_id = #{commentId}")
+    Map<String, Object> selectCommentInfoForNotify(@Param("commentId") String commentId);
 }
