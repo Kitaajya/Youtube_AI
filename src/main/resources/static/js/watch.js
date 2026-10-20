@@ -169,8 +169,39 @@
 
     // ---------- 点赞（后端 video_like 表为准，支持点赞/取消） ----------
     const likeBtn = $('#btn-like'), likeNum = $('#w-likes');
-    let likeCount = Number(YT.pick(video, 'like_count') || 0);
-    let liked = false;        // 以服务端返回为准，未登录时恒为 false
+    const likeStorageKey = `video_like_state_${id}`;
+
+    function readLikeState() {
+        try {
+            const raw = sessionStorage.getItem(likeStorageKey);
+            if (!raw) return { like_count: null, liked: false };
+            const parsed = JSON.parse(raw);
+            const n = Number(parsed.like_count);
+            return {
+                like_count: Number.isFinite(n) ? n : null,
+                liked: !!parsed.liked
+            };
+        } catch (e) {
+            return { like_count: null, liked: false };
+        }
+    }
+
+    function saveLikeState() {
+        try {
+            sessionStorage.setItem(likeStorageKey, JSON.stringify({
+                like_count: Number.isFinite(likeCount) ? likeCount : 0,
+                liked: !!liked
+            }));
+        } catch (e) {
+            // sessionStorage 不可用时忽略，不影响功能
+        }
+    }
+
+    const savedLike = readLikeState();
+    let likeCount = savedLike.like_count != null
+        ? Number(savedLike.like_count)
+        : Number(YT.pick(video, 'like_count') || 0);
+    let liked = !!me && savedLike.liked;   // 登录用户：刷新后直接恢复
     let likeBusy = false;
 
     function paintLike() {
