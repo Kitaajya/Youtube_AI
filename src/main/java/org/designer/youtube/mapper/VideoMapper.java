@@ -524,7 +524,8 @@ VALUES(#{userId},#{title},#{videoPath},#{isShort},#{durationSec},#{isVertical})
            v.video_path,
            v.cover_path,
            v.view_count,
-           v.like_quantity,
+           -- 删除冗余列
+           (SELECT COUNT(*) FROM video_like vl WHERE vl.video_id = v.id) AS like_count,
            v.create_time,
            u.nickname AS uploader
     FROM watch_history h
