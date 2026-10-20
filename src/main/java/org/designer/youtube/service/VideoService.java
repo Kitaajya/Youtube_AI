@@ -334,10 +334,13 @@ public class VideoService {
         int o = Math.max(offset, 0);
         return Result.success(vm.selectShortFeed(s, o));
     }
-    //给这条视频下的评论点个赞，顺便显示这条评论的点赞数。
-    public Result<Map<String,Object>> toggleCommentLike(String me, String commentId){
-        if (vm.likedByMe(me, commentId) > 0) vm.removeCommentLike(me, commentId);
-        else {
+    //给这条视频下的评论点个赞，顺便显示这条评论的点赞数。评论区点赞也要通知。
+    public Result<Map<String,Object>> toggleCommentLike(String me, String commentId) {
+        boolean wasLiked = vm.likedByMe(me, commentId) > 0; // 之前是否点过赞
+
+        if (wasLiked) {
+            vm.removeCommentLike(me, commentId); // 取消点赞
+        } else {
             try {
                 vm.addCommentLike(me, commentId);
             }
