@@ -136,8 +136,9 @@ public class VideoService {
 
     //***********************************************************评论区模块***********************************************************
     //查看此视频的所有评论，根据id（视频id）
-    public List<Map<String,Object>> selectCommentsById(long videoId){
-        return vm.selectCommentsById(videoId);
+    public List<Map<String,Object>> selectCommentsById(long videoId, String userId){
+        if (userId == null) userId = ""; // 防止 null
+        return vm.selectCommentsById(videoId, userId);
     }
     //删除我的评论
     public Result<Map<String,Object>>deleteSelfComment(String myUserId, long videoId, String commentId){
@@ -336,16 +337,18 @@ public class VideoService {
     }
     //给这条视频下的评论点个赞，顺便显示这条评论的点赞数。评论区点赞也要通知。
     public Result<Map<String,Object>> toggleCommentLike(String me, String commentId) {
-        boolean wasLiked = vm.likedByMe(me, commentId) > 0; //之前是否点过赞
-        if (wasLiked) vm.removeCommentLike(me, commentId);
-        else {
+        boolean wasLiked = vm.likedByMe(me, commentId) > 0;
+        if (wasLiked) {
+            vm.removeCommentLike(me, commentId);
+        } else {
             try {
                 vm.addCommentLike(me, commentId);
                 sendCommentLikeNotify(commentId, me);
-            } catch (DuplicateKeyException e) {
-                /**
-                 * 我认为几乎不可能出现，所以不予理会
-                 * **/
+            } catch (Exception e) {
+                //把错误打印出来！并把错误返回给前端！
+                e.printStackTrace(); // 在 IDEA 控制台打印红字
+                log.error("评论点赞失败: ", e);
+                return Result.fail("点赞写入数据库失败: " + e.getMessage());
             }
         }
         return Result.success("操作成功", Map.of(

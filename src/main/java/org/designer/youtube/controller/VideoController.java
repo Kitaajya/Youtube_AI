@@ -145,8 +145,8 @@ public class VideoController {
     //***********************************************************评论区模块***********************************************************
     //查看此视频的所有评论，根据id（视频id）
     @GetMapping("/get/all/comments")
-    public Result<List<Map<String,Object>>> selectCommentsById(@RequestParam long videoId){
-        return Result.success(vs.selectCommentsById(videoId));
+    public Result<List<Map<String,Object>>> selectCommentsById(@RequestParam long videoId,@RequestParam(required = false) String userId){
+        return Result.success(vs.selectCommentsById(videoId,userId));
     }
     //删除我的评论
     @DeleteMapping("/delete/my/comments")
