@@ -510,7 +510,6 @@ html.has-sb[data-sb="mini"] body { padding-left: 72px; }
     font-size: 14px; z-index: 999; display: none; max-width: 80vw;
 }
 
-
 .comment-item { padding: 8px; border-bottom: 1px solid #eee; }
 .comment-meta { font-size: 12px; color: #666; margin-bottom: 4px; }
 .comment-text { margin: 6px 0; }
@@ -518,3 +517,56 @@ html.has-sb[data-sb="mini"] body { padding-left: 72px; }
 .js-like-btn.liked { color: #e0245e; border-color: #e0245e; }
 .js-like-btn.not-liked { color: #333; }
 .js-like-btn:disabled { opacity: 0.6; cursor: default; }
+
+/* ================= 视频点赞按钮 UI ================= */
+.like-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 16px;
+    border-radius: 18px;
+    background: var(--surface-2);
+    color: var(--text-primary);
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.like-btn:hover {
+    background: var(--surface-3);
+}
+
+.like-btn .like-ic {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+}
+
+.like-btn .like-ic svg {
+    width: 20px;
+    height: 20px;
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* 已赞状态：整体颜色变化，图标放大 */
+.like-btn[aria-pressed="true"] {
+    background: var(--link);
+    color: #fff;
+}
+
+.like-btn[aria-pressed="true"]:hover {
+    background: var(--link-hover);
+}
+
+.like-btn[aria-pressed="true"] .like-ic svg {
+    transform: scale(1.15);
+}
+
+.like-btn .like-num {
+    font-variant-numeric: tabular-nums;
+}

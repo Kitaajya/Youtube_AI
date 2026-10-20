@@ -1,19 +1,4 @@
-/* 播放页
- * GET  /api/video/select/video/single/infor?id=      视频详情（已含 like_count）
- * GET  /api/video/select/path?id=                    视频路径
- * GET  /api/video/select/videos/upinfor              侧栏推荐
- * GET  /api/video/get/all/comments?videoId=          评论
- * GET  /api/video/select/parent/comments?parentId=   楼中楼
- * POST /api/video/add/my/comments                    发表评论/回复
- * POST /api/video/edit/my/comments                   修改我的评论
- * DEL  /api/video/delete/my/comments                 删除我的评论
- * POST /api/video/edit/title                         修改视频标题
- * DEL  /api/video/delete/videos                      删除视频
- * GET  /api/video/select/like/count?id=&userId=      点赞数 + 我是否赞过
- * POST /api/video/add/like                           点赞（重复点赞返回已赞状态）
- * POST /api/video/cancel/like                        取消点赞
- * POST /api/video/add/view                           播放计数 +1（进页面上报一次，返回数据库真实播放量）
- */
+/* 播放页 */
 (async function () {
     const id = new URLSearchParams(location.search).get('id');
     const me = YT.user();
@@ -45,7 +30,6 @@
     $('#w-up').style.cursor = 'pointer';
     $('#w-up').title = '查看 ' + upName + ' 的频道';
     $('#w-up').onclick = () => location.href = 'profile.html?userId=' + encodeURIComponent(upId) + '&name=' + encodeURIComponent(upName);
-    // 发私信入口：登录且不是本人时才显示
     if (me && upId && me.userId !== upId) {
         const pmBtn = $('#w-pm');
         pmBtn.style.display = '';
@@ -55,9 +39,7 @@
         };
     }
 
-    // ---------- 关注模块（后端 /api/user，与频道页同一口径）----------
-    // 后端只有"粉丝列表/关注列表"查询，没有计数接口，
-    // 所以粉丝数=列表长度，"我是否已关注"=粉丝列表里有没有我
+    // ---------- 关注模块 ----------
     const followBtn = $('#btn-follow'), fansEl = $('#w-up-fans');
     let following = false, fansCount = 0, followBusy = false;
     function paintFollow() {
@@ -70,19 +52,17 @@
         followBtn.style.display = '';
         paintFollow();
     }
-    // 粉丝数游客也展示；登录时顺带判断"我是否已关注"
     YT.api.get('/api/user/select/me/fans', { me: upId })
         .then(r => {
             const fans = (r && r.data) || [];
             fansCount = fans.length;
             following = !!(me && fans.some(f => String(YT.pick(f, 'user_id')) === me.userId));
             paintFollow();
-        })
-        .catch(() => { /* 拉不到就不显示数字，不影响看视频 */ });
+        }).catch(() => { });
 
     if (me && upId && me.userId !== upId) {
         followBtn.onclick = async e => {
-            e.stopPropagation();            // 别触发 #w-up 的跳转
+            e.stopPropagation();
             if (followBusy) return;
             followBusy = true; paintFollow();
             const wasFollowing = following;
@@ -93,9 +73,7 @@
                     following = !wasFollowing;
                     fansCount = Math.max(0, fansCount + (following ? 1 : -1));
                     YT.toast(res.message || (wasFollowing ? '已取关' : '关注成功'));
-                } else {
-                    YT.toast(res.message || '操作失败，请重试');
-                }
+                } else YT.toast(res.message || '操作失败，请重试');
             } catch (err) {
                 YT.toast('请求失败：' + err.message);
             } finally {
@@ -103,11 +81,11 @@
             }
         };
     }
+
     $('#w-desc').innerHTML = `<b>视频文件路径：</b>${YT.esc(YT.pick(video, 'video_path'))}<br>
         <b>视频 ID：</b>${YT.esc(id)}　<b>点赞数：</b>${YT.esc(YT.pick(video, 'like_count') || 0)}`;
 
-    // ---------- 播放计数：进页面上报一次，用后端回读的真实值就地刷新 ----------
-    // 不 await，计数失败不影响看视频；重复计数（刷新页面）目前是已知偏差，未做去重
+    // ---------- 播放计数 ----------
     YT.api.post('/api/video/add/view', { id })
         .then(r => {
             if (!r.success) return;
@@ -115,19 +93,18 @@
             if (Number.isFinite(v)) {
                 $('#w-stats').textContent = `${YT.fmtNum(v)} 次观看 · ${YT.fmtFull(YT.pick(video, 'create_time'))}`;
             }
-        })
-        .catch(() => { /* 保持详情里带过来的播放量 */ });
+        }).catch(() => { });
 
     const isMine = me && me.userId === upId;
     if (isMine) { $('#btn-edit').style.display = ''; $('#btn-del').style.display = ''; }
 
-    // ---------- 播放器：后端只存了本地绝对路径，未做静态资源映射时无法直接播放 ----------
+    // ---------- 播放器 ----------
     let path = String(YT.pick(video, 'video_path'));
     if (!path) {
         try {
             const r = await YT.api.get('/api/video/select/path', { id });
             path = String((r.data || [])[0]?.video_path || (r.data || [])[0]?.videoPath || '');
-        } catch (e) { /* 忽略 */ }
+        } catch (e) { }
     }
     const fb = $('#fallback'), player = $('#player');
     function showFallback(msg) {
@@ -143,12 +120,7 @@
         player.style.display = 'block';
         fb.style.display = 'none';
         player.addEventListener('error', () => {
-            showFallback(`浏览器取不到这个文件<br>
-                <code style="font-size:12px;color:#ddd;word-break:break-all;">${YT.esc(path)}</code><br>
-                <code style="font-size:12px;color:#ddd;word-break:break-all;">${YT.esc(url)}</code><br>
-                <span style="font-size:12px;">服务器已把视频目录挂到 <b>/videos/</b> 网址下。<br>
-                播不出来通常是<b>文件名不在那个目录里</b>：这条记录登记的路径与实际存放位置不一致。<br>
-                重新上传一次即可（新上传的文件会自动落到正确目录）。</span>`);
+            showFallback(`浏览器取不到这个文件<br><span style="font-size:12px;">服务器已把视频目录挂到 <b>/videos/</b> 网址下，请检查文件是否在目录中。</span>`);
         });
     }
 
@@ -165,50 +137,25 @@
                     <div class="sub">${YT.fmtNum(YT.pick(v, 'view_count'))} 次观看</div>
                 </div>
             </div>`).join('') || '<div class="empty" style="padding:20px;">暂无其他视频</div>';
-    } catch (e) { /* 忽略 */ }
+    } catch (e) { }
 
-    // ---------- 点赞（后端 video_like 表为准，支持点赞/取消） ----------
-    const likeBtn = $('#btn-like'), likeNum = $('#w-likes');
-    const likeStorageKey = `video_like_state_${id}`;
-
-    function readLikeState() {
-        try {
-            const raw = sessionStorage.getItem(likeStorageKey);
-            if (!raw) return { like_count: null, liked: false };
-            const parsed = JSON.parse(raw);
-            const n = Number(parsed.like_count);
-            return {
-                like_count: Number.isFinite(n) ? n : null,
-                liked: !!parsed.liked
-            };
-        } catch (e) {
-            return { like_count: null, liked: false };
-        }
-    }
-
-    function saveLikeState() {
-        try {
-            sessionStorage.setItem(likeStorageKey, JSON.stringify({
-                like_count: Number.isFinite(likeCount) ? likeCount : 0,
-                liked: !!liked
-            }));
-        } catch (e) {
-            // sessionStorage 不可用时忽略，不影响功能
-        }
-    }
-
-    const savedLike = readLikeState();
-    let likeCount = savedLike.like_count != null
-        ? Number(savedLike.like_count)
-        : Number(YT.pick(video, 'like_count') || 0);
-    let liked = !!me && savedLike.liked;   // 登录用户：刷新后直接恢复
+    // ---------- 视频点赞 ----------
+    const likeBtn = $('#btn-like'), likeIc = $('#like-ic'), likeNum = $('#like-num');
+    let likeCount = Number(YT.pick(video, 'like_count') || 0);
+    let liked = false;
     let likeBusy = false;
 
+    const svgLike = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10.5 12 4h1.6c.9 0 1.5.8 1.3 1.6L14 10h4.2a2 2 0 0 1 1.95 2.45l-1.3 5.5A2 2 0 0 1 16.9 19H7"/><path d="M7 10.5V19"/><path d="M4 10.5h3V19H4z"/></svg>';
+    const svgLiked = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10.5 12 4h1.6c.9 0 1.5.8 1.3 1.6L14 10h4.2a2 2 0 0 1 1.95 2.45l-1.3 5.5A2 2 0 0 1 16.9 19H7"/><path d="M7 10.5V19" fill="none"/><path d="M4 10.5h3V19H4z"/></svg>';
+
     function paintLike() {
+        if (!likeBtn) return;
         likeBtn.classList.toggle('light', liked);
-        likeBtn.innerHTML = liked ? '&#128077; 已赞' : '&#128077; 点赞';
-        likeNum.textContent = likeCount > 0 ? `${YT.fmtNum(likeCount)} 人点赞` : '';
+        likeBtn.setAttribute('aria-pressed', liked ? 'true' : 'false');
+        if (likeIc) likeIc.innerHTML = liked ? svgLiked : svgLike;
+        if (likeNum) likeNum.textContent = likeCount > 0 ? YT.fmtNum(likeCount) : '0';
     }
+
     function applyLike(d) {
         if (d && d.like_count !== undefined && d.like_count !== null) likeCount = Number(d.like_count) || 0;
         if (d && typeof d.liked === 'boolean') liked = d.liked;
@@ -216,10 +163,8 @@
     }
     paintLike();
 
-    // 拉一次服务端真实点赞数（登录时附带 userId 以获取"我是否赞过"）；不 await，避免拖慢评论区加载
     YT.api.get('/api/video/select/like/count', me ? { id, userId: me.userId } : { id })
-        .then(r => { if (r.success) applyLike(r.data); })
-        .catch(() => { /* 保持详情里带过来的点赞数 */ });
+        .then(r => { if (r.success) applyLike(r.data); }).catch(() => { });
 
     likeBtn.onclick = async () => {
         if (!YT.requireLogin()) return;
@@ -244,13 +189,11 @@
         }
     };
 
-    // ---------- 收藏（收藏夹弹窗，后端 /api/video 收藏模块） ----------
+    // ---------- 收藏 ----------
     const favBtn = $('#btn-fav');
     if (me) favBtn.style.display = '';
 
-    // 弹窗 DOM 单例：首次点击时才建
-    let favModal = null, favOpenVideoId = null;
-    // 新建收藏夹的可见性（true=公开，false=私密）；创建时随 isPublic 传给后端
+    let favModal = null;
     let favPublic = true;
     function paintVis(btn) {
         if (!btn) return;
@@ -278,7 +221,6 @@
         el.querySelector('#fav-close').addEventListener('click', closeFav);
         el.querySelector('#fav-create').addEventListener('click', createPlaylist);
         el.querySelector('#fav-name').addEventListener('keydown', e => { if (e.key === 'Enter') createPlaylist(); });
-        // 可见性切换按钮：点一下在"公开/私密"间翻转
         const visBtn = el.querySelector('#fav-vis');
         paintVis(visBtn);
         visBtn.addEventListener('click', () => { favPublic = !favPublic; paintVis(visBtn); });
@@ -291,7 +233,7 @@
     async function openFav() {
         if (!favModal) favModal = buildFavModal();
         favModal.style.display = '';
-        paintVis(favModal.querySelector('#fav-vis'));   // 每次打开同步一次按钮显示
+        paintVis(favModal.querySelector('#fav-vis'));
         await renderFavList();
     }
     function closeFav() { if (favModal) favModal.style.display = 'none'; }
@@ -323,15 +265,12 @@
         const wasOn = item.classList.contains('on');
         item.style.opacity = '.5';
         try {
-            // 补传 userId：后端要生成"XX 收藏了你的视频"通知时，需要知道是谁收藏的。
-            // 当前后端 addToLikeList 没接这个参数，Spring 会忽略多余参数，不影响现有功能。
             const r = wasOn
                 ? await YT.api.del('/api/video/remove/from/like', { pList: pid, videoId: id })
                 : await YT.api.post('/api/video/add/to/like', { pList: pid, videoId: id, userId: me.userId });
             if (r.success) {
                 item.classList.toggle('on', !wasOn);
                 item.querySelector('.fi-check').textContent = wasOn ? '' : '✓';
-                // 视频数就地增减
                 const cntEl = item.querySelector('.w-stats');
                 const m = cntEl.textContent.match(/^([\d.]+万?) 个视频/);
                 if (m) {
@@ -339,9 +278,7 @@
                     const n = Math.max(0, raw + (wasOn ? -1 : 1));
                     cntEl.textContent = cntEl.textContent.replace(m[1] + ' 个视频', YT.fmtNum(n) + ' 个视频');
                 }
-            } else {
-                YT.toast(r.message || '操作失败');
-            }
+            } else YT.toast(r.message || '操作失败');
         } catch (e) {
             YT.toast('请求失败：' + e.message);
         } finally {
@@ -357,7 +294,7 @@
         try {
             const r = await YT.api.post('/api/video/create/like/format', {
                 pList: YT.randId(), userId: me.userId, name, description: '',
-                isPublic: favPublic ? 1 : 0,          // 由弹窗里的可见性按钮决定，不再写死公开
+                isPublic: favPublic ? 1 : 0,
             });
             if (r.success) { YT.toast(`已创建：${name}（${favPublic ? '公开' : '私密'}）`); await renderFavList(); }
             else YT.toast(r.message || '创建失败');
@@ -366,7 +303,7 @@
 
     favBtn.onclick = () => { if (YT.requireLogin()) openFav(); };
 
-    // ---------- 自己的视频：改标题 / 删除 ----------
+    // ---------- 自己视频操作 ----------
     $('#btn-edit').onclick = async () => {
         const t = prompt('输入新的视频标题：', title);
         if (t === null || !t.trim()) return;
@@ -385,7 +322,6 @@
     if (me) {
         $('#me-av1').textContent = (me.nickname || me.userId).slice(0, 1).toUpperCase();
     } else {
-        // 游客：表单保持可见但禁用，让游客知道"这里可以评论"，点击提交时再引导登录
         $('#me-av1').textContent = '\uD83D\uDD12';
         $('#me-av1').style.filter = 'grayscale(1)';
         $('#me-av1').style.opacity = '.6';
@@ -397,11 +333,21 @@
 
     const list = $('#c-list');
 
+    // 评论操作按钮（包含点赞）
     function opBtns(c, isMine) {
+        const cid = YT.esc(YT.pick(c, 'comment_id'));
         return `<div class="ops">
-            <span class="op-btn" data-reply="${YT.esc(YT.pick(c, 'comment_id'))}">回复</span>
-            ${isMine ? `<span class="op-btn" data-edit="${YT.esc(YT.pick(c, 'comment_id'))}">修改</span>
-                       <span class="op-btn" style="color:var(--danger);" data-del="${YT.esc(YT.pick(c, 'comment_id'))}">删除</span>` : ''}
+            <button class="cmt-like-btn" data-comment-like="${cid}" type="button" style="display:inline-flex;align-items:center;gap:4px;background:none;border:none;color:var(--text-secondary);cursor:pointer;padding:0;font-size:13px;margin-right:8px;">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M7 10.5 12 4h1.6c.9 0 1.5.8 1.3 1.6L14 10h4.2a2 2 0 0 1 1.95 2.45l-1.3 5.5A2 2 0 0 1 16.9 19H7"></path>
+                    <path d="M7 10.5V19"></path>
+                    <path d="M4 10.5h3V19H4z"></path>
+                </svg>
+                <span class="cmt-like-count"></span>
+            </button>
+            <span class="op-btn" data-reply="${cid}">回复</span>
+            ${isMine ? `<span class="op-btn" data-edit="${cid}">修改</span>
+                       <span class="op-btn" style="color:var(--danger);" data-del="${cid}">删除</span>` : ''}
         </div>`;
     }
 
@@ -409,12 +355,9 @@
         const cid = String(YT.pick(c, 'comment_id'));
         const who = String(YT.pick(c, 'commenter') || YT.pick(c, 'user_id') || '匿名用户');
         const isMine = !!me && String(YT.pick(c, 'user_id')) === me.userId;
-        // 游客：回复框仍可查看已有回复，但输入框设为只读，避免打完字提交时才被拦导致内容丢失
         const roAttr = me ? '' : ' readonly';
         const roPh = me ? `回复 ${YT.esc(who)}…` : '登录后即可回复…';
-        // 楼中楼扁平化：回复的回复也挂在根评论下（data-root 记录归属），与 YouTube 一致
         const rootAttr = isReply ? ` data-root="${YT.esc(cid)}"` : '';
-        // 头像：用户传过头像就用图，否则退回昵称首字母
         const av = String(YT.pick(c, 'commenter_avatar', 'commenterAvatar') || '');
         const avInner = av ? `<img src="${YT.mediaUrl(av)}" alt="">` : YT.esc(who.slice(0, 1).toUpperCase());
         return `
@@ -438,7 +381,6 @@
         </div>`;
     }
 
-    // 把一组回复渲染进根评论的折叠区，并更新"查看N条回复/收起回复"按钮
     function mountReplies(rootCid, replyList) {
         const root = list.querySelector(`.comment[data-cid="${CSS.escape(rootCid)}"]`);
         if (!root) return;
@@ -446,17 +388,10 @@
         const toggle = root.querySelector(`:scope > .body > .toggle-replies[data-toggle="${CSS.escape(rootCid)}"]`);
         if (!box || !toggle) return;
         box.innerHTML = replyList.map(c => item(c, true)).join('');
-        box.classList.remove('open');           // 默认收起（YouTube 行为）
+        box.classList.remove('open');
         toggle.hidden = replyList.length === 0;
         toggle.dataset.count = replyList.length;
         toggle.innerHTML = `查看 ${replyList.length} 条回复 <span class="tri">▾</span>`;
-    }
-
-    async function loadReplies(cid, box) {
-        try {
-            const r = await YT.api.get('/api/video/select/parent/comments', { parentId: cid });
-            box.innerHTML = (r.data || []).map(c => item(c, true)).join('');
-        } catch (e) { /* 忽略 */ }
     }
 
     async function loadComments() {
@@ -475,7 +410,6 @@
         if (!data.length) { list.innerHTML = '<div class="empty" style="padding:20px;">还没有评论，来说两句吧</div>'; return; }
         list.innerHTML = roots.map(c => item(c, false)).join('');
 
-        // 回复的回复也归位到根评论（沿 parent 链向上找根），整组默认折叠
         const byId = new Map(data.map(c => [String(YT.pick(c, 'comment_id')), c]));
         const rootOf = c => {
             let cur = c, guard = 0;
@@ -494,7 +428,6 @@
         groups.forEach((arr, rid) => mountReplies(rid, arr));
     }
 
-    // ---------- 交互 ----------
     $('#root-cancel').onclick = () => { $('#root-content').value = ''; };
     $('#root-submit').onclick = async () => {
         if (!YT.requireLogin()) return;
@@ -508,23 +441,47 @@
     };
 
     list.addEventListener('click', async e => {
-        const t = e.target, cid = t.dataset;
+        const t = e.target;
 
-        // "查看N条回复 / 收起回复" 折叠切换
+        // ====== 评论点赞拦截 ======
+        const likeBtn = t.closest('[data-comment-like]');
+        if (likeBtn) {
+            if (!YT.requireLogin()) return;
+            const commentId = likeBtn.dataset.commentLike;
+            try {
+                const r = await YT.api.post('/api/video/add/comment/like', { me: me.userId, commentId });
+                if (r.success && r.data) {
+                    const countEl = likeBtn.querySelector('.cmt-like-count');
+                    const svgEl = likeBtn.querySelector('svg');
+                    if (r.data.liked) {
+                        likeBtn.style.color = 'var(--link)';
+                        svgEl.setAttribute('fill', 'currentColor');
+                    } else {
+                        likeBtn.style.color = 'var(--text-secondary)';
+                        svgEl.setAttribute('fill', 'none');
+                    }
+                    if (countEl) countEl.textContent = r.data.count > 0 ? YT.fmtNum(r.data.count) : '';
+                }
+            } catch (err) { YT.toast('点赞失败：' + err.message); }
+            return;
+        }
+        // ==========================
+
+        const cid = t.dataset;
+
         if (cid.toggle) {
             const root = t.closest('.comment');
             const box = root.querySelector(`:scope > .body > [data-replies="${CSS.escape(cid.toggle)}"]`);
             const open = box.classList.toggle('open');
             const n = box.children.length;
             t.innerHTML = open ? `收起回复 <span class="tri">▴</span>`
-                               : `查看 ${n} 条回复 <span class="tri">▾</span>`;
+                : `查看 ${n} 条回复 <span class="tri">▾</span>`;
             return;
         }
 
         if (cid.reply) {
             const box = t.closest('.comment').querySelector('.reply-form');
             box.classList.toggle('open');
-            // 回复根评论时，若楼中楼处于折叠态则自动展开（YouTube 行为）
             if (box.classList.contains('open')) {
                 const root = t.closest('.comment');
                 const rp = root.querySelector(`:scope > .body > [data-replies="${CSS.escape(cid.reply)}"]`);
@@ -534,7 +491,7 @@
                     tg.innerHTML = `收起回复 <span class="tri">▴</span>`;
                 }
                 const ta = box.querySelector('textarea');
-                if (ta && !ta.value && me) ta.value = '';   // 根评论回复无需@前缀
+                if (ta && !ta.value && me) ta.value = '';
             }
             return;
         }
@@ -546,7 +503,6 @@
             const ta = form.querySelector('textarea');
             let content = ta.value.trim();
             if (!content) return YT.toast('回复不能为空');
-            // 楼中楼扁平化：回复"回复"时自动带上 @对方，与被回复者信息不丢失
             const target = t.closest('.comment');
             if (target.classList.contains('is-reply')) {
                 const who = target.dataset.who || '';

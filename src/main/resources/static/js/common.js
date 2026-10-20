@@ -318,6 +318,8 @@ const YT = (() => {
         mic: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
         // 通知铃铛：描边钟体 + 底部短横锤舌（替代原 emoji 🔔，风格同 search/mic）
         bell: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 10a6 6 0 0 1 12 0c0 4.2 1.6 5.6 1.6 5.6H4.4S6 14.2 6 10"/><path d="M10.2 19h3.6"/></svg>',
+        like:  '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 10.5 12 4h1.6c.9 0 1.5.8 1.3 1.6L14 10h4.2a2 2 0 0 1 1.95 2.45l-1.3 5.5A2 2 0 0 1 16.9 19H7"/><path d="M7 10.5V19"/><path d="M4 10.5h3V19H4z"/></svg>',
+        liked: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 10.5 12 4h1.6c.9 0 1.5.8 1.3 1.6L14 10h4.2a2 2 0 0 1 1.95 2.45l-1.3 5.5A2 2 0 0 1 16.9 19H7"/><path d="M7 10.5V19" fill="none"/><path d="M4 10.5h3V19H4z"/></svg>',
     };
 
     // 侧栏展开/收起状态（mini = 72px 图标窄栏，hide = 完全隐藏）
@@ -558,6 +560,6 @@ const YT = (() => {
 
     document.addEventListener('DOMContentLoaded', renderHeader);
 
-    return { api, randId, user, requireLogin, logout, esc, pick, mediaUrl, thumb, timeAgo, fmtNum, fmtFull, toast, safeFrom, currentPath, FROM_KEY };
-})();
+    return { api, randId, user, requireLogin, logout, esc, pick, mediaUrl, thumb, timeAgo, fmtNum,
+        fmtFull, toast, safeFrom, currentPath, FROM_KEY, IC };})();
 //截止2026/10/16/8:34，我已经修复了通知红点bug，以上的红点bug注释作废
