@@ -159,13 +159,12 @@ const YT = (() => {
     const NT_PAGE_SIZE = 20;
     const NT_POLL_MS = 5000;
     const NT_TYPE = {
-        like:     { icon: '\u{1F44D}', label: '赞了你的视频' },
-        comment:  { icon: '\u{1F4AC}', label: '评论了你的视频' },
-        reply:    { icon: '\u21A9\uFE0F', label: '回复了你的评论' },
-        favorite: { icon: '\u{1F516}', label: '收藏了你的视频' },
-        follow:   { icon: '\u{1F464}', label: '关注了你' },
-        comment_like:   { icon: '\u{1F44D}', label: '赞了你的评论' }, //新增这一行点赞评论通知
-
+        like:           { icon: IC.vidLike, label: '赞了你的视频' },          // 换成视频点赞图标
+        comment_like:   { icon: IC.cmtLike, label: '赞了你的评论' },          // 换成评论点赞图标
+        comment:        { icon: '\u{1F4AC}', label: '评论了你的视频' },
+        reply:          { icon: '\u21A9\uFE0F', label: '回复了你的评论' },
+        favorite:       { icon: '\u{1F516}', label: '收藏了你的视频' },
+        follow:         { icon: '\u{1F464}', label: '关注了你' },
     };
     let ntTimer = null, ntBusy = false, ntStarted = false, ntOpen = false, ntLastSig = '';
 
