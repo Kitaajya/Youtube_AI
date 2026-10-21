@@ -570,8 +570,7 @@ html.has-sb[data-sb="mini"] body { padding-left: 72px; }
 .like-btn .like-num {
     font-variant-numeric: tabular-nums;
 }
-
-/* ====== AI 聊天窗专属样式 ====== */
+/* ====== AI 聊天窗专属样式（适配 YouTube 仿站变量） ====== */
 #ai-toggle-btn {
     position: fixed;
     bottom: 30px;
@@ -579,19 +578,22 @@ html.has-sb[data-sb="mini"] body { padding-left: 72px; }
     width: 60px;
     height: 60px;
     border-radius: 50%;
-    background-color: #10a37f;
-    color: white;
+    background-color: transparent; /*这里改成透明，不然图片周围有一圈蓝底*/
+    color: var(--on-primary);
     font-size: 30px;
     border: none;
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     cursor: pointer;
     z-index: 9999;
-    transition: transform 0.2s;
+    transition: transform 0.2s, background 0.2s;
     display: flex;
     justify-content: center;
     align-items: center;
 }
-#ai-toggle-btn:hover { transform: scale(1.1); }
+#ai-toggle-btn:hover {
+    transform: scale(1.1);
+    background-color: var(--link-hover);
+}
 
 #ai-chat-panel {
     position: fixed;
@@ -599,10 +601,10 @@ html.has-sb[data-sb="mini"] body { padding-left: 72px; }
     right: 30px;
     width: 380px;
     height: 600px;
-    background-color: var(--bg-color, #ffffff);
-    border: 1px solid var(--border-color, #ccc);
+    background-color: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    box-shadow: var(--shadow-menu);
     display: flex;
     flex-direction: column;
     z-index: 9999;
@@ -617,19 +619,23 @@ html.has-sb[data-sb="mini"] body { padding-left: 72px; }
 
 .ai-header {
     padding: 12px 16px;
-    background-color: var(--bg-color, #f9f9f9);
-    border-bottom: 1px solid var(--border-color, #eee);
+    background-color: var(--surface);
+    border-bottom: 1px solid var(--divider);
     display: flex;
     justify-content: space-between;
-    font-weight: bold;
+    align-items: center;
+    font-weight: 500;
+    font-size: 15px;
+    color: var(--text-primary);
 }
 #ai-close-btn {
     background: none;
     border: none;
     cursor: pointer;
     font-size: 16px;
-    color: var(--text-color, #333);
+    color: var(--text-secondary);
 }
+#ai-close-btn:hover { color: var(--text-primary); }
 
 #ai-chat-container {
     flex: 1;
@@ -638,50 +644,66 @@ html.has-sb[data-sb="mini"] body { padding-left: 72px; }
     display: flex;
     flex-direction: column;
     gap: 12px;
-    background-color: var(--bg-color, #fff);
+    background-color: var(--bg);
 }
 
 .ai-message {
     display: flex;
     flex-direction: column;
-    padding: 10px;
-    border-radius: 8px;
+    padding: 10px 14px;
+    border-radius: 12px;
     font-size: 14px;
     line-height: 1.5;
     white-space: pre-wrap;
+    word-break: break-word;
 }
-.ai-msg { background-color: rgba(0,0,0,0.05); align-self: flex-start; max-width: 90%; }
-.user-msg { background-color: #10a37f; color: white; align-self: flex-end; max-width: 90%; }
-.ai-message .role { font-size: 12px; font-weight: bold; margin-bottom: 4px; opacity: 0.7; }
+.ai-msg {
+    background-color: var(--surface-2);
+    color: var(--text-primary);
+    align-self: flex-start;
+    max-width: 90%;
+}
+.user-msg {
+    background-color: var(--link);
+    color: var(--on-primary);
+    align-self: flex-end;
+    max-width: 90%;
+}
+.ai-message .role {
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    opacity: 0.7;
+}
 
 .ai-input-area {
     padding: 12px;
-    border-top: 1px solid var(--border-color, #eee);
+    border-top: 1px solid var(--divider);
     display: flex;
     gap: 8px;
-    background-color: var(--bg-color, #fff);
+    background-color: var(--surface);
 }
 #ai-question {
     flex: 1;
     padding: 8px 12px;
-    border: 1px solid var(--border-color, #ccc);
-    border-radius: 6px;
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
     resize: none;
     height: 40px;
     font-family: inherit;
-    background-color: transparent;
-    color: var(--text-color, #333);
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+    outline: none;
 }
+#ai-question:focus { border-color: var(--focus-ring); }
 #ai-send-btn {
-    background-color: #10a37f;
-    color: white;
+    background-color: var(--link);
+    color: var(--on-primary);
     border: none;
-    border-radius: 6px;
+    border-radius: 8px;
     padding: 0 16px;
     cursor: pointer;
-    font-weight: bold;
+    font-weight: 500;
 }
-#ai-send-btn:disabled { background-color: #999; cursor: not-allowed; }
-
-/* 适配暗黑模式 */
-[data-theme='dark'] .ai-msg { background-color: rgba(255,255,255,0.1); }
+#ai-send-btn:hover { background-color: var(--link-hover); }
+#ai-send-btn:disabled { background-color: var(--surface-3); cursor: not-allowed; color: var(--text-tertiary); }

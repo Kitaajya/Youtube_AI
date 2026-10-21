@@ -43,9 +43,9 @@ import java.util.Map;
 public interface VideoMapper {
     //增加我的视频，返回受影响行数（1 表示成功，0 表示失败）
     @Insert("""
-INSERT INTO video(user_id,title,video_path,is_short,duration_sec,is_vertical)
-VALUES(#{userId},#{title},#{videoPath},#{isShort},#{durationSec},#{isVertical})
-""")
+    INSERT INTO video(user_id,title,video_path,is_short,duration_sec,is_vertical)
+    VALUES(#{userId},#{title},#{videoPath},#{isShort},#{durationSec},#{isVertical})
+    """)
     int uploadVideo(@Param("userId") String userId,
                     @Param("title") String title,
                     @Param("videoPath") String videoPath,
@@ -628,4 +628,15 @@ VALUES(#{userId},#{title},#{videoPath},#{isShort},#{durationSec},#{isVertical})
     // 查评论的作者、所属视频ID、评论内容（用于发点赞通知）
     @Select("SELECT user_id, video_id, contents FROM video_comment WHERE comment_id = #{commentId}")
     Map<String, Object> selectCommentInfoForNotify(@Param("commentId") String commentId);
+
+
+    /**
+     * 把数据库的内容塞给DeepSeek
+     *
+     * **/
+    //把所有点赞信息喂给DeepSeek
+    @Select("""
+    SELECT * FROM comment_like
+    """)
+    List<Map<String,Object>> getCommentLike();
 }

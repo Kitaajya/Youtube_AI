@@ -173,7 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // 调用刚才后端写的流式接口
-            const response = await fetch(`/api/deepseek/stream?question=${encodeURIComponent(question)}`);
+            const response = await fetch(`/api/deepseek/analyze/likes?question=${encodeURIComponent(question)}`);
             if (!response.ok) throw new Error('网络请求失败');
 
             const reader = response.body.getReader();

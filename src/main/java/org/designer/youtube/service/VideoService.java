@@ -6,9 +6,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.designer.youtube.RandomlyCreateID;
 import org.designer.youtube.common.Result;
 import org.designer.youtube.mapper.VideoMapper;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
 
 import java.util.List;
 import java.util.Map;
@@ -383,5 +385,37 @@ public class VideoService {
         } catch (Exception e) {
             log.warn("评论点赞通知写入失败 commentId={}", commentId, e);
         }
+    }
+
+
+    /**
+     * 把数据库里的点赞数据翻译成自然语言，喂给 DeepSeek
+     */
+    public Flux<String> getCommentLike(ChatClient client, String question) {
+        //查数据
+        List<Map<String, Object>> list = vm.getCommentLike();
+        //拼接上下文
+        StringBuilder context = new StringBuilder();
+        if (list == null || list.isEmpty()) context.append("当前数据库没有任何点赞记录。\n");
+        else {
+            for (Map<String, Object> map:list) {
+                Object userId = map.get("user_id");
+                Object commentId = map.get("comment_id");
+                Object time = map.get("create_time");
+                context.append("用户【").append(userId).append("】在 ").append(time).append(" 点赞了评论【").append(commentId).append("】。\n");
+            }
+        }
+        //设定AI规则
+        String systemPrompt = "你是一个数据分析助手。以下是我从数据库里提取的点赞记录，请根据这些记录回答用户的问题。如果记录里找不到答案，直接回答不知道，不要磨磨唧唧。";
+        String finalUserPrompt = "点赞记录如下：\n" + context + "\n用户提问：" + question;
+
+        log.info("数据库查出来的点赞条数：{}", list != null ? list.size() : "null");
+
+        //发给AI（流式返回）
+        return client.prompt()
+                .system(systemPrompt)
+                .user(finalUserPrompt)
+                .stream()
+                .content();
     }
 }
