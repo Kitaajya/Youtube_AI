@@ -13,4 +13,7 @@ public class DeepSeekTest{
         //客户端->提示词->用户问题->回答->内容
         return client.prompt().user(question).call().content();
     }
+    public Flux<String>streamAsk(String question){
+        return client.prompt().user(question).stream().content();
+    }
 }
