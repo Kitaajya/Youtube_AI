@@ -1,11 +1,13 @@
 /* 播放页 */
 (async function () {
     const id = new URLSearchParams(location.search).get('id');
-    const me = YT.user();
     if (!id) { location.href = 'index.html'; return; }
 
     const $ = s => document.querySelector(s);
     let video = null;
+
+    // 直接读取本地存储的当前用户 ID
+    const currentUserId = localStorage.getItem('userId') || '';
 
     // ---------- 视频详情 ----------
     try {
@@ -30,7 +32,8 @@
     $('#w-up').style.cursor = 'pointer';
     $('#w-up').title = '查看 ' + upName + ' 的频道';
     $('#w-up').onclick = () => location.href = 'profile.html?userId=' + encodeURIComponent(upId) + '&name=' + encodeURIComponent(upName);
-    if (me && upId && me.userId !== upId) {
+
+    if (currentUserId && upId && currentUserId !== upId) {
         const pmBtn = $('#w-pm');
         pmBtn.style.display = '';
         pmBtn.onclick = e => {
@@ -48,7 +51,7 @@
         followBtn.disabled = followBusy;
         fansEl.textContent = fansCount > 0 ? `${YT.fmtNum(fansCount)} 位粉丝` : '';
     }
-    if (me && upId && me.userId !== upId) {
+    if (currentUserId && upId && currentUserId !== upId) {
         followBtn.style.display = '';
         paintFollow();
     }
@@ -56,11 +59,11 @@
         .then(r => {
             const fans = (r && r.data) || [];
             fansCount = fans.length;
-            following = !!(me && fans.some(f => String(YT.pick(f, 'user_id')) === me.userId));
+            following = !!(currentUserId && fans.some(f => String(YT.pick(f, 'user_id')) === currentUserId));
             paintFollow();
         }).catch(() => { });
 
-    if (me && upId && me.userId !== upId) {
+    if (currentUserId && upId && currentUserId !== upId) {
         followBtn.onclick = async e => {
             e.stopPropagation();
             if (followBusy) return;
@@ -68,7 +71,7 @@
             const wasFollowing = following;
             try {
                 const url = wasFollowing ? '/api/user/unfollow' : '/api/user/follow';
-                const res = await YT.api.post(url, { me: me.userId, upId: upId });
+                const res = await YT.api.post(url, { me: currentUserId, upId: upId });
                 if (res.success) {
                     following = !wasFollowing;
                     fansCount = Math.max(0, fansCount + (following ? 1 : -1));
@@ -95,7 +98,7 @@
             }
         }).catch(() => { });
 
-    const isMine = me && me.userId === upId;
+    const isMine = currentUserId && currentUserId === upId;
     if (isMine) { $('#btn-edit').style.display = ''; $('#btn-del').style.display = ''; }
 
     // ---------- 播放器 ----------
@@ -141,74 +144,63 @@
 
     // ---------- 视频点赞 ----------
     const likeBtn = $('#btn-like'), likeIc = $('#like-ic'), likeNum = $('#like-num');
-    let likeCount = YT.pick(video, 'like_count');
-    let liked = false;
-    let likeBusy = false;
 
     const svgLike = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10.5 12 4h1.6c.9 0 1.5.8 1.3 1.6L14 10h4.2a2 2 0 0 1 1.95 2.45l-1.3 5.5A2 2 0 0 1 16.9 19H7"/><path d="M7 10.5V19"/><path d="M4 10.5h3V19H4z"/></svg>';
     const svgLiked = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10.5 12 4h1.6c.9 0 1.5.8 1.3 1.6L14 10h4.2a2 2 0 0 1 1.95 2.45l-1.3 5.5A2 2 0 0 1 16.9 19H7"/><path d="M7 10.5V19" fill="none"/><path d="M4 10.5h3V19H4z"/></svg>';
 
-    function paintLike() {
+    // 强制转换 1/0/"true"
+    function normalizeLiked(v) {
+        if (typeof v === 'boolean') return v;
+        if (typeof v === 'number') return v !== 0;
+        if (typeof v === 'string') {
+            const s = v.trim().toLowerCase();
+            if (['true', '1', 'yes', 'y'].includes(s)) return true;
+        }
+        return false;
+    }
+
+    function forceRenderVideoLike(isLiked, count) {
         if (!likeBtn) return;
-        likeBtn.classList.toggle('light', liked);
-        likeBtn.setAttribute('aria-pressed', liked ? 'true' : 'false');
-        if (likeIc) likeIc.innerHTML = liked ? svgLiked : svgLike;
-
+        likeBtn.setAttribute('aria-pressed', isLiked ? 'true' : 'false');
+        likeBtn.classList.toggle('light', isLiked);
+        if (likeIc) likeIc.innerHTML = isLiked ? svgLiked : svgLike;
         if (likeNum) {
-            if (likeCount === null || likeCount === undefined || likeCount === '') {
-                likeNum.textContent = '';
-            } else {
-                const n = Number(likeCount);
-                likeNum.textContent = n > 0 ? YT.fmtNum(n) : '0';
-            }
+            const n = Number(count) || 0;
+            likeNum.textContent = n > 0 ? YT.fmtNum(n) : '0';
         }
     }
 
-    function applyLike(d) {
-        if (d && d.like_count !== undefined && d.like_count !== null) {
-            const n = Number(d.like_count);
-            if (Number.isFinite(n)) likeCount = n;
-        }
-        if (d && typeof d.liked === 'boolean') liked = d.liked;
-        paintLike();
+    // 初始渲染
+    forceRenderVideoLike(normalizeLiked(video.liked), Number(YT.pick(video, 'like_count')) || 0);
+
+    // 如果登录了，查真实状态
+    if (currentUserId) {
+        YT.api.get('/api/video/select/like/count', { id, userId: currentUserId })
+            .then(r => {
+                if (r.success && r.data) {
+                    forceRenderVideoLike(normalizeLiked(r.data.liked), Number(r.data.like_count));
+                }
+            }).catch(e => console.log('查询点赞状态失败', e));
     }
-
-    paintLike();
-
-    YT.api.get('/api/video/select/like/count', me ? { id, userId: me.userId } : { id })
-        .then(r => {
-            if (r.success && r.data) {
-                applyLike(r.data);
-            } else {
-                if (likeCount === null || likeCount === undefined) likeCount = 0;
-                paintLike();
-            }
-        })
-        .catch(() => {
-            if (likeCount === null || likeCount === undefined) likeCount = 0;
-            paintLike();
-        });
 
     if (likeBtn) {
+        let busy = false;
         likeBtn.onclick = async () => {
-            if (!YT.requireLogin()) return;
-            if (likeBusy) return;
-            likeBusy = true;
+            if (!YT.requireLogin() || busy) return;
+            busy = true;
             likeBtn.disabled = true;
-            const wasLiked = liked;
+            const isNowLiked = likeBtn.getAttribute('aria-pressed') === 'true';
             try {
-                const url = liked ? '/api/video/cancel/like' : '/api/video/add/like';
-                const r = await YT.api.post(url, { id, userId: me.userId });
-                if (r.success) {
-                    applyLike(r.data);
-                    YT.toast(r.message || (wasLiked ? '已取消点赞' : '点赞成功'));
-                } else {
-                    YT.toast(r.message || '操作失败，请重试');
+                const url = isNowLiked ? '/api/video/cancel/like' : '/api/video/add/like';
+                const r = await YT.api.post(url, { id, userId: currentUserId });
+                if (r.success && r.data) {
+                    forceRenderVideoLike(normalizeLiked(r.data.liked), Number(r.data.like_count));
+                    YT.toast(normalizeLiked(r.data.liked) ? '已点赞' : '已取消');
                 }
             } catch (e) {
-                YT.toast('请求失败：' + e.message);
+                YT.toast('操作失败');
             } finally {
-                likeBusy = false;
+                busy = false;
                 likeBtn.disabled = false;
             }
         };
@@ -216,7 +208,7 @@
 
     // ---------- 收藏 ----------
     const favBtn = $('#btn-fav');
-    if (me) favBtn.style.display = '';
+    if (currentUserId) favBtn.style.display = '';
 
     let favModal = null;
     let favPublic = true;
@@ -267,7 +259,7 @@
         const box = favModal.querySelector('#fav-list');
         box.innerHTML = '<div class="w-stats">加载中…</div>';
         try {
-            const r = await YT.api.get('/api/video/select/like/format', { owner: me.userId, viewer: me.userId, videoId: id });
+            const r = await YT.api.get('/api/video/select/like/format', { owner: currentUserId, viewer: currentUserId, videoId: id });
             const rows = r.data || [];
             if (!rows.length) { box.innerHTML = '<div class="w-stats">还没有收藏夹，先创建一个</div>'; return; }
             box.innerHTML = rows.map(p => {
@@ -292,7 +284,7 @@
         try {
             const r = wasOn
                 ? await YT.api.del('/api/video/remove/from/like', { pList: pid, videoId: id })
-                : await YT.api.post('/api/video/add/to/like', { pList: pid, videoId: id, userId: me.userId });
+                : await YT.api.post('/api/video/add/to/like', { pList: pid, videoId: id, userId: currentUserId });
             if (r.success) {
                 item.classList.toggle('on', !wasOn);
                 item.querySelector('.fi-check').textContent = wasOn ? '' : '✓';
@@ -318,7 +310,7 @@
         input.value = '';
         try {
             const r = await YT.api.post('/api/video/create/like/format', {
-                pList: YT.randId(), userId: me.userId, name, description: '',
+                pList: YT.randId(), userId: currentUserId, name, description: '',
                 isPublic: favPublic ? 1 : 0,
             });
             if (r.success) { YT.toast(`已创建：${name}（${favPublic ? '公开' : '私密'}）`); await renderFavList(); }
@@ -332,20 +324,20 @@
     $('#btn-edit').onclick = async () => {
         const t = prompt('输入新的视频标题：', title);
         if (t === null || !t.trim()) return;
-        const r = await YT.api.post('/api/video/edit/title', { newTitle: t.trim(), id, userId: me.userId });
+        const r = await YT.api.post('/api/video/edit/title', { newTitle: t.trim(), id, userId: currentUserId });
         if (r.success) { YT.toast('标题已修改'); setTimeout(() => location.reload(), 700); }
         else YT.toast(r.message || '修改失败');
     };
     $('#btn-del').onclick = async () => {
         if (!confirm('确定删除这个视频吗？评论会一并删除，且不可恢复。')) return;
-        const r = await YT.api.del('/api/video/delete/videos', { id, userId: me.userId });
+        const r = await YT.api.del('/api/video/delete/videos', { id, userId: currentUserId });
         if (r.success) { YT.toast('已删除'); setTimeout(() => location.href = 'profile.html', 800); }
         else YT.toast(r.message || '删除失败');
     };
 
     // ---------- 评论区 ----------
-    if (me) {
-        $('#me-av1').textContent = (me.nickname || me.userId).slice(0, 1).toUpperCase();
+    if (currentUserId) {
+        $('#me-av1').textContent = (localStorage.getItem('nickname') || currentUserId).slice(0, 1).toUpperCase();
     } else {
         $('#me-av1').textContent = '\uD83D\uDD12';
         $('#me-av1').style.filter = 'grayscale(1)';
@@ -358,18 +350,22 @@
 
     const list = $('#c-list');
 
-    // 评论操作按钮（完美复用视频点赞的图标模板）
+    const cmtSvgLike = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10.5 12 4h1.6c.9 0 1.5.8 1.3 1.6L14 10h4.2a2 2 0 0 1 1.95 2.45l-1.3 5.5A2 2 0 0 1 16.9 19H7"/><path d="M7 10.5V19"/><path d="M4 10.5h3V19H4z"/></svg>';
+    const cmtSvgLiked = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10.5 12 4h1.6c.9 0 1.5.8 1.3 1.6L14 10h4.2a2 2 0 0 1 1.95 2.45l-1.3 5.5A2 2 0 0 1 16.9 19H7"/><path d="M7 10.5V19" fill="none"/><path d="M4 10.5h3V19H4z"/></svg>';
+
     function opBtns(c, isMine) {
         const cid = YT.esc(YT.pick(c, 'comment_id'));
-        // 取后端返回的初始点赞数
         const cLikeCount = Number(c.like_count || 0);
+        // 读取后端的 my_liked，如果是 1 就是已赞
+        const myLiked = Number(c.my_liked || 0) > 0;
 
-        // 复制视频点赞那里的 SVG
-        const cSvgLike = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10.5 12 4h1.6c.9 0 1.5.8 1.3 1.6L14 10h4.2a2 2 0 0 1 1.95 2.45l-1.3 5.5A2 2 0 0 1 16.9 19H7"/><path d="M7 10.5V19"/><path d="M4 10.5h3V19H4z"/></svg>';
+        // 根据状态决定颜色和图标
+        const color = myLiked ? 'var(--link)' : 'var(--text-secondary)';
+        const icon = myLiked ? cmtSvgLiked : cmtSvgLike;
 
         return `<div class="ops">
-            <button class="js-cmt-like" data-comment-like="${cid}" type="button" style="display:inline-flex;align-items:center;gap:4px;background:none;border:none;color:var(--text-secondary);cursor:pointer;padding:0;font-size:13px;margin-right:8px;transition:color 0.2s;">
-                <span class="cmt-like-ic" style="display:flex;align-items:center;">${cSvgLike}</span>
+            <button class="js-cmt-like" data-comment-like="${cid}" type="button" style="display:inline-flex;align-items:center;gap:4px;background:none;border:none;color:${color};cursor:pointer;padding:0;font-size:13px;margin-right:8px;transition:color 0.2s;">
+                <span class="cmt-like-ic" style="display:flex;align-items:center;">${icon}</span>
                 <span class="cmt-like-count">${cLikeCount > 0 ? YT.fmtNum(cLikeCount) : ''}</span>
             </button>
             <span class="op-btn" data-reply="${cid}">回复</span>
@@ -381,9 +377,9 @@
     function item(c, isReply) {
         const cid = String(YT.pick(c, 'comment_id'));
         const who = String(YT.pick(c, 'commenter') || YT.pick(c, 'user_id') || '匿名用户');
-        const isMine = !!me && String(YT.pick(c, 'user_id')) === me.userId;
-        const roAttr = me ? '' : ' readonly';
-        const roPh = me ? `回复 ${YT.esc(who)}…` : '登录后即可回复…';
+        const isMine = !!currentUserId && String(YT.pick(c, 'user_id')) === currentUserId;
+        const roAttr = currentUserId ? '' : ' readonly';
+        const roPh = currentUserId ? `回复 ${YT.esc(who)}…` : '登录后即可回复…';
         const rootAttr = isReply ? ` data-root="${YT.esc(cid)}"` : '';
         const av = String(YT.pick(c, 'commenter_avatar', 'commenterAvatar') || '');
         const avInner = av ? `<img src="${YT.mediaUrl(av)}" alt="">` : YT.esc(who.slice(0, 1).toUpperCase());
@@ -425,7 +421,8 @@
         list.innerHTML = '<div class="empty" style="padding:20px;">加载评论…</div>';
         let data = [];
         try {
-            const r = await YT.api.get('/api/video/get/all/comments', { videoId: id });
+            // 加上 currentUserId 传给后端
+            const r = await YT.api.get('/api/video/get/all/comments', { videoId: id, userId: currentUserId });
             data = r.data || [];
         } catch (e) {
             list.innerHTML = `<div class="empty" style="padding:20px;">评论加载失败：${YT.esc(e.message)}</div>`;
@@ -461,14 +458,14 @@
         const content = $('#root-content').value.trim();
         if (!content) return YT.toast('评论内容不能为空');
         const r = await YT.api.post('/api/video/add/my/comments', {
-            commentId: YT.randId(), videoId: id, userId: me.userId, content, parentId: null
+            commentId: YT.randId(), videoId: id, userId: currentUserId, content, parentId: null
         });
         if (r.success) { $('#root-content').value = ''; YT.toast('评论成功'); loadComments(); }
         else YT.toast(r.message || '评论失败');
     };
 
     // =========================================================
-    // 终极防弹版：直接监听整个文档的点击事件，防止被其他报错脚本卡死
+    // 终极防弹版：直接监听整个文档的点击事件
     // =========================================================
     document.addEventListener('click', async function(e) {
         const t = e.target;
@@ -477,27 +474,25 @@
         const likeBtn = t.closest('.js-cmt-like');
         if (likeBtn) {
             if (!YT.requireLogin()) return;
-
-            // 防连点
             if (likeBtn.dataset.busy) return;
+
             likeBtn.dataset.busy = '1';
             likeBtn.disabled = true;
 
             const commentId = likeBtn.dataset.commentLike;
             try {
-                const r = await YT.api.post('/api/video/add/comment/like', { me: me.userId, commentId });
+                const r = await YT.api.post('/api/video/add/comment/like', { me: currentUserId, commentId });
 
                 if (r.success && r.data) {
                     const countEl = likeBtn.querySelector('.cmt-like-count');
                     const icEl = likeBtn.querySelector('.cmt-like-ic');
 
-                    // 后端返回了 { liked: boolean, count: int }
-                    if (r.data.liked) {
-                        likeBtn.style.color = 'var(--link)'; // 变蓝
-                        icEl.innerHTML = svgLiked;           // 变成实心图标
+                    if (normalizeLiked(r.data.liked)) {
+                        likeBtn.style.color = 'var(--link)';
+                        icEl.innerHTML = cmtSvgLiked;
                     } else {
-                        likeBtn.style.color = 'var(--text-secondary)'; // 变灰
-                        icEl.innerHTML = svgLike;                      // 变成空心图标
+                        likeBtn.style.color = 'var(--text-secondary)';
+                        icEl.innerHTML = cmtSvgLike;
                     }
 
                     if (countEl) {
@@ -514,10 +509,10 @@
                 likeBtn.dataset.busy = '';
                 likeBtn.disabled = false;
             }
-            return; // 结束点赞逻辑，不再往下走
+            return;
         }
 
-        // 2. 强行拦截【回复/删除/修改等操作】 (原逻辑保留)
+        // 2. 强行拦截【回复/删除/修改等操作】
         const cid = t.dataset;
         if (cid.toggle) {
             const root = t.closest('.comment');
@@ -557,7 +552,7 @@
                 if (who && !content.startsWith('@' + who)) content = `@${who} ${content}`;
             }
             const r = await YT.api.post('/api/video/add/my/comments', {
-                commentId: YT.randId(), videoId: id, userId: me.userId, content, parentId: cid.sendReply
+                commentId: YT.randId(), videoId: id, userId: currentUserId, content, parentId: cid.sendReply
             });
             if (r.success) { ta.value = ''; form.classList.remove('open'); YT.toast('回复成功'); loadComments(); }
             else YT.toast(r.message || '回复失败');
@@ -566,7 +561,7 @@
 
         if (cid.del) {
             if (!confirm('删除这条评论？')) return;
-            const r = await YT.api.del('/api/video/delete/my/comments', { myUserId: me.userId, videoId: id, commentId: cid.del });
+            const r = await YT.api.del('/api/video/delete/my/comments', { myUserId: currentUserId, videoId: id, commentId: cid.del });
             if (r.success) { YT.toast('已删除'); loadComments(); } else YT.toast(r.message || '删除失败');
             return;
         }
@@ -591,7 +586,7 @@
             const box = t.closest('.edit-form');
             const content = box.querySelector('textarea').value.trim();
             if (!content) return YT.toast('内容不能为空');
-            const r = await YT.api.post('/api/video/edit/my/comments', { newContent: content, commentId: t.dataset.editSave, myUserId: me.userId });
+            const r = await YT.api.post('/api/video/edit/my/comments', { newContent: content, commentId: t.dataset.editSave, myUserId: currentUserId });
             if (r.success) { YT.toast('已修改'); loadComments(); } else YT.toast(r.message || '修改失败');
             return;
         }

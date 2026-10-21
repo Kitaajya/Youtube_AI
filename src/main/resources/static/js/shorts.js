@@ -20,7 +20,7 @@
         mute: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4z"/><path d="m16 9.5 5 5M21 9.5l-5 5"/></svg>',
         pause: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="5" width="4" height="14" rx="1.4"/><rect x="13.5" y="5" width="4" height="14" rx="1.4"/></svg>',
         play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5 20 12 7 19.5z"/></svg>',
-        
+
         // 加上这两个专属于通知的图标
         cmtLike: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--link);"><path d="M7 10.5 12 4h1.6c.9 0 1.5.8 1.3 1.6L14 10h4.2a2 2 0 0 1 1.95 2.45l-1.3 5.5A2 2 0 0 1 16.9 19H7"/><path d="M7 10.5V19"/><path d="M4 10.5h3V19H4z"/></svg>',
         vidLike: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--link);"><path d="M7 10.5 12 4h1.6c.9 0 1.5.8 1.3 1.6L14 10h4.2a2 2 0 0 1 1.95 2.45l-1.3 5.5A2 2 0 0 1 16.9 19H7"/><path d="M7 10.5V19"/><path d="M4 10.5h3V19H4z"/></svg>'

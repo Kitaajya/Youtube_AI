@@ -152,15 +152,38 @@ const YT = (() => {
         toastTimer = setTimeout(() => el.style.display = 'none', 2600);
     }
 
+    // ---------- 左侧导航栏图标 ----------
+    const IC = {
+        menu: '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>',
+        home: '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M12 3.2 3.5 10.5V21h6v-6h5v6h6V10.5z"/></svg>',
+        shorts: '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M10.2 2.2 4.6 13.4h4.3L7.6 21.8l8.6-11.6h-4.5l1.4-8z"/></svg>',
+        subs: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M6 4h13a2 2 0 0 1 2 2"/><path d="M10.8 10.6v4.8l4.2-2.4z" fill="currentColor" stroke="none"/></svg>',
+        you: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1-4 4-6 7.5-6s6.5 2 7.5 6"/></svg>',
+        history: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v5l3.5 2"/><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3 8.5"/><path d="M3 3.5v5h5"/></svg>',
+        music: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="7" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><path d="M10 18V5l11-2v13"/></svg>',
+        live: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 16.2a6 6 0 0 0 0-8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 19.1a10 10 0 0 0 0-14.2"/></svg>',
+        gaming: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M7 9h10a4 4 0 0 1 4 3.6l.5 4.2a2.2 2.2 0 0 1-3.9 1.6L15.9 16H8.1l-1.7 2.4a2.2 2.2 0 0 1-3.9-1.6L3 12.6A4 4 0 0 1 7 9z"/><path d="M7.5 12.5v2.5M6.25 13.75h2.5"/><circle cx="16" cy="13" r=".6" fill="currentColor"/><circle cx="18" cy="15" r=".6" fill="currentColor"/></svg>',
+        chev: '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M7.4 9.6 12 14.2l4.6-4.6L18 11l-6 6-6-6z"/></svg>',
+        kids: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="4"/><path d="M10.5 9.3v5.4l4.5-2.7z" fill="currentColor" stroke="none"/></svg>',
+        flag: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 4h12.5l-2.6 4 2.6 4H5"/></svg>',
+        grid: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>',
+        search: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="M16 16l4.5 4.5"/></svg>',
+        mic: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
+        bell: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 10a6 6 0 0 1 12 0c0 4.2 1.6 5.6 1.6 5.6H4.4S6 14.2 6 10"/><path d="M10.2 19h3.6"/></svg>',
+        like:  '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 10.5 12 4h1.6c.9 0 1.5.8 1.3 1.6L14 10h4.2a2 2 0 0 1 1.95 2.45l-1.3 5.5A2 2 0 0 1 16.9 19H7"/><path d="M7 10.5V19"/><path d="M4 10.5h3V19H4z"/></svg>',
+        liked: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 10.5 12 4h1.6c.9 0 1.5.8 1.3 1.6L14 10h4.2a2 2 0 0 1 1.95 2.45l-1.3 5.5A2 2 0 0 1 16.9 19H7"/><path d="M7 10.5V19" fill="none"/><path d="M4 10.5h3V19H4z"/></svg>',
+
+        // 专属于通知的图标
+        cmtLike: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--link);"><path d="M7 10.5 12 4h1.6c.9 0 1.5.8 1.3 1.6L14 10h4.2a2 2 0 0 1 1.95 2.45l-1.3 5.5A2 2 0 0 1 16.9 19H7"/><path d="M7 10.5V19"/><path d="M4 10.5h3V19H4z"/></svg>',
+        vidLike: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--link);"><path d="M7 10.5 12 4h1.6c.9 0 1.5.8 1.3 1.6L14 10h4.2a2 2 0 0 1 1.95 2.45l-1.3 5.5A2 2 0 0 1 16.9 19H7"/><path d="M7 10.5V19"/><path d="M4 10.5h3V19H4z"/></svg>'
+    };
+
     // ---------- 消息提醒（顶栏铃铛）----------
-    // 后端只有一个只读接口：GET /api/video/notify?me=&size=&offset=（返回 Result<List<Map>>）
-    // 因此：红点数字 = 已拉取这一页里 is_read=0 的条数（无独立计数接口，分页后只反映第一页）；
-    //      后端没有"标记已读"接口，所以点开面板不会消除红点——is_read 由后端写入时决定。
     const NT_PAGE_SIZE = 20;
     const NT_POLL_MS = 5000;
     const NT_TYPE = {
-        like:           { icon: IC.vidLike, label: '赞了你的视频' },          // 换成视频点赞图标
-        comment_like:   { icon: IC.cmtLike, label: '赞了你的评论' },          // 换成评论点赞图标
+        like:           { icon: IC.vidLike, label: '赞了你的视频' },
+        comment_like:   { icon: IC.cmtLike, label: '赞了你的评论' },
         comment:        { icon: '\u{1F4AC}', label: '评论了你的视频' },
         reply:          { icon: '\u21A9\uFE0F', label: '回复了你的评论' },
         favorite:       { icon: '\u{1F516}', label: '收藏了你的视频' },
@@ -176,11 +199,10 @@ const YT = (() => {
         return Array.isArray(rows) ? rows : [];
     }
 
-    // 指纹：只取会影响展示的字段。数据没变时完全不碰 DOM，界面无任何动作。
     function ntSig(rows) {
         return rows.map(n => [pick(n, 'notify_id'), pick(n, 'is_read')].join('|')).join(';');
     }
-    //通知设置
+
     function ntRow(n) {
         const type = String(pick(n, 'type') || '');
         const t = NT_TYPE[type] || { icon: '\u{1F514}', label: '有一条新消息' };
@@ -195,15 +217,20 @@ const YT = (() => {
             href = 'watch.html?id=' + encodeURIComponent(vid);
         }
 
-        //收藏通知，不显示谁收藏的，只显示"收藏了你的视频《xxx》"
         const isAnon = (type === 'favorite');
         const whoHtml = isAnon ? '' : `<b>${esc(who)}</b> `;
 
         const unread = Number(pick(n, 'is_read') || 0) === 0;
-        const text = String(pick(n, 'contents') || '').trim();
+        let text = String(pick(n, 'contents') || '').trim();
+
+        // 去重：如果通知内容开头有 "@对方昵称 "，把它切掉
+        if (text.startsWith('@' + who)) {
+            text = text.substring(who.length + 1).trim();
+        }
+
         return `
         <div class="nt-item ${unread ? 'unread' : ''}"${href ? ` data-href="${esc(href)}"` : ''}>
-            <span class="nt-ic">${t.icon}</span>
+            <span class="nt-ic" style="display:flex; align-items:center; justify-content:center;">${t.icon}</span>
             <div class="nt-txt">
                 <div class="nt-line">${whoHtml}${esc(text || t.label)}</div>
                 <div class="nt-time">${esc(timeAgo(pick(n, 'create_time')) || '')}</div>
@@ -227,7 +254,7 @@ const YT = (() => {
         const list = document.getElementById('nt-list');
         if (list && ntOpen) {
             list.innerHTML = rows.length ? rows.map(ntRow).join('')
-                                         : '<div class="nt-empty">暂无消息提醒</div>';
+                : '<div class="nt-empty">暂无消息提醒</div>';
         }
     }
 
@@ -254,30 +281,26 @@ const YT = (() => {
             panel.classList.toggle('open', ntOpen);
             if (ntOpen) {
                 list.innerHTML = '<div class="nt-empty">加载中…</div>';
-                await ntRefresh(true);      // 先用旧 is_read 渲染一次（未读项还能高亮一下）
+                await ntRefresh(true);
 
-                // 打开面板 = 用户已看到通知，标记全部已读，红点消失
                 const u = user();
                 if (u) {
                     try {
                         await api.post('/api/video/notify/read/all', { me: u.userId });
                     } catch (err) { /* 标记失败不影响查看 */ }
 
-                    // 就地归零红点，不等下一次轮询（否则要点开面板后 5 秒红点才消失）
                     const badge = document.getElementById('nt-badge');
                     if (badge) { badge.textContent = '0'; badge.style.display = 'none'; }
 
-                    // 把列表里 unread 高亮去掉（is_read 在 DOM 上还是 0，重绘一次最干净）
                     await ntRefresh(true);
                 }
             }
         });
-        panel.addEventListener('click', e => e.stopPropagation());   // 点面板内部不关闭
+        panel.addEventListener('click', e => e.stopPropagation());
         list.addEventListener('click', e => {
             const item = e.target.closest('[data-href]');
             if (item) location.href = item.dataset.href;
         });
-        // document 级监听只注册一次（按 id 实时查找，不持有旧 DOM 闭包）
         if (!ntStarted) {
             ntStarted = true;
             document.addEventListener('click', () => {
@@ -286,7 +309,6 @@ const YT = (() => {
                 const p = document.getElementById('nt-panel');
                 if (p) p.classList.remove('open');
             });
-            // 切到后台标签停轮询，回前台补一次再恢复（避免挂着页面白耗请求）
             document.addEventListener('visibilitychange', () => {
                 if (document.hidden) {
                     if (ntTimer) { clearTimeout(ntTimer); ntTimer = null; }
@@ -299,29 +321,6 @@ const YT = (() => {
         ntRefresh(false).catch(() => { /* 忽略 */ });
         if (!ntTimer) ntSchedule();
     }
-
-    // ---------- 左侧导航栏图标 ----------
-    const IC = {
-        menu: '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>',
-        home: '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M12 3.2 3.5 10.5V21h6v-6h5v6h6V10.5z"/></svg>',
-        shorts: '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M10.2 2.2 4.6 13.4h4.3L7.6 21.8l8.6-11.6h-4.5l1.4-8z"/></svg>',
-        subs: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M6 4h13a2 2 0 0 1 2 2"/><path d="M10.8 10.6v4.8l4.2-2.4z" fill="currentColor" stroke="none"/></svg>',
-        you: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1-4 4-6 7.5-6s6.5 2 7.5 6"/></svg>',
-        history: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v5l3.5 2"/><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3 8.5"/><path d="M3 3.5v5h5"/></svg>',
-        music: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="7" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><path d="M10 18V5l11-2v13"/></svg>',
-        live: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 16.2a6 6 0 0 0 0-8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 19.1a10 10 0 0 0 0-14.2"/></svg>',
-        gaming: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M7 9h10a4 4 0 0 1 4 3.6l.5 4.2a2.2 2.2 0 0 1-3.9 1.6L15.9 16H8.1l-1.7 2.4a2.2 2.2 0 0 1-3.9-1.6L3 12.6A4 4 0 0 1 7 9z"/><path d="M7.5 12.5v2.5M6.25 13.75h2.5"/><circle cx="16" cy="13" r=".6" fill="currentColor"/><circle cx="18" cy="15" r=".6" fill="currentColor"/></svg>',
-        chev: '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M7.4 9.6 12 14.2l4.6-4.6L18 11l-6 6-6-6z"/></svg>',
-        kids: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="4"/><path d="M10.5 9.3v5.4l4.5-2.7z" fill="currentColor" stroke="none"/></svg>',
-        flag: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 4h12.5l-2.6 4 2.6 4H5"/></svg>',
-        grid: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>',
-        search: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="M16 16l4.5 4.5"/></svg>',
-        mic: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
-        // 通知铃铛：描边钟体 + 底部短横锤舌（替代原 emoji 🔔，风格同 search/mic）
-        bell: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 10a6 6 0 0 1 12 0c0 4.2 1.6 5.6 1.6 5.6H4.4S6 14.2 6 10"/><path d="M10.2 19h3.6"/></svg>',
-        like:  '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 10.5 12 4h1.6c.9 0 1.5.8 1.3 1.6L14 10h4.2a2 2 0 0 1 1.95 2.45l-1.3 5.5A2 2 0 0 1 16.9 19H7"/><path d="M7 10.5V19"/><path d="M4 10.5h3V19H4z"/></svg>',
-        liked: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 10.5 12 4h1.6c.9 0 1.5.8 1.3 1.6L14 10h4.2a2 2 0 0 1 1.95 2.45l-1.3 5.5A2 2 0 0 1 16.9 19H7"/><path d="M7 10.5V19" fill="none"/><path d="M4 10.5h3V19H4z"/></svg>',
-    };
 
     // 侧栏展开/收起状态（mini = 72px 图标窄栏，hide = 完全隐藏）
     function applySb(m) {
@@ -350,7 +349,6 @@ const YT = (() => {
             h += ' title="' + esc(label) + '">' + icon + '<span class="sb-lbl">' + esc(label) + '</span></a>';
             return h;
         };
-        // 窄栏（收起态）只放四项，与 YouTube 一致
         const rail = '<div class="sb-rail">'
             + item(IC.home, '首页', { href: 'index.html', active: isHome })
             + item(IC.shorts, 'Shorts', { href: 'shorts.html', active: isShorts })
@@ -474,7 +472,7 @@ const YT = (() => {
                             <button id="yt-logout">退出登录</button>
                         </div>
                     </div>`
-                : `<a href="login.html" class="btn primary">登录</a>
+            : `<a href="login.html" class="btn primary">登录</a>
                    <a href="register.html" class="btn">注册</a>`}
             </div>
         </header>`;
@@ -487,7 +485,6 @@ const YT = (() => {
         renderSidebar(u);
         const mic = document.getElementById('yt-mic');
 
-        //if (mic) mic.addEventListener('click', () => toast('语音搜索暂未开放'));
         //新增语音功能，便于搜索
         if (mic) {
             mic.addEventListener('click', async () => {
@@ -564,3 +561,4 @@ const YT = (() => {
     return { api, randId, user, requireLogin, logout, esc, pick, mediaUrl, thumb, timeAgo, fmtNum,
         fmtFull, toast, safeFrom, currentPath, FROM_KEY, IC };})();
 //截止2026/10/16/8:34，我已经修复了通知红点bug，以上的红点bug注释作废
+//2026/10/21/14:48 修复通知图标丢失及文字重复问题
