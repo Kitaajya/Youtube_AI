@@ -28,7 +28,9 @@ public class DeepSeekController {
     public Flux<String> streamAsk(@RequestParam String question){
         return deepSeekTest.streamAsk(question);
     }
-    // 把数据库的内容塞给 DeepSeek
+    /** 把数据库的内容塞给 DeepSeek
+     * 2026/10/21/17:10
+     * **/
     @GetMapping("/analyze/likes")
     public Flux<String> getCommentLike(@RequestParam String question) {
         return videoService.getCommentLike(this.client,question);
