@@ -257,7 +257,7 @@ VALUES(#{userId},#{title},#{videoPath},#{isShort},#{durationSec},#{isVertical})
 
     //视频是否存在（点赞前先校验，避免外键异常返回 500）
     @Select("""
-    SELECT COUNT(*) FROM video WHERE id=#{id}
+    SELECT COUNT(*) FROM video WHERE id=#{id} FOR UPDATE
     """)
     int countVideo(@Param("id") long id);
 
