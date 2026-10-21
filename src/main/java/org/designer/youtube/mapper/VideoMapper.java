@@ -616,7 +616,7 @@ VALUES(#{userId},#{title},#{videoPath},#{isShort},#{durationSec},#{isVertical})
     @Select("SELECT COUNT(*) FROM comment_like WHERE comment_id=#{commentId}")
     int countCommentLikes(@Param("commentId") String commentId);
 
-    // 我赞没赞过这条（前端按钮实心/空心）
+    // 我赞没赞过这条（前端按钮实心/空心），附带排他锁
     @Select("SELECT COUNT(*) FROM comment_like WHERE user_id=#{me} AND comment_id=#{commentId} FOR UPDATE")
     int likedByMe(@Param("me") String me, @Param("commentId") String commentId);
     /**
