@@ -34,5 +34,28 @@
     <script src="js/theme.js?v=1"></script>
     <script src="js/common.js?v=12"></script>
     <script src="js/home.js?v=7"></script>
+ 
+    <!-- ====== AI 悬浮聊天窗 ====== -->
+    <!-- 悬浮按钮 -->
+    <button id="ai-toggle-btn" title="召唤 AI 助手">🤖</button>
+
+    <!-- 聊天面板 -->
+    <div id="ai-chat-panel" class="hidden">
+        <div class="ai-header">
+            <span>DeepSeek 助手</span>
+            <button id="ai-close-btn">✕</button>
+        </div>
+        <div id="ai-chat-container">
+            <div class="ai-message ai-msg">
+                <div class="role">AI</div>
+                <div class="content">你好！我是你的本地 AI 助手。有什么可以帮你的？</div>
+            </div>
+        </div>
+        <div class="ai-input-area">
+            <textarea id="ai-question" placeholder="输入你的问题... (按 Enter 发送)" rows="1"></textarea>
+            <button id="ai-send-btn">发送</button>
+        </div>
+    </div>
+    <!-- ================================= -->
 </body>
 </html>
