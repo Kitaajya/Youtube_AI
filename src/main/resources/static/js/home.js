@@ -106,3 +106,97 @@
     // 分类标签只是前端展示（后端无分类字段），点击分类按关键字搜索
     load(q || null);
 })();
+// ====== AI 聊天窗逻辑 ======
+document.addEventListener('DOMContentLoaded', () => {
+    const toggleBtn = document.getElementById('ai-toggle-btn');
+    const closeBtn = document.getElementById('ai-close-btn');
+    const panel = document.getElementById('ai-chat-panel');
+    const container = document.getElementById('ai-chat-container');
+    const input = document.getElementById('ai-question');
+    const sendBtn = document.getElementById('ai-send-btn');
+
+    if (!toggleBtn) return; // 防止非首页报错
+
+    // 开关面板
+    toggleBtn.addEventListener('click', () => {
+        panel.classList.toggle('hidden');
+        if (!panel.classList.contains('hidden')) input.focus();
+    });
+    closeBtn.addEventListener('click', () => panel.classList.add('hidden'));
+
+    // 输入框自动撑高
+    input.addEventListener('input', function() {
+        this.style.height = '40px';
+        this.style.height = (this.scrollHeight) + 'px';
+    });
+
+    // 发送消息
+    input.addEventListener('keypress', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+    sendBtn.addEventListener('click', sendMessage);
+
+    // 渲染消息 DOM
+    function appendMessage(role, text) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `ai-message ${role === '你' ? 'user-msg' : 'ai-msg'}`;
+
+        const roleDiv = document.createElement('div');
+        roleDiv.className = 'role';
+        roleDiv.innerText = role;
+
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'content';
+        contentDiv.innerText = text;
+
+        msgDiv.appendChild(roleDiv);
+        msgDiv.appendChild(contentDiv);
+        container.appendChild(msgDiv);
+
+        container.scrollTop = container.scrollHeight;
+        return contentDiv;
+    }
+
+    async function sendMessage() {
+        const question = input.value.trim();
+        if (!question) return;
+
+        appendMessage('你', question);
+        input.value = '';
+        input.style.height = '40px';
+        sendBtn.disabled = true;
+
+        const aiContentDiv = appendMessage('AI', '思考中...');
+
+        try {
+            // 调用刚才后端写的流式接口
+            const response = await fetch(`/api/deepseek/stream?question=${encodeURIComponent(question)}`);
+            if (!response.ok) throw new Error('网络请求失败');
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let isFirstChunk = true;
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value, { stream: true });
+                if (isFirstChunk) {
+                    aiContentDiv.innerText = '';
+                    isFirstChunk = false;
+                }
+                aiContentDiv.innerText += chunk;
+                container.scrollTop = container.scrollHeight;
+            }
+        } catch (error) {
+            aiContentDiv.innerText = '哎呀，出错了：' + error.message;
+        } finally {
+            sendBtn.disabled = false;
+            input.focus();
+        }
+    }
+});
