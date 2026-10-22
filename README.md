@@ -22,6 +22,8 @@
 
 **插入数据库后的 DeepSeek：**
 <img width="642" height="1094" alt="插入数据库后的DeepSeek" src="https://github.com/user-attachments/assets/42e08553-da93-4c71-aa2b-9bc41ab56d11" />
+**对每个视频添加评论区DeepSeek总结
+<img width="1836" height="1122" alt="image" src="https://github.com/user-attachments/assets/f141190c-842a-4c0c-b3e9-ff1931f84b14" />
 
 **普通样例：**
 <img width="100%" alt="普通样例" src="https://github.com/user-attachments/assets/afd8fc23-8f47-48fa-a5f5-ec7005e85e6c" />
