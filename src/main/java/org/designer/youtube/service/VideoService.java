@@ -389,7 +389,7 @@ public class VideoService {
 
 
     /**
-     * 把数据库里的点赞数据翻译成自然语言，喂给 DeepSeek
+     * 把数据库里的点赞数据翻译成自然语言，喂给 DeepSeek。2026/10/22/23:20
      */
     public Flux<String> getCommentLike(ChatClient client, String question) {
         //查数据
