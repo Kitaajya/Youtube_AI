@@ -62,6 +62,7 @@ public class DeepSeekController {
     /**
      * 把视频id为id`(特定视频)的评论区喂给DeepSeek，并让它总结评论
      * **/
+    @GetMapping("/analyze/video/comments")
     public Flux<String> selectSpecialVideoCommentsForDeepSeek(@RequestParam long vid,@RequestParam String question){
         return videoService.selectSpecialVideoCommentsForDeepSeek(this.client,vid,question);
     }
