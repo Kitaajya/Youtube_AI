@@ -129,4 +129,9 @@ public interface PrivateMessageMapper {
     //表情包白名单
     @Select("SELECT COUNT(*) FROM emoji_item WHERE file_name = #{fileName} AND enabled = 1")
     int countEnabledEmoji(@Param("fileName") String fileName);
+    /**表情包分析，把表情包数据库塞给AI**/
+    @Select("""
+    SELECT * FROM emoji_item
+    """)
+    List<Map<String,Object>> getEmojiForDeepSeek();
 }
