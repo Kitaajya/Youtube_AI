@@ -422,9 +422,9 @@ public class VideoService {
                 .stream()
                 .content();
     }
-    //把动态评论塞给DeepSeek，主要是动态模块
-    public Flux<String> getCommentsForDeepSeek(ChatClient client,String question){
-        List<Map<String,Object>> k=vm.getDynamicCommentsForDeepSeek();
+    /**把视频id为id`(特定视频)的评论区喂给DeepSeek，并让它总结评论**/
+    public Flux<String>selectSpecialVideoCommentsForDeepSeek(long vid){
+        List<Map<String,Object>> list=vm.selectSpecialVideoCommentsForDeepSeek(vid);
         StringBuilder sb=new StringBuilder();
         if(k==null||k.isEmpty()) sb.append("当前数据库没有任何内容。\n");
         else{
