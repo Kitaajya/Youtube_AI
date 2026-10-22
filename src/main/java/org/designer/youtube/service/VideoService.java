@@ -437,7 +437,7 @@ public class VideoService {
                     .append("，评论内容").append(contents).append("发表时间:").append(createTime);
         }
         String systemPrompt= """
-                你是一个DeepSeek，如果用户询问了关于视频id为vid的评论区内容、或是让你总结此视频下方的评论区，你要根据我给你的数据库回答。
+                你是一个视频分析师，如果用户询问了关于视频id为vid的评论区内容、或是让你总结此视频下方的评论区，你要根据我给你的数据库回答。
                 相反，如果用户询问的内容与视频评论区的内容无关，就请你如实回答。
                 """;
         String finalQuestion="提示词如下："+systemPrompt+"用户最终提问："+question;
