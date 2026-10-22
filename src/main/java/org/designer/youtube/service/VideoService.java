@@ -423,7 +423,7 @@ public class VideoService {
                 .content();
     }
     /**把视频id为id`(特定视频)的评论区喂给DeepSeek，并让它总结评论**/
-    public Flux<String>selectSpecialVideoCommentsForDeepSeek(long vid){
+    public Flux<String>selectSpecialVideoCommentsForDeepSeek(ChatClient client,long vid,String question){
         List<Map<String,Object>> list=vm.selectSpecialVideoCommentsForDeepSeek(vid);
         StringBuilder sb=new StringBuilder();
         for(Map<String,Object> map:list){
