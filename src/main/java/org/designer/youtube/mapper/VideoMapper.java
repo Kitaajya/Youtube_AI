@@ -639,4 +639,9 @@ public interface VideoMapper {
     SELECT * FROM comment_like
     """)
     List<Map<String,Object>> getCommentLike();
+    /**把视频id为id`(特定视频)的评论区喂给DeepSeek，并让它总结评论**/
+    @Select("""
+    SELECT * FROM video_comment WHERE video_id=#{vid}
+    """)
+    List<Map<String,Object>> selectSpecialVideoCommentsForDeepSeek(@Param("vid") long vid);
 }
