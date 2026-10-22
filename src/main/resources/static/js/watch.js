@@ -654,6 +654,7 @@ if (aiSummaryBtn) {
             aiSummaryBtn.disabled = false;
         }
     };
+    const id = new URLSearchParams(location.search).get('id');
 }
 // -------------------------------------------
 //2026/10/20/20:00->localtime 20:53解决了评论点赞后再次刷新页面导致赞样式变成空心的bug
