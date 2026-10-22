@@ -430,7 +430,7 @@
         }
         const roots = data.filter(c => !c.parent_id && !c.parentId);
         const replies = data.filter(c => c.parent_id || c.parentId);
-        $('#c-head').textContent = `评论 ${data.length}`;
+        $('#c-head span').textContent = `评论 ${data.length}`;
         if (!data.length) { list.innerHTML = '<div class="empty" style="padding:20px;">还没有评论，来说两句吧</div>'; return; }
         list.innerHTML = roots.map(c => item(c, false)).join('');
 
