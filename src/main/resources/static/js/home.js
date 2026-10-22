@@ -118,7 +118,64 @@ document.addEventListener('DOMContentLoaded', () => {
     const input = document.getElementById('ai-question');
     const sendBtn = document.getElementById('ai-send-btn');
 
-    if (!toggleBtn) return; // 防止非首页报错
+    if (!toggleBtn) return;
+
+    const STORAGE_KEY = 'yt_ai_chat_history';
+
+    // 🟢 1. 从 sessionStorage 加载历史记录
+    function loadHistory() {
+        try {
+            const saved = sessionStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                const history = JSON.parse(saved);
+                // 清空默认的欢迎语
+                container.innerHTML = '';
+                history.forEach(msg => {
+                    renderDOM(msg.role, msg.content);
+                });
+            }
+        } catch (e) { console.warn('读取聊天记录失败', e); }
+    }
+
+    // 🔴 2. 将 DOM 里的消息保存到 sessionStorage
+    function saveHistory() {
+        try {
+            const msgs = [];
+            container.querySelectorAll('.ai-message').forEach(node => {
+                const role = node.querySelector('.role').innerText;
+                const content = node.querySelector('.content').innerText;
+                // 忽略“思考中...”这种临时状态
+                if (content !== '思考中...') {
+                    msgs.push({ role, content });
+                }
+            });
+            sessionStorage.setItem(STORAGE_KEY, JSON.stringify(msgs));
+        } catch (e) { console.warn('保存聊天记录失败', e); }
+    }
+
+    // 渲染单条消息 DOM
+    function renderDOM(role, text) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `ai-message ${role === '你' ? 'user-msg' : 'ai-msg'}`;
+
+        const roleDiv = document.createElement('div');
+        roleDiv.className = 'role';
+        roleDiv.innerText = role;
+
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'content';
+        contentDiv.innerText = text;
+
+        msgDiv.appendChild(roleDiv);
+        msgDiv.appendChild(contentDiv);
+        container.appendChild(msgDiv);
+
+        container.scrollTop = container.scrollHeight;
+        return contentDiv;
+    }
+
+    // 初始化时加载历史
+    loadHistory();
 
     // 开关面板
     toggleBtn.addEventListener('click', () => {
