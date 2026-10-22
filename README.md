@@ -1,13 +1,10 @@
-<div align="center">
-
 # YouTube Imitate
 
 **一个从零实现的视频社区网站，前后端一体，深度接入 AI**
-<br>
+
 本项目为个人学习实践作品，与 YouTube 官方无任何关联。
 
-覆盖 AI 智能问答、视频上传/播放/点赞/评论、动态社交、私信会话、关注粉丝、收藏夹、消息通知七大模块  
-前端为原生 HTML/CSS/JS 多页应用，后端为 Spring Boot + Spring AI + MyBatis + MySQL
+覆盖 AI 智能问答、视频上传/播放/点赞/评论、动态社交、私信会话、关注粉丝、收藏夹、消息通知七大模块。前端为原生 HTML/CSS/JS 多页应用，后端为 Spring Boot + Spring AI + MyBatis + MySQL。
 
 ![Java](https://img.shields.io/badge/Java-17-orange)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1-brightgreen)
@@ -16,19 +13,29 @@
 ![MySQL](https://img.shields.io/badge/MySQL-8.0-blue)
 ![License](https://img.shields.io/badge/license-学习项目-lightgrey)
 
-</div>
-
 ---
 
-<h1>样例如下</h1>
-<img width="2559" height="1439" alt="image" src="https://github.com/user-attachments/assets/afd8fc23-8f47-48fa-a5f5-ec7005e85e6c" />
+### 🖼️ 界面预览
 
-<h1>短视频区域示例</h1>
-<img width="2559" height="1439" alt="image" src="https://github.com/user-attachments/assets/a5bdeeed-8111-4477-adf8-ba6c3b3c8b3e" />
-<h1>个人主页示例</h1>
-<img width="2559" height="1439" alt="image" src="https://github.com/user-attachments/assets/279127f0-8e3e-4bf3-9637-c5d4a206cae6" />
-<h1>查找历史示例</h1>
-<img width="2559" height="1439" alt="image" src="https://github.com/user-attachments/assets/523e6da2-513f-49fa-9899-a869aa71bb1c" />
+**DeepSeek AI 样式：**
+<img width="713" height="1132" alt="DeepSeek AI样式" src="https://github.com/user-attachments/assets/3b2a585b-672f-434d-a1f8-f6b17af81ac3" />
+
+**插入数据库后的 DeepSeek：**
+<img width="642" height="1094" alt="插入数据库后的DeepSeek" src="https://github.com/user-attachments/assets/42e08553-da93-4c71-aa2b-9bc41ab56d11" />
+
+**普通样例：**
+<img width="100%" alt="普通样例" src="https://github.com/user-attachments/assets/afd8fc23-8f47-48fa-a5f5-ec7005e85e6c" />
+
+**短视频区域：**
+<img width="100%" alt="短视频区域" src="https://github.com/user-attachments/assets/a5bdeeed-8111-4477-adf8-ba6c3b3c8b3e" />
+
+**个人主页：**
+<img width="100%" alt="个人主页" src="https://github.com/user-attachments/assets/279127f0-8e3e-4bf3-9637-c5d4a206cae6" />
+
+**查找历史：**
+<img width="100%" alt="查找历史" src="https://github.com/user-attachments/assets/523e6da2-513f-49fa-9899-a869aa71bb1c" />
+
+---
 
 ## 📖 目录
 
@@ -45,6 +52,7 @@
 ## ✨ 功能特性
 
 ### 🤖 AI 智能交互模块（核心亮点）
+
 本项目深度集成了 **Spring AI** 与 **DeepSeek 大模型**，实现了从传统 CRUD 到智能交互的跨越：
 - **全流式 AI 问答**：前端利用 `fetch` 配合 `ReadableStream`，配合后端 `Flux` 实现打字机效果的流式对话。
 - **自然语言查库（NL2SQL 逻辑）**：将数据库中的点赞记录、用户信息转换为自然语言上下文，塞入 System Prompt 中。用户可以直接向 AI 提问（如：“帮我查查谁赞了最多”、“有没有叫张三的用户”），AI 会基于真实数据进行推理回答。
@@ -232,8 +240,4 @@ spring.ai.openai.chat.options.model=deepseek-chat
 
 ---
 
-<div align="center">
-
-Made with ❤️ by Jya Yijya (Tanmoku Kitaajya) · 2026
-
-</div>
+*Made with ❤️ by Jya Yijya (Tanmoku Kitaajya) · 2026*
