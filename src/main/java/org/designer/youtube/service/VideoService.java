@@ -422,4 +422,32 @@ public class VideoService {
                 .stream()
                 .content();
     }
+    //把动态评论塞给DeepSeek，主要是动态模块
+    public Flux<String> getCommentsForDeepSeek(ChatClient client,String question){
+        List<Map<String,Object>> k=vm.getDynamicCommentsForDeepSeek();
+        StringBuilder sb=new StringBuilder();
+        if(k==null||k.isEmpty()) sb.append("当前数据库没有任何内容。\n");
+        else{
+            for(Map<String,Object> map:k){
+                Object commentId=map.get("comment_id");
+                Object dynamicId=map.get("dynamic_id");
+                Object userId=map.get("user_id");
+                Object parentId=map.get("parent_id");
+                Object contents=map.get("contents");
+                Object createTime=map.get("create_time");
+                Object contentLike=map.get("contentLike");
+                sb.append("用户名为").append(userId).append("在动态id为").append(dynamicId)
+                        .append("处发表了一个评论").append(contents).append("此评论发表时间为")
+                        .append(createTime).append("此评论的id为").append(commentId)
+                        .append(",它的父评论为").append(parentId).append(",父评论发表时间为").append(createTime)
+                        .append(",对应的点赞数").append(contentLike);
+            }
+        }
+        String systemPrompt= """
+                    如果用户的问题涉及到关于查询动态评论的话，就请根据我喂给你的数据库信息如实回答。
+                    如果用户问的问题不涉及动态评论问题，比如数理化、计算机代码等领域，那就不要废话，回复他。
+                    """;
+        String finalQuestion="动态评论表数据如下"+sb+",用户的问题是"+question;
+        return client.prompt().user(finalQuestion).stream().content();
+    }
 }
