@@ -54,7 +54,6 @@
         const title = YT.pick(v, 'title');
         const up = YT.pick(v, 'uploader', 'user_id') || '未知UP主';
         const views = YT.pick(v, 'view_count');
-        const likes = YT.pick(v, 'like_count');
         const time = YT.pick(v, 'create_time');
         return `
         <div class="card" onclick="location.href='watch.html?id=${encodeURIComponent(id)}'">
@@ -106,7 +105,11 @@
     // 分类标签只是前端展示（后端无分类字段），点击分类按关键字搜索
     load(q || null);
 })();
-// ====== AI 聊天窗逻辑 ======
+
+
+// =========================================================
+// ====== AI 聊天窗逻辑（含数据库智能路由） ======
+// =========================================================
 document.addEventListener('DOMContentLoaded', () => {
     const toggleBtn = document.getElementById('ai-toggle-btn');
     const closeBtn = document.getElementById('ai-close-btn');
@@ -172,8 +175,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const aiContentDiv = appendMessage('AI', '思考中...');
 
         try {
-            // 调用刚才后端写的流式接口
-            const response = await fetch(`/api/deepseek/analyze/likes?question=${encodeURIComponent(question)}`);
+            let apiUrl = '';
+
+            // 🧠 智能路由：根据关键词决定调用哪个后端接口
+            if (question.includes('用户') || question.includes('账号') || question.includes('注册') ||
+                question.includes('电话') || question.includes('站长') || question.includes('密码')) {
+                // 包含用户相关词，走查用户数据库接口
+                apiUrl = `/api/deepseek/analyze/user?question=${encodeURIComponent(question)}`;
+            } else if (question.includes('点赞') || question.includes('赞') || question.includes('评论')) {
+                // 包含点赞相关词，走查点赞数据库接口
+                apiUrl = `/api/deepseek/analyze/likes?question=${encodeURIComponent(question)}`;
+            } else {
+                // 否则走普通的流式聊天接口（比如问数学题、写代码等）
+                apiUrl = `/api/deepseek/stream?question=${encodeURIComponent(question)}`;
+            }
+
+            // 发起流式请求
+            const response = await fetch(apiUrl);
             if (!response.ok) throw new Error('网络请求失败');
 
             const reader = response.body.getReader();
@@ -186,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const chunk = decoder.decode(value, { stream: true });
                 if (isFirstChunk) {
-                    aiContentDiv.innerText = '';
+                    aiContentDiv.innerText = ''; // 收到第一块数据，清除“思考中”
                     isFirstChunk = false;
                 }
                 aiContentDiv.innerText += chunk;
