@@ -26,6 +26,9 @@ public class DeepSeekController {
         this.deepSeekTest=deepSeekTest;
         this.videoService=videoService;
         this.client=cb.build();
+        this.userInformationService=userInformationService;
+        this.dynamicService=dynamicService;
+        this.privateMessageService=privateMessageService;
     }
     @GetMapping("/ask/deepseek")
     public String askDeepseek(@RequestParam String question){
