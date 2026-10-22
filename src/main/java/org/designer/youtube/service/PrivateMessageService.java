@@ -159,7 +159,7 @@ public class PrivateMessageService {
         String systemPrompt= """
                 用户提问的如果是表情包内容，那就根据我数据库里的信息给他回答。若不是，比如问了一些数理化、日常聊天、代码等问题就如实回答。
                 """;
-        String finalQuestion="表情包数据库如下："+k+"\n"+systemPrompt+"\n"+"用户提问：\n"+question;
-        return client.prompt().system(finalQuestion).user(finalQuestion).stream().content();
+        String finalQuestion="表情包数据库如下："+ k +"\n"+"用户提问：\n"+question;
+        return client.prompt().system(systemPrompt).user(finalQuestion).stream().content();
     }
 }
