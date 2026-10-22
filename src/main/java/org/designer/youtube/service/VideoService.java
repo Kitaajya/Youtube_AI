@@ -448,6 +448,6 @@ public class VideoService {
                     如果用户问的问题不涉及动态评论问题，比如数理化、计算机代码等领域，那就不要废话，回复他。
                     """;
         String finalQuestion="动态评论表数据如下"+sb+",用户的问题是"+question;
-        return client.prompt().user(finalQuestion).stream().content();
+        return client.prompt().system(systemPrompt).user(finalQuestion).stream().content();
     }
 }
