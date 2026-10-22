@@ -142,6 +142,24 @@ public class PrivateMessageService {
         List<Map<String,Object>> list=privateMessageMapper.getEmojiForDeepSeek();
         StringBuilder k=new StringBuilder();
         if(list==null||list.isEmpty()) k.append("当前没有表情包！");
-
+        else{
+            for(Map<String,Object> map:list){
+                Object emojiId=map.get("emoji_id");
+                Object name=map.get("name");
+                Object fileName=map.get("file_name");
+                //上架时间
+                Object createTime=map.get("create_time");
+                //人
+                Object pack=map.get("pack");
+                k.append("表情包id").append(emojiId).append(",表情包名称:").append(name)
+                        .append("表情包文件名称：").append(fileName).append(",表情包上架时间：").append(createTime)
+                        .append(",表情包人名：").append(pack);
+            }
+        }
+        String systemPrompt= """
+                用户提问的如果是表情包内容，那就根据我数据库里的信息给他回答。若不是，比如问了一些数理化、日常聊天、代码等问题就如实回答。
+                """;
+        String finalQuestion="表情包数据库如下："+k+"\n"+systemPrompt+"\n"+"用户提问：\n"+question;
+        return client.prompt().system(finalQuestion).user(finalQuestion).stream().content();
     }
 }
