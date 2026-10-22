@@ -15,7 +15,8 @@ public class DeepSeekController {
     private final VideoService videoService;
     private final DeepSeekTest deepSeekTest;
     private final ChatClient client;
-    public DeepSeekController(DeepSeekTest deepSeekTest,VideoService videoService,ChatClient.Builder cb){
+    private final UserInformationService userInformationService;
+    public DeepSeekController(DeepSeekTest deepSeekTest,VideoService videoService,ChatClient.Builder cb,UserInformationService userInformationService){
         this.deepSeekTest=deepSeekTest;
         this.videoService=videoService;
         this.client=cb.build();
