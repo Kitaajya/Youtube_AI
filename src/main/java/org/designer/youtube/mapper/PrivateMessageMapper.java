@@ -133,5 +133,5 @@ public interface PrivateMessageMapper {
     @Select("""
     SELECT * FROM emoji_item
     """)
-    List<Map<String,Object>> getEmojiForDeepSeek();
+    List<Map<String,Object>> getPrivateMessageEmojiForDeepSeek();
 }
