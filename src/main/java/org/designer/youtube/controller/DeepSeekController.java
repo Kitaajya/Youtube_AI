@@ -45,4 +45,9 @@ public class DeepSeekController {
     public Flux<String> getCommentsForDeepSeek(@RequestParam String question){
         return dynamicService.getCommentsForDeepSeek(this.client,question);
     }
+    //把表情包塞给DeepSeek
+    @GetMapping("/analyze/private/message/emoji")
+    public Flux<String> getPrivateMessageEmoji(@RequestParam String question){
+        return privateMessageService.getPrivateMessageEmojiForDeepSeek(this.client,question);
+    }
 }
