@@ -95,4 +95,34 @@ public class UserInformationService {
         }
         return Result.success("取关成功！",Map.of("success",true));
     }
+
+    /**
+     * 把数据库的信息喂给DeepSeek
+     * **/
+    public Flux<String> getUserInformationForDeepSeek(ChatClient client,String question){
+        List<Map<String,Object>> information=userInformationMapper.getUserInformationForDeepSeek();
+        StringBuilder k=new StringBuilder();
+        if(information==null||information.isEmpty()) k.append("当前数据库没有任何内容！");
+        else{
+            for(Map<String,Object> map:information){
+                Object userId=map.get("user_id");
+                Object username=map.get("username");
+                Object password=map.get("password");
+                Object nickname=map.get("nickname");
+                Object phone=map.get("phone");
+                Object createTime=map.get("create_time");
+                k.append("用户").append(username).append("的id为").append(userId)
+                        .append("，登录密码：").append(password)
+                        .append(",昵称为").append(nickname).append("，注册的电话号为").append(phone)
+                        .append(",注册时间：").append(createTime);
+            }
+        }
+        String systemPrompt= """
+                    首先，你是一个智能的DeepSeek，明确你的身份！
+                    其次，我是总站站长，我需要你调用我塞给你的数据库帮我查询指定的信息！
+                    如果询问内容与数据库不相符，证明我没有在问数据库信息，而是在（比如数学题、写代码、日常聊天）相关内容！你要如实回答！
+                    """;
+        String getK="主要信息如下："+k+"用户提问的内容是："+question;
+        return client.prompt().system(systemPrompt).user(getK).stream().content();
+    }
 }
