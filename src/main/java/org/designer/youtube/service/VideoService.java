@@ -441,7 +441,7 @@ public class VideoService {
                 如果用户的问题是让你总结视频的评论区，请严格根据我提供的【数据库评论数据】进行总结。
                 如果用户问的是其他无关问题，请用你自己的知识回答。
                 """;
-        String finalQuestion="提示词如下："+systemPrompt+"用户最终提问："+question;
+        String finalQuestion="视频数据如下："+sb+"用户最终提问："+question;
         return client.prompt().system(systemPrompt).user(finalQuestion).stream().content();
     }
 }
