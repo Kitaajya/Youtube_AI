@@ -426,22 +426,15 @@ public class VideoService {
     public Flux<String>selectSpecialVideoCommentsForDeepSeek(long vid){
         List<Map<String,Object>> list=vm.selectSpecialVideoCommentsForDeepSeek(vid);
         StringBuilder sb=new StringBuilder();
-        if(k==null||k.isEmpty()) sb.append("当前数据库没有任何内容。\n");
-        else{
-            for(Map<String,Object> map:k){
-                Object commentId=map.get("comment_id");
-                Object dynamicId=map.get("dynamic_id");
-                Object userId=map.get("user_id");
-                Object parentId=map.get("parent_id");
-                Object contents=map.get("contents");
-                Object createTime=map.get("create_time");
-                Object contentLike=map.get("contentLike");
-                sb.append("用户名为").append(userId).append("在动态id为").append(dynamicId)
-                        .append("处发表了一个评论").append(contents).append("此评论发表时间为")
-                        .append(createTime).append("此评论的id为").append(commentId)
-                        .append(",它的父评论为").append(parentId).append(",父评论发表时间为").append(createTime)
-                        .append(",对应的点赞数").append(contentLike);
-            }
+        for(Map<String,Object> map:list){
+            Object commentId=map.get("comment_id");
+            Object userId=map.get("user_id");
+            Object parentId=map.get("parent_id");
+            Object contents=map.get("contents");
+            Object createTime=map.get("create_time");//发表时间
+            sb.append("视频Id为").append(vid).append("，父评论是").append(parentId)
+                    .append("，父评论的id为").append(commentId).append(",发表此父评论的用户是:").append(userId)
+                    .append("，评论内容").append(contents).append("发表时间:").append(createTime);
         }
         String systemPrompt= """
                 你是一个DeepSeek，如果用户询问了关于视频id为vid的评论区内容、或是让你总结此视频下方的评论区，你要根据我给你的数据库回答。
