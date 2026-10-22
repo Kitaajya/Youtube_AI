@@ -444,10 +444,8 @@ public class VideoService {
             }
         }
         String systemPrompt= """
-                    如果用户的问题涉及到关于查询动态评论的话，就请根据我喂给你的数据库信息如实回答。
-                    如果用户问的问题不涉及动态评论问题，比如数理化、计算机代码等领域，那就不要废话，回复他。
-                    """;
-        String finalQuestion="动态评论表数据如下"+sb+",用户的问题是"+question;
-        return client.prompt().system(systemPrompt).user(finalQuestion).stream().content();
+                你是一个DeepSeek，如果用户询问了关于视频id为vid的评论区内容、或是让你总结此视频下方的评论区，你要根据我给你的数据库回答。
+                相反，如果用户询问的内容与视频评论区的内容无关，就请你如实回答。
+                """;
     }
 }
