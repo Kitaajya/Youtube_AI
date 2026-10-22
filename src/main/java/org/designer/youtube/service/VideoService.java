@@ -413,7 +413,7 @@ public class VideoService {
                 "            \"\"\"";
         String finalUserPrompt = "点赞记录如下：\n" + context + "\n用户提问：" + question;
 
-        log.info("数据库查出来的点赞条数：{}", list != null ? list.size() : "null");
+        //log.info("数据库查出来的点赞条数：{}", list != null ? list.size() : "null");
 
         //发给AI（流式返回）
         return client.prompt()
