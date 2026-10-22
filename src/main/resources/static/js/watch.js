@@ -595,41 +595,52 @@
     // 最后加载评论
     loadComments();
 })();
-// ---------AI一键总结评论----------
-const aiSummaryBtn = document.getElementById('btn-ai-summary');
-if (aiSummaryBtn) {
+
+// =========================================================
+// --------- 2026/10/23 新增：AI 一键总结评论 ---------
+// =========================================================
+window.addEventListener('DOMContentLoaded', () => {
+    const aiSummaryBtn = document.getElementById('btn-ai-summary');
+    if (!aiSummaryBtn) return;
+
     aiSummaryBtn.onclick = async () => {
+        // 重新获取一次 id，防止作用域问题
+        const vid = new URLSearchParams(location.search).get('id');
+        if (!vid) return;
+
         // 先检查有没有评论
         const countText = document.getElementById('c-head').innerText;
         if (countText.includes('评论 0')) {
-            return YT.toast('当前视频还没有评论哦');
+            return YT.toast('当前视频还没有评论哦，AI 无从下手~');
         }
 
-        // 创建一个 AI 总结弹窗（或者直接在评论区上方插入一个 div）
+        // 创建一个 AI 总结展示框（插在评论区列表上方）
         let summaryBox = document.getElementById('ai-summary-box');
         if (!summaryBox) {
             summaryBox = document.createElement('div');
             summaryBox.id = 'ai-summary-box';
             summaryBox.className = 'w-desc';
+            // 用 CSS 变量让它适配你的黑白主题
             summaryBox.style.marginTop = '10px';
             summaryBox.style.marginBottom = '20px';
             summaryBox.style.background = 'var(--surface-2)';
             summaryBox.style.border = '1px solid var(--link)';
-            // 插在评论区列表上方
+            summaryBox.style.padding = '12px';
+            summaryBox.style.borderRadius = '8px';
+
             const cList = document.getElementById('c-list');
             cList.parentNode.insertBefore(summaryBox, cList);
         }
 
-        summaryBox.innerHTML = '<b>AI 正在阅读并总结评论...</b>';
+        summaryBox.innerHTML = '<b>AI 正在阅读并总结评论，请稍候...</b>';
         aiSummaryBtn.disabled = true;
+        aiSummaryBtn.innerText = 'AI 总结中...';
 
         try {
-            // 调用你在 Controller 里写好的接口
-            // 传当前视频的 id (vid) 和一个预设的提问 (question)
             const question = "请帮我用三句话总结一下大家对这个视频的看法，并提炼出3个核心关键词。";
-            const response = await fetch(`/api/deepseek/analyze/video/comments?vid=${id}&question=${encodeURIComponent(question)}`);
+            const response = await fetch(`/api/deepseek/analyze/video/comments?vid=${vid}&question=${encodeURIComponent(question)}`);
 
-            if (!response.ok) throw new Error('网络请求失败');
+            if (!response.ok) throw new Error('网络请求失败，请检查后端控制台');
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder('utf-8');
@@ -642,20 +653,22 @@ if (aiSummaryBtn) {
 
                 const chunk = decoder.decode(value, { stream: true });
                 if (isFirstChunk) {
-                    summaryBox.innerHTML = '✨ <b>AI 总结：</b><br>';
+                    summaryBox.innerHTML = '<b>⭐️AI 总结：</b><br>';
                     isFirstChunk = false;
                 }
                 fullText += chunk;
-                summaryBox.innerHTML = '✨ <b>AI 总结：</b><br>' + YT.esc(fullText).replace(/\n/g, '<br>');
+                // 把换行符换成 <br>，让展示更好看
+                summaryBox.innerHTML = '<b>AI 总结：</b><br>' + YT.esc(fullText).replace(/\n/g, '<br>');
+                summaryBox.scrollTop = summaryBox.scrollHeight;
             }
         } catch (error) {
             summaryBox.innerHTML = 'AI 总结失败：' + error.message;
         } finally {
             aiSummaryBtn.disabled = false;
+            aiSummaryBtn.innerText = '重新总结';
         }
     };
-    const id = new URLSearchParams(location.search).get('id');
-}
+});
 // -------------------------------------------
 //2026/10/20/20:00->localtime 20:53解决了评论点赞后再次刷新页面导致赞样式变成空心的bug
 //2026/10/23/7:25->添加了AI总结视频评论区功能

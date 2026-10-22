@@ -4,19 +4,18 @@
     const welcome = document.getElementById('welcome');
     const feed = document.getElementById('feed');
 
-    // 游客欢迎条：本次会话关闭后不再显示
     let welcomeClosed = false;
-    try { welcomeClosed = sessionStorage.getItem('yt_welcome_closed') === '1'; } catch (e) { /* 隐私模式忽略 */ }
+    try { welcomeClosed = sessionStorage.getItem('yt_welcome_closed') === '1'; } catch (e) { }
     if (u || welcomeClosed) {
         welcome.style.display = 'none';
     } else {
         welcome.style.display = 'block';
         document.getElementById('welcome-login').onclick = () => {
-            try { sessionStorage.setItem('yt_from', YT.currentPath()); } catch (e) { /* 忽略 */ }
+            try { sessionStorage.setItem('yt_from', YT.currentPath()); } catch (e) { }
         };
         document.getElementById('welcome-close').onclick = () => {
             welcome.style.display = 'none';
-            try { sessionStorage.setItem('yt_welcome_closed', '1'); } catch (e) { /* 忽略 */ }
+            try { sessionStorage.setItem('yt_welcome_closed', '1'); } catch (e) { }
         };
     }
     feed.style.display = 'block';
@@ -98,13 +97,12 @@
 
     const cats = ['音乐', '游戏', '科技', '美食', '旅行','猎奇','恐怖','电影','军事','全球'];
     renderChips(cats);
-    // 分类标签只是前端展示（后端无分类字段），点击分类按关键字搜索
     load(q || null);
 })();
 
 
 // =========================================================
-// ====== AI 聊天窗逻辑（含数据库智能路由） ======
+// ====== AI 聊天窗逻辑（含本地缓存防丢失） ======
 // =========================================================
 document.addEventListener('DOMContentLoaded', () => {
     const toggleBtn = document.getElementById('ai-toggle-btn');
@@ -195,55 +193,35 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     sendBtn.addEventListener('click', sendMessage);
 
-    // 渲染消息 DOM
-    function appendMessage(role, text) {
-        const msgDiv = document.createElement('div');
-        msgDiv.className = `ai-message ${role === '你' ? 'user-msg' : 'ai-msg'}`;
-
-        const roleDiv = document.createElement('div');
-        roleDiv.className = 'role';
-        roleDiv.innerText = role;
-
-        const contentDiv = document.createElement('div');
-        contentDiv.className = 'content';
-        contentDiv.innerText = text;
-
-        msgDiv.appendChild(roleDiv);
-        msgDiv.appendChild(contentDiv);
-        container.appendChild(msgDiv);
-
-        container.scrollTop = container.scrollHeight;
-        return contentDiv;
-    }
-
     async function sendMessage() {
         const question = input.value.trim();
         if (!question) return;
 
-        appendMessage('你', question);
+        // 渲染用户的提问
+        renderDOM('你', question);
         input.value = '';
         input.style.height = '40px';
         sendBtn.disabled = true;
 
-        const aiContentDiv = appendMessage('AI', '思考中...');
+        // 渲染 AI 的占位符
+        const aiContentDiv = renderDOM('AI', '思考中...');
 
         try {
             let apiUrl = '';
 
-            // 🧠 智能路由：根据关键词决定调用哪个后端接口
-            if (question.includes('用户') || question.includes('账号') || question.includes('注册') ||
+            if (question.includes('表情') || question.includes('表情包')) {
+                apiUrl = `/api/deepseek/analyze/private/message/emoji?question=${encodeURIComponent(question)}`;
+            } else if (question.includes('动态') || question.includes('说说') || question.includes('朋友圈')) {
+                apiUrl = `/api/deepseek/analyze/dynamic/comments?question=${encodeURIComponent(question)}`;
+            } else if (question.includes('用户') || question.includes('账号') || question.includes('注册') ||
                 question.includes('电话') || question.includes('站长') || question.includes('密码')) {
-                // 包含用户相关词，走查用户数据库接口
                 apiUrl = `/api/deepseek/analyze/user?question=${encodeURIComponent(question)}`;
             } else if (question.includes('点赞') || question.includes('赞') || question.includes('评论')) {
-                // 包含点赞相关词，走查点赞数据库接口
                 apiUrl = `/api/deepseek/analyze/likes?question=${encodeURIComponent(question)}`;
             } else {
-                // 否则走普通的流式聊天接口（比如问数学题、写代码等）
                 apiUrl = `/api/deepseek/stream?question=${encodeURIComponent(question)}`;
             }
 
-            // 发起流式请求
             const response = await fetch(apiUrl);
             if (!response.ok) throw new Error('网络请求失败');
 
@@ -257,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const chunk = decoder.decode(value, { stream: true });
                 if (isFirstChunk) {
-                    aiContentDiv.innerText = ''; // 收到第一块数据，清除“思考中”
+                    aiContentDiv.innerText = '';
                     isFirstChunk = false;
                 }
                 aiContentDiv.innerText += chunk;
@@ -268,6 +246,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             sendBtn.disabled = false;
             input.focus();
+            // 🟢 流式输出结束后，保存完整的聊天记录
+            saveHistory();
         }
     }
 });

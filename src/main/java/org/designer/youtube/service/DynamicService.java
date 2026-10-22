@@ -3,8 +3,9 @@ package org.designer.youtube.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.designer.youtube.mapper.DynamicMapper;
-import org.springframework.cache.annotation.Cacheable;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -12,7 +13,7 @@ import java.util.Map;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Cacheable
+//@Cacheable，不能加缓存，因为Spring不认识Flux
 public class DynamicService {
     public final DynamicMapper dynamicMapper;
     //查-写-删-修

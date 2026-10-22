@@ -6,9 +6,11 @@ import org.designer.youtube.common.Result;
 import org.designer.youtube.entity.PrivateMessage;
 import org.designer.youtube.mapper.PrivateMessageMapper;
 import org.jspecify.annotations.NonNull;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 
 import java.util.List;
 import java.util.Map;
