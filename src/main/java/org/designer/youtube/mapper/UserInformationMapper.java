@@ -81,4 +81,13 @@ public interface UserInformationMapper {
     DELETE FROM subscription WHERE fan_id=#{me} AND up_id=#{upId}
     """)
     int unfollow(@Param("me") String me,@Param("upId") String upId);
+
+    /**
+     * 把数据库的信息喂给DeepSeek
+     * **/
+    //把用户表信息喂给DeepSeek
+    @Select("""
+    SELECT * FROM user_information
+    """)
+    List<Map<String,Object>> getUserInformationForDeepSeek();
 }
