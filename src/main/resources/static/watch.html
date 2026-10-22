@@ -58,7 +58,11 @@
 
         <!-- 评论区 -->
         <section class="comments">
-            <div class="c-head" id="c-head">评论</div>
+            <div class="c-head" id="c-head" style="display: flex; justify-content: space-between; align-items: center;">
+                <span>评论</span>
+                <!--加上这个AI按钮，一键总结视频评论区-->
+                <button id="btn-ai-summary" class="btn sm primary" style="font-size: 12px; height: 26px; padding: 0 10px;">✨ AI 总结评论</button>
+            </div>
             <div class="comment-form" id="root-form">
                 <span class="avatar" id="me-av1"></span>
                 <div class="grow">
