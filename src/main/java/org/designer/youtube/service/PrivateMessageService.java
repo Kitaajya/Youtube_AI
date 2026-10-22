@@ -138,8 +138,8 @@ public class PrivateMessageService {
         return Result.success(privateMessageMapper.selectEmojiList());
     }
     /**表情包塞给DeepSeek**/
-    public Flux<String> getEmojiForDeepSeek(ChatClient client,String question){
-        List<Map<String,Object>> list=privateMessageMapper.getEmojiForDeepSeek();
+    public Flux<String> getPrivateMessageEmojiForDeepSeek(ChatClient client, String question){
+        List<Map<String,Object>> list=privateMessageMapper.getPrivateMessageEmojiForDeepSeek();
         StringBuilder k=new StringBuilder();
         if(list==null||list.isEmpty()) k.append("当前没有表情包！");
         else{
