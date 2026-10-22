@@ -36,4 +36,13 @@ public class DeepSeekController {
     public Flux<String> getCommentLike(@RequestParam String question) {
         return videoService.getCommentLike(this.client,question);
     }
+    @GetMapping("/analyze/user")
+    public Flux<String> getUserInformationForDeepSeek(@RequestParam String question){
+        return userInformationService.getUserInformationForDeepSeek(this.client,question);
+    }
+    //把动态评论塞给DeepSeek，主要是动态模块
+    @GetMapping("/analyze/dynamic/comments")
+    public Flux<String> getCommentsForDeepSeek(@RequestParam String question){
+        return dynamicService.getCommentsForDeepSeek(this.client,question);
+    }
 }
