@@ -26,4 +26,9 @@ public interface DynamicMapper {
     int editDynamic(@Param("content") String newContent,
                     @Param("id") String id,
                     @Param("createTime") LocalDateTime createTime);
+    //把动态评论塞给DeepSeek
+    @Select("""
+    SELECT * FROM content_comments
+    """)
+    List<Map<String,Object>> getDynamicCommentsForDeepSeek();
 }
