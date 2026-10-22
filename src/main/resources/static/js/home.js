@@ -1,8 +1,4 @@
-/* 首页：视频流 + 搜索（游客模式：未登录也能浏览与搜索）
- * 数据源：
- *  GET /api/video/select/videos/upinfor  全部视频+UP主信息
- *  GET /api/video/select/like?keyword=   模糊搜索
- */
+/* 首页：视频流 + 搜索（游客模式：未登录也能浏览与搜索） */
 (async function () {
     const u = YT.user();
     const welcome = document.getElementById('welcome');
