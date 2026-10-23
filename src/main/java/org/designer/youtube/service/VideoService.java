@@ -230,8 +230,15 @@ public class VideoService {
             else count=vm.selectLikeQuantity(id);
             return Result.success("cancel the like successfully",Map.of("like_count",count,"liked",false));
         }
-        return Result.success("已取消点赞", Map.of(
-                "like_count", vm.selectLikeQuantity(id), "liked", false));
+        //如果已经点赞了
+        redisTemplate.opsForSet().remove(likeSetKey,userId);
+        redisTemplate.opsForValue().decrement(countKey);
+        String notInRedisCountLike=redisTemplate.opsForValue().get(countKey);
+        long newNotInRedisCountLike;
+        if (notInRedisCountLike != null) newNotInRedisCountLike=Long.parseLong(notInRedisCountLike);
+        else newNotInRedisCountLike=0;
+        if(newNotInRedisCountLike<0) newNotInRedisCountLike=0;
+        return Result.success("cancel the like successfully",Map.of("like_count",newNotInRedisCountLike,"liked",false));
     }
     //建立收藏夹，不是把视频放进收藏夹里，因为收藏夹还没创建呢！
     public Result<Map<String,Object>> createLikeFormat(String pList,
