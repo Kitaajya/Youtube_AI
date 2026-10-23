@@ -209,8 +209,12 @@ public class VideoService {
         redisTemplate.opsForSet().add(likeSetKey,userId);
         redisTemplate.opsForValue().increment(countKey);
         sendLikeNotify(id,userId);
-        return Result.success("点赞成功", Map.of(
-                "like_count", vm.selectLikeQuantity(id), "liked", true));
+        String notInRedisCountLike=redisTemplate.opsForValue().get(countKey);
+        long newNotInRedisCountLike;
+        if (notInRedisCountLike != null)
+            newNotInRedisCountLike=Long.parseLong(notInRedisCountLike);
+        else newNotInRedisCountLike=1L;
+        return Result.success("success",Map.of("like_count",newNotInRedisCountLike,"liked",true));
     }
     //取消点赞
     public Result<Map<String,Object>> cancelLike(long id, String userId){
