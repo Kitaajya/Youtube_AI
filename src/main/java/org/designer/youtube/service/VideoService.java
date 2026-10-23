@@ -6,8 +6,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.designer.youtube.RandomlyCreateID;
 import org.designer.youtube.common.Result;
 import org.designer.youtube.mapper.VideoMapper;
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
@@ -15,13 +18,18 @@ import reactor.core.publisher.Flux;
 import java.util.List;
 import java.util.Map;
 
+
+@MapperScan("org.designer.youtube.mapper")
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @Cacheable
 public class VideoService {
+    @Autowired
     private final VideoMapper vm;
-
+    @Autowired
+    private final StringRedisTemplate redisTemplate;
     /**
      *
      * 设置新消息通知功能
@@ -192,6 +200,7 @@ public class VideoService {
         return vm.selectMyLike(id, userId) > 0;
     }
     //点赞：已赞过时不报错，返回当前状态；返回 data 里带上最新 like_count，前端就地更新
+    //改造后的点赞方法
     public Result<Map<String,Object>> addLike(long id, String userId){
         int k=vm.countVideo(id);
         if(k==0) return Result.fail("video_bug!");
