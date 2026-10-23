@@ -14,6 +14,7 @@ import reactor.core.publisher.Flux;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  *
@@ -208,7 +209,7 @@ public class PrivateMessageService {
         return Result.success("踢人成功！",Map.of("userId",userId));
     }
     //查看群聊消息
-    public List<PrivateMessage> selectGroupMessage(String groupId){
+    public List<Map<String,Object>> selectGroupMessage(String groupId){
         return privateMessageMapper.selectGroupMessage(groupId);
     }
 }
