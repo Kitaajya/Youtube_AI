@@ -99,4 +99,29 @@ public class PrivateMessageController {
     public Result<List<Map<String,Object>>> emojiList(){
         return privateMessageService.selectEmojiList();
     }
+
+    /**
+     * 建立一个三人以上的群聊
+     **/
+    //拉群主，群主建群
+    @PostMapping("/establish/group")
+    public Result<Map<String, Object>> establishGroup(@RequestParam String groupId,
+                                                      @RequestParam String groupName,
+                                                      @RequestParam String ownerId) {
+        return privateMessageService.establishGroup(groupId, groupName, ownerId);
+    }
+
+    //拉人
+    @PostMapping("/add/member")
+    public Result<Map<String, Object>> addGroupMember(@RequestParam String groupId, @RequestParam String userId) {
+        return privateMessageService.addGroupMember(groupId, userId);
+    }
+
+    //群主踢人
+    @PostMapping("/remove/member")
+    public Result<Map<String, Object>> removeGroupMember(@RequestParam String groupId,
+                                                         @RequestParam String userId,
+                                                         @RequestParam String groupOwner) {
+        return privateMessageService.removeGroupMember(groupId, userId, groupOwner);
+    }
 }
