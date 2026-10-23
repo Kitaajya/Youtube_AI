@@ -1,14 +1,15 @@
 # YouTube Imitate
 
-**一个从零实现的视频社区网站，前后端一体，深度接入 AI**
+**一个从零实现的视频社区网站，前后端一体，深度接入 AI 与高并发架构**
 
 本项目为个人学习实践作品，与 YouTube 官方无任何关联。
 
-覆盖 AI 智能问答、视频上传/播放/点赞/评论、动态社交、私信会话、关注粉丝、收藏夹、消息通知七大模块。前端为原生 HTML/CSS/JS 多页应用，后端为 Spring Boot + Spring AI + MyBatis + MySQL。
+覆盖 AI 智能问答、视频上传/播放/点赞/评论、动态社交、私信会话、关注粉丝、收藏夹、消息通知七大模块。前端为原生 HTML/CSS/JS 多页应用，后端为 Spring Boot + Spring AI + MyBatis + MySQL + Redis。
 
 ![Java](https://img.shields.io/badge/Java-17-orange)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1-brightgreen)
 ![Spring AI](https://img.shields.io/badge/Spring%20AI-DeepSeek-blueviolet)
+![Redis](https://img.shields.io/badge/Redis-8.10-red)
 ![MyBatis](https://img.shields.io/badge/MyBatis-annotation%20SQL-red)
 ![MySQL](https://img.shields.io/badge/MySQL-8.0-blue)
 ![License](https://img.shields.io/badge/license-学习项目-lightgrey)
@@ -55,17 +56,19 @@
 ## ✨ 功能特性
 
 ### 🤖 AI 智能交互模块（核心亮点）
-
-本项目深度集成了 **Spring AI** 与 **DeepSeek 大模型**，实现了从传统 CRUD 到智能交互的跨越：
 - **全流式 AI 问答**：前端利用 `fetch` 配合 `ReadableStream`，配合后端 `Flux` 实现打字机效果的流式对话。
 - **自然语言查库（NL2SQL 逻辑）**：将数据库中的点赞记录、用户信息转换为自然语言上下文，塞入 System Prompt 中。用户可以直接向 AI 提问（如：“帮我查查谁赞了最多”、“有没有叫张三的用户”），AI 会基于真实数据进行推理回答。
 - **智能意图路由**：前端 AI 助手具备路由逻辑，根据用户提问的关键词（如包含“点赞”、“用户”等），自动将请求分发至不同的数据分析接口或普通聊天接口。
+
+### 🚀 高并发点赞模块（Redis 重构）
+- **Redis 缓存抗压**：利用 Redis 的 `Set` 结构天然去重，结合 `INCR` 原子操作，实现了毫秒级的点赞/取消点赞响应，大幅降低 MySQL 写压力。
+- **异步落库**：引入 Spring Task 定时任务，每 1 分钟将 Redis 中的点赞数据批量同步到 MySQL，实现最终一致性，解决高并发下的数据库性能瓶颈。
+- **缓存兜底与防负数**：在 Redis 发生异常或空数据时，自动去 MySQL 兜底查询，并对点赞数进行防负数保护。
 
 ### 🎬 视频模块
 - 真实文件上传（multipart，支持 1GB，落盘目录可配置）与旧式路径登记双模式
 - 站内播放：服务端将视频目录映射为 `/videos/**` 静态资源
 - 播放计数（进页自动上报，后端回读真实值）
-- 点赞 / 取消点赞（`INSERT IGNORE` + 联合主键天然去重，一人一视频仅一赞）
 - 评论区：一级评论 + 楼中楼回复（`parent_id` 自引用外键）
 - 标题模糊搜索、修改自己视频标题、删除视频（点赞/评论随外键级联清理）
 
@@ -109,6 +112,7 @@
 |---|---|
 | **AI 引擎** | Spring AI · DeepSeek API (SSE 流式响应) |
 | 后端 | Java 17 · Spring Boot 4.1 · Spring MVC |
+| **缓存层** | **Redis (Set/INCR) · Spring Task 异步定时任务** |
 | 持久层 | MyBatis (注解 SQL) · MySQL 8 (InnoDB / utf8mb4_0900_ai_ci) |
 | 前端 | 原生 HTML / CSS / JavaScript，无框架、无构建 |
 | 其他 | Lombok · Multipart 文件存储 · Caffeine |
@@ -121,6 +125,7 @@
 
 - JDK 17+
 - MySQL 8.0+（依赖窗口函数与 `utf8mb4_0900_ai_ci` 排序规则）
+- **Redis 8.0+（用于点赞模块的高并发缓存）**
 - Maven（或直接使用项目自带 `mvnw`）
 - DeepSeek API Key（用于 AI 模块）
 
@@ -137,6 +142,10 @@
 spring.datasource.url=jdbc:mysql://localhost:3306/youtube?...
 spring.datasource.username=你的数据库用户
 spring.datasource.password=你的数据库密码
+
+# Redis 配置
+spring.data.redis.host=localhost
+spring.data.redis.port=6379
 
 # 视频文件落盘目录（需提前创建）
 video.storage.dir=D:/videos/Video_Bilibili_Practice/videos
@@ -169,7 +178,7 @@ spring.ai.openai.chat.options.model=deepseek-chat
     │   ├── controller/         # 用户/视频/动态/私信/验证码/DeepSeek
     │   ├── entity/             # 实体类
     │   ├── mapper/             # MyBatis 注解 SQL
-    │   ├── service/            # 业务层 (含 DeepSeekTest 流式服务、视频落盘等)
+    │   ├── service/            # 业务层 (含 DeepSeekTest、点赞高并发、定时任务)
     │   └── RandomlyCreateID.java   # 13 位随机业务主键生成器
     └── resources/
         ├── application.properties
