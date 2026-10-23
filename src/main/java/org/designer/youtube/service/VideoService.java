@@ -218,11 +218,17 @@ public class VideoService {
     }
     //取消点赞
     public Result<Map<String,Object>> cancelLike(long id, String userId){
-        if (vm.countVideo(id) == 0) return Result.fail("视频不存在或已被删除");
-        int k = vm.cancelLike(id, userId);
-        if (k == 0) {
-            return Result.success("还没有点过赞", Map.of(
-                    "like_count", vm.selectLikeQuantity(id), "liked", false));
+        if (vm.countVideo(id) == 0) return Result.fail("video bug!");
+        String likeSetKey="video:like"+id;
+        String countKey="video:like_count"+id;
+        Boolean isDone=redisTemplate.opsForSet().isMember(likeSetKey,userId);
+        //如果本来就没有点赞
+        if(Boolean.FALSE.equals(isDone)){
+            long count;
+            String redisLikeCount=redisTemplate.opsForValue().get(countKey);
+            if(redisLikeCount!=null) count=Long.parseLong(redisLikeCount);
+            else count=vm.selectLikeQuantity(id);
+            return Result.success("cancel the like successfully",Map.of("like_count",count,"liked",false));
         }
         return Result.success("已取消点赞", Map.of(
                 "like_count", vm.selectLikeQuantity(id), "liked", false));
