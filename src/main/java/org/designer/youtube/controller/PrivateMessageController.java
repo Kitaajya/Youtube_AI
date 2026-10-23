@@ -124,4 +124,8 @@ public class PrivateMessageController {
                                                          @RequestParam String groupOwner) {
         return privateMessageService.removeGroupMember(groupId, userId, groupOwner);
     }
+    //查看群聊消息
+    public Result<List<Map<String,Object>>> selectGroupMessage(@RequestParam String groupId){
+        return Result.success(privateMessageService.selectGroupMessage(groupId));
+    }
 }
