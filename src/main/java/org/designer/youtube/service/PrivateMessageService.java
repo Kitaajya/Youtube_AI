@@ -194,4 +194,17 @@ public class PrivateMessageService {
         if(k==0) return Result.fail("拉人失败！重新拉人！");
         return Result.success("成功！",Map.of("userId",userId));
     }
+    //查找群主
+    public String selectGroupOwner(String groupId){
+        return privateMessageMapper.selectGroupOwner(groupId);
+    }
+    //踢人，只有群主能踢
+    public Result<Map<String,Object>> removeGroupMember(String groupId,String userId,String groupOwner){
+        String isOwner=selectGroupOwner(groupId);
+        if(!Objects.equals(isOwner, groupOwner)) return Result.fail("非群主不能踢人！");
+        if(userId==null) return Result.fail("被踢的用户不能为空！");
+        int k= privateMessageMapper.removeGroupMember(groupId, userId);
+        if(k==0) return Result.fail("踢人失败！");
+        return Result.success("踢人成功！",Map.of("userId",userId));
+    }
 }
