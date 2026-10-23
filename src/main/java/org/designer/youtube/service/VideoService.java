@@ -193,12 +193,18 @@ public class VideoService {
     }
     //点赞：已赞过时不报错，返回当前状态；返回 data 里带上最新 like_count，前端就地更新
     public Result<Map<String,Object>> addLike(long id, String userId){
-        if (vm.countVideo(id) == 0) return Result.fail("视频不存在或已被删除");
-        int k = vm.addLike(id, userId);
-        if (k == 0) {
-            log.info("用户 {} 重复点赞视频 {}，忽略", userId, id);
-            return Result.success("已经点过赞啦", Map.of(
-                    "like_count", vm.selectLikeQuantity(id), "liked", true));
+        int k=vm.countVideo(id);
+        if(k==0) return Result.fail("video_bug!");
+        String likeSetKey="video:like"+id;//点赞的人
+        String countKey="video:like_count"+id;
+        Boolean isDone=redisTemplate.opsForSet().isMember(likeSetKey,userId);
+        //如果点赞过了，直接从缓存里拿出值
+        if(Boolean.TRUE.equals(isDone)){
+            long count;
+            String redisLikeCount=redisTemplate.opsForValue().get(countKey);
+            if(redisLikeCount!=null) count=Long.parseLong(redisLikeCount);
+            else count=vm.selectLikeQuantity(id);
+            return Result.success("had done",Map.of("like_count",count,"liked",true));
         }
         /**
          * 设置消息新增
