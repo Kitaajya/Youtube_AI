@@ -207,4 +207,8 @@ public class PrivateMessageService {
         if(k==0) return Result.fail("踢人失败！");
         return Result.success("踢人成功！",Map.of("userId",userId));
     }
+    //查看群聊消息
+    public List<PrivateMessage> selectGroupMessage(String groupId){
+        return privateMessageMapper.selectGroupMessage(groupId);
+    }
 }
