@@ -164,4 +164,34 @@ public class PrivateMessageService {
         String finalQuestion="表情包数据库如下："+ k +"\n"+"用户提问：\n"+question;
         return client.prompt().system(systemPrompt).user(finalQuestion).stream().content();
     }
+    /**
+     * 建立一个三人以上的群聊
+     * 2026/10/23/20:53
+     *
+     * 群聊数据库：
+     *  chat_group
+     字段名	     类型	     作用	            设计亮点
+     group_id	VARCHAR(13)	群号（主键）	延续了你项目 13 位随机字符串的规范，比自增数字更安全，防爬防遍历。
+     group_name	VARCHAR(50)	群名称	限制 50 字符，防止有人起超长名字把前端 UI 撑爆。
+     owner_id	VARCHAR(13)	群主ID	记录这个群是谁建的，方便后续做“解散群”、“踢人”等权限控制。
+     create_time	DATETIME	建群时间	默认当前时间，方便按建群时间倒序排列“我最近加了什么群”。
+     * **/
+    // 建立群聊（这里只负责建群并拉群主，拉别人可以再写个方法）
+    public Result<Map<String,Object>> establishGroup(String groupId, String groupName, String ownerId){
+        if(groupName == null || groupName.trim().isEmpty()) return Result.fail("群名不得为空！");
+        if(ownerId == null) return Result.fail("群主不得为空！");
+        if(groupId == null) return Result.fail("系统出了bug，群号生成失败！");
+        int k = privateMessageMapper.establishGroup(groupId, groupName, ownerId);
+        if(k == 0) return Result.fail("建立失败！");
+        //把群主拉进群，插入 group_member 表
+        privateMessageMapper.addGroupMember(groupId, ownerId);
+        return Result.success("建立成功", Map.of("groupId", groupId));
+    }
+    //在原有的群里拉人
+    public Result<Map<String,Object>> addGroupMember(String groupId,String userId){
+        if(userId==null) return Result.fail("用户不得为空！");
+        int k=privateMessageMapper.addGroupMember(groupId, userId);
+        if(k==0) return Result.fail("拉人失败！重新拉人！");
+        return Result.success("成功！",Map.of("userId",userId));
+    }
 }
