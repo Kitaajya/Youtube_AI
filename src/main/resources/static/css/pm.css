@@ -291,3 +291,8 @@
     .pm-side { width: 100%; }
     .pm-main { height: 60vh; }
 }
+/* 群聊模式下锁定的按钮置灰 */
+#pm-send:disabled, .pm-tool:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
