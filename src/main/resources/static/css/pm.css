@@ -296,3 +296,12 @@
     opacity: 0.5;
     cursor: not-allowed;
 }
+/* 修复头部 flex 布局和按钮被挤压的问题 */
+.pm-side-head {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+}
+#btn-create-group {
+    flex-shrink: 0; /* 防止按钮被挤压变形或消失 */
+}

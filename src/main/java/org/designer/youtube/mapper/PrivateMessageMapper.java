@@ -1,9 +1,6 @@
 package org.designer.youtube.mapper;
 
-import org.apache.ibatis.annotations.Insert;
-import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
-import org.apache.ibatis.annotations.Update;
+import org.apache.ibatis.annotations.*;
 import org.designer.youtube.entity.PrivateMessage;
 
 import java.util.List;
@@ -134,4 +131,48 @@ public interface PrivateMessageMapper {
     SELECT * FROM emoji_item
     """)
     List<Map<String,Object>> getPrivateMessageEmojiForDeepSeek();
+    /**
+     * 建立一个三人以上的群聊
+     * 2026/10/23/20:53
+     *
+     * 群聊数据库：
+     *  chat_group
+            字段名	     类型	     作用	            设计亮点
+            group_id	VARCHAR(13)	群号（主键）	延续了你项目 13 位随机字符串的规范，比自增数字更安全，防爬防遍历。
+            group_name	VARCHAR(50)	群名称	限制 50 字符，防止有人起超长名字把前端 UI 撑爆。
+            owner_id	VARCHAR(13)	群主ID	记录这个群是谁建的，方便后续做“解散群”、“踢人”等权限控制。
+            create_time	DATETIME	建群时间	默认当前时间，方便按建群时间倒序排列“我最近加了什么群”。
+     * **/
+    //建群
+    @Insert("""
+    INSERT INTO chat_group(group_id, group_name, owner_id) 
+    VALUES(#{groupId}, #{groupName}, #{ownerId})
+    """)
+    int establishGroup(@Param("groupId") String groupId,@Param("groupName") String groupName,@Param("ownerId") String ownerId);
+    //在一个已建好的群里拉进来一个人
+    @Insert("""
+    INSERT IGNORE INTO group_member(group_id,user_id) VALUES (#{groupId},#{userId})
+    """)
+    int addGroupMember(@Param("groupId") String groupId,@Param("userId") String userId);
+    //查询群主号
+    @Select(""" 
+    SELECT owner_id FROM chat_group WHERE group_id = #{groupId}
+    """)
+    String selectGroupOwner(@Param("groupId") String groupId);
+    //踢人，只有群主能踢
+    @Delete("""
+    DELETE FROM group_member WHERE group_id=#{groupId} AND user_id=#{userId}
+    """)
+    int removeGroupMember(@Param("groupId")String groupId,@Param("userId")String userId);
+    //查看群聊消息
+    @Select("""
+    SELECT gm.msg_id, gm.group_id, gm.from_user, gm.contents, gm.msg_type, gm.media_path,
+           DATE_FORMAT(gm.create_time, '%Y-%m-%d %H:%i:%s') AS create_time,
+           u.nickname AS senderName, u.avatar AS senderAvatar
+    FROM group_message gm
+    LEFT JOIN user_information u ON gm.from_user = u.user_id
+    WHERE gm.group_id = #{groupId}
+    ORDER BY gm.create_time ASC
+    """)
+    List<Map<String,Object>> selectGroupMessage(@Param("groupId") String groupId);
 }

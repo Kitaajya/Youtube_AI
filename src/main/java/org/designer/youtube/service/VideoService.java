@@ -1,12 +1,10 @@
 package org.designer.youtube.service;
 
-import jakarta.persistence.Cacheable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.designer.youtube.RandomlyCreateID;
 import org.designer.youtube.common.Result;
 import org.designer.youtube.mapper.VideoMapper;
-import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
@@ -18,13 +16,10 @@ import reactor.core.publisher.Flux;
 import java.util.List;
 import java.util.Map;
 
-
-@MapperScan("org.designer.youtube.mapper")
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Cacheable
+//@Cacheable
 public class VideoService {
     @Autowired
     private final VideoMapper vm;

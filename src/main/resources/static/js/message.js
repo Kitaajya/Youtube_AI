@@ -1,11 +1,6 @@
-/* 私信页
- * GET  /api/private_message/select/message?a=我&b=对方      双向完整对话（Result<List<PrivateMessage>>）
- * GET  /api/private_message/select/inbox?me=我              服务器会话列表：每个对话最后一句 + 未读数 + 对方昵称
- * GET  /api/private_message/count/unread?me=我              未读总数（Result<Map{count}>）
- * POST /api/private_message/read (me,other)                 打开对话时，把对方发给我的消息标记已读
- * POST /api/private_message/send (fromUser,toUser,contents) 发送（msgId 由后端生成，前端不传）
- * 会话列表以服务器 inbox 为准——消息都落在 private_message 表里，对方一进私信页就能看到；
- * localStorage 只做三件事：本地备注名、后端不可用时的兜底缓存、本地隐藏名单。
+/* 私信页 + 群聊（前端兜底版）
+ * 约束：后端代码不许动。
+ * 由于后端无“发群消息”和“查询我的群”接口，群聊列表使用 localStorage，群聊输入框自动锁定。
  */
 (async function () {
     const me = YT.user();
@@ -22,16 +17,32 @@
     const picBtn = $('#pm-pic-btn'), videoBtn = $('#pm-video-btn');
     const picInput = $('#pm-pic-input'), videoInput = $('#pm-video-input');
     const emojiBtn = $('#pm-emoji-btn'), emojiPanel = $('#pm-emoji-panel');
+    const groupsBox = $('#pm-groups'); // 建群后左侧显示群列表的容器
 
-    // ---------- 本地镜像：会话缓存（含备注名）+ 隐藏名单 ----------
+    // ---------- 本地镜像 ----------
     const peerKey = 'yt_pm_peers_' + me.userId;
     const hiddenKey = 'yt_pm_hidden_' + me.userId;
+    const groupKey = 'yt_my_groups_' + me.userId;
+
     const getPeers = () => JSON.parse(localStorage.getItem(peerKey) || '[]');
     const setPeers = arr => localStorage.setItem(peerKey, JSON.stringify(arr.slice(0, 100)));
     const getHidden = () => JSON.parse(localStorage.getItem(hiddenKey) || '[]');
     const setHidden = arr => localStorage.setItem(hiddenKey, JSON.stringify(arr));
+    const getMyGroups = () => JSON.parse(localStorage.getItem(groupKey) || '[]');
+    const setMyGroups = arr => localStorage.setItem(groupKey, JSON.stringify(arr));
 
-    // 更新/新建一个会话项；lastMsg、unread 传 undefined 时保留旧值
+    // ---------- 聊天状态 ----------
+    let current = null;       // 私聊状态 { userId, name }
+    let currentGroup = null;  // 群聊状态 { groupId, groupName }
+    let loading = false;
+    const WITHDRAW_LIMIT_S = 120;
+    let curList = [];
+
+    function localNow() {
+        const d = new Date(), p = x => String(x).padStart(2, '0');
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+    }
+
     function touchPeer(userId, name, lastMsg, lastTime, unread) {
         const arr = getPeers();
         const i = arr.findIndex(p => p.userId === userId);
@@ -45,23 +56,10 @@
             unread: unread !== undefined ? Number(unread) || 0 : (old && old.unread) || 0,
         });
         setPeers(arr);
-        setHidden(getHidden().filter(x => x !== userId));   // 会话有动静就解除隐藏
+        setHidden(getHidden().filter(x => x !== userId));
         renderPeers();
     }
 
-    // ---------- 聊天状态 ----------
-    let current = null;      // { userId, name }
-    let loading = false;
-    const WITHDRAW_LIMIT_S = 120;   // 可撤回时限（秒），与后端 withdraw 接口的 timeWithdraw 保持一致
-    let curList = [];               // 当前打开的对话列表（撤回/删除操作以此为本地数据源重绘）
-
-    // 与服务器 NOW() 同口径的本地时间串（MySQL DATETIME 格式，不用 toISOString 的 UTC）
-    function localNow() {
-        const d = new Date(), p = x => String(x).padStart(2, '0');
-        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
-    }
-
-    // 撤回时限到点后主动重绘一次，让"撤回"按钮自动消失（否则要等下一次数据变化才收掉）
     let withdrawRefreshTimer = null;
     function scheduleWithdrawRefresh(list) {
         if (withdrawRefreshTimer) { clearTimeout(withdrawRefreshTimer); withdrawRefreshTimer = null; }
@@ -79,17 +77,17 @@
             withdrawRefreshTimer = null;
             const atBottom = msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 40;
             const keepTop = msgs.scrollTop;
-            renderMsgs(curList);
-            if (!atBottom) msgs.scrollTop = keepTop;   // 用户在翻历史时不抢滚动位置
+            renderMsgs(curList, false); // 私聊的定时刷新
+            if (!atBottom) msgs.scrollTop = keepTop;
         }, next - now + 500);
     }
 
-    // ---------- 渲染 ----------
+    // ---------- 渲染 UI ----------
     function renderPeers() {
         const hidden = getHidden();
         const arr = getPeers().filter(p => !hidden.includes(p.userId));
         if (!arr.length) {
-            peersBox.innerHTML = '<div class="pm-empty-peers">暂无会话<br>收到私信后会显示在这里</div>';
+            peersBox.innerHTML = '<div class="pm-empty-peers">暂无私信会话<br>收到私信后会显示在这里</div>';
             return;
         }
         peersBox.innerHTML = arr.map(p => `
@@ -100,7 +98,25 @@
                     <div class="p-sub">${YT.esc(p.lastMsg || '（无消息）')} · ${YT.timeAgo(p.lastTime)}</div>
                 </div>
                 ${p.unread > 0 ? `<span class="p-badge">${p.unread > 99 ? '99+' : p.unread}</span>` : ''}
-                <button class="p-del" title="从列表隐藏（对方再发消息会重新出现）" data-remove="${YT.esc(p.userId)}">&#10005;</button>
+                <button class="p-del" title="从列表隐藏" data-remove="${YT.esc(p.userId)}">&#10005;</button>
+            </div>`).join('');
+    }
+
+    function renderMyGroups() {
+        if (!groupsBox) return;
+        const arr = getMyGroups();
+        if (!arr.length) {
+            groupsBox.innerHTML = '';
+            return;
+        }
+        groupsBox.innerHTML = arr.map(g => `
+            <div class="pm-peer ${currentGroup && currentGroup.groupId === g.groupId ? 'active' : ''}" 
+                 data-group="${YT.esc(g.groupId)}" data-gname="${YT.esc(g.groupName)}" style="border-left: 3px solid var(--link);">
+                <span class="avatar" style="background:var(--link);color:#fff;border-radius:8px;">群</span>
+                <div class="p-txt">
+                    <div class="p-name">${YT.esc(g.groupName)}</div>
+                    <div class="p-sub">群号: ${YT.esc(g.groupId)}</div>
+                </div>
             </div>`).join('');
     }
 
@@ -115,36 +131,35 @@
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
 
-    // 单条消息渲染：
-    // - 已撤回：双方都显示灰色提示气泡（正文后端已清空），我发的可继续"删除"
-    // - 我发出的正常消息：悬停出现操作按钮——时限内可"撤回"（双方同步消失），"删除"仅从我这边消失
-    function msgHtml(m) {
+    function msgHtml(m, isGroup = false) {
         const mine = String(m.fromUser) === me.userId;
         const withdrawn = Number(m.isWithdrawn || 0) === 1;
         const msgId = String(m.msgId || '');
         const time = YT.fmtFull(m.createTime);
-        const who = mine ? '我' : (current ? (current.name || current.userId) : '');
+        const who = isGroup ? (m.senderName || '群友') : (mine ? '我' : (current ? (current.name || current.userId) : ''));
+
         if (withdrawn) {
             return `
             <div class="pm-msg withdrawn ${mine ? 'me' : ''}" data-msg-id="${YT.esc(msgId)}">
                 <div class="bubble">${mine ? '你撤回了一条消息' : '对方撤回了一条消息'}</div>
-                ${mine ? `<div class="m-ops"><button class="m-op" data-del="${YT.esc(msgId)}" title="仅从我的记录中删除">删除</button></div>` : ''}
+                ${mine && !isGroup ? `<div class="m-ops"><button class="m-op" data-del="${YT.esc(msgId)}">删除</button></div>` : ''}
             </div>`;
         }
+
         let ops = '';
-        if (mine) {
+        if (mine && !isGroup) {
             const created = new Date(String(m.createTime).replace(' ', 'T')).getTime();
             const fresh = !isNaN(created) && (Date.now() - created) / 1000 <= WITHDRAW_LIMIT_S;
             ops = '<div class="m-ops">'
-                + (fresh ? `<button class="m-op" data-withdraw="${YT.esc(msgId)}" title="${WITHDRAW_LIMIT_S} 秒内可撤回，双方记录同步消失">撤回</button>` : '')
-                + `<button class="m-op" data-del="${YT.esc(msgId)}" title="单方面删除：仅从我这里消失，对方仍可见">删除</button>`
+                + (fresh ? `<button class="m-op" data-withdraw="${YT.esc(msgId)}">撤回</button>` : '')
+                + `<button class="m-op" data-del="${YT.esc(msgId)}">删除</button>`
                 + '</div>';
         }
         let bodyHtml;
         const mtype = String(m.msgType || 'text').toLowerCase();
         const mediaFile = String(m.mediaPath || '');
         if (mtype === 'emoji' && mediaFile) {
-            bodyHtml = `<div class="bubble emoji"><img src="${emojiSrc(mediaFile)}" alt="${YT.esc(mediaFile.replace(/\.[a-z0-9]+$/i, ''))}" loading="lazy"></div>`;
+            bodyHtml = `<div class="bubble emoji"><img src="${emojiSrc(mediaFile)}" alt="" loading="lazy"></div>`;
         } else if (mtype === 'image' && mediaFile) {
             bodyHtml = `<div class="bubble media"><img src="${YT.mediaUrl(mediaFile)}" alt="" loading="lazy"></div>`;
         } else if (mtype === 'video' && mediaFile) {
@@ -152,6 +167,7 @@
         } else {
             bodyHtml = `<div class="bubble">${YT.esc(m.contents)}</div>`;
         }
+
         return `
             <div class="pm-msg ${mine ? 'me' : ''}" data-msg-id="${YT.esc(msgId)}">
                 ${bodyHtml}
@@ -160,12 +176,11 @@
             </div>`;
     }
 
-    // 表情文件走静态目录 /emoji/（区别于上传媒体的 /videos/）；文件名含中文必须编码
     function emojiSrc(fileName) {
         return 'emoji/' + encodeURIComponent(String(fileName));
     }
 
-    function renderMsgs(list) {
+    function renderMsgs(list, isGroup = false) {
         curList = list;
         if (!list.length) {
             msgs.innerHTML = '<div class="empty">还没有消息，发第一条吧</div>';
@@ -175,14 +190,21 @@
         for (const m of list) {
             const day = dayTag(m.createTime);
             if (day && day !== lastDay) { html += `<div class="pm-day">${day}</div>`; lastDay = day; }
-            html += msgHtml(m);
+            html += msgHtml(m, isGroup);
         }
         msgs.innerHTML = html;
         msgs.scrollTop = msgs.scrollHeight;
-        scheduleWithdrawRefresh(list);   // 有消息快到撤回时限就登记一次到期重绘
+        if (!isGroup) scheduleWithdrawRefresh(list);
     }
 
     function renderHead() {
+        if (currentGroup) {
+            head.innerHTML = `
+                <span class="avatar" style="background:var(--link);color:#fff;border-radius:8px;">群</span>
+                <b>${YT.esc(currentGroup.groupName)}</b>
+                <span class="w-stats">群号: ${YT.esc(currentGroup.groupId)}</span>`;
+            return;
+        }
         if (!current) {
             head.textContent = '选择左侧会话开始聊天';
             return;
@@ -193,7 +215,6 @@
             <span class="w-stats">ID: ${YT.esc(current.userId)}</span>`;
     }
 
-    // 会话列表一行预览文字：撤回/图片/视频/表情各有占位，文字取前 30 字
     function previewOf(m) {
         if (Number(m.isWithdrawn || 0) === 1) return '[已撤回]';
         const t = String(m.msgType || 'text').toLowerCase();
@@ -203,33 +224,18 @@
         return String(m.contents || '').slice(0, 30);
     }
 
-    // ---------- 服务器数据 ----------
-    // 收件箱：会话列表来自 private_message 表，不再依赖各自浏览器的 localStorage，
-    // 所以"我发给对方的消息"在对方那一侧也能看到
-
-    // ===== 静默轮询状态（1 秒）=====
-    // 原则：只有数据"真的变了"才碰 DOM，没变化时一个字都不写，界面零动作。
+    // ---------- 服务器通信与轮询 ----------
     const POLL_MS = 1000;
-    let pollTimer = null;
-    let pollBusy = false;      // 单飞闸门：上一轮没结束就不发下一轮，避免请求堆积
-    let lastInboxSig = '';     // 会话列表指纹
-    let lastChatSig = '';      // 当前对话指纹
-    let lastUnread = -1;       // 未读总数（-1 = 尚未取过，保证首次一定会写一次）
+    let pollTimer = null, pollBusy = false;
+    let lastInboxSig = '', lastChatSig = '', lastUnread = -1;
 
-    // 会话列表指纹：只取影响展示的原始字段。
-    // 刻意不用 timeAgo 的渲染结果，否则"刚刚 → 1 分钟前"会让指纹每秒都变、造成无谓重绘。
     function inboxSig(rows) {
         return rows.map(r => [
-            YT.pick(r, 'peerId', 'peer_id'),
-            YT.pick(r, 'unread'),
-            YT.pick(r, 'lastTime', 'last_time'),
-            YT.pick(r, 'lastMsg', 'last_msg'),
+            YT.pick(r, 'peerId', 'peer_id'), YT.pick(r, 'unread'),
+            YT.pick(r, 'lastTime', 'last_time'), YT.pick(r, 'lastMsg', 'last_msg'),
         ].join('|')).join(';');
     }
 
-    // 当前对话指纹：条数 + 已撤回条数 + 最后一条标识。
-    // 必须带上撤回计数：撤回不改变条数、也不改变最后一条 msgId，
-    // 否则对方撤回后我这边指纹不变，1 秒轮询会认为"没变化"而不重绘。
     function chatSig(list) {
         const last = list[list.length - 1];
         let w = 0;
@@ -237,7 +243,6 @@
         return list.length + '|' + w + '|' + (last ? (last.msgId || last.createTime) : '');
     }
 
-    // 用已取到的服务器会话数据做合并与渲染（首次加载与轮询共用，避免重复请求）
     function applyInboxRows(rows) {
         const server = rows.map(row => ({
             userId: String(YT.pick(row, 'peerId', 'peer_id') || ''),
@@ -249,14 +254,15 @@
         const local = getPeers();
         const merged = server.map(p => {
             const old = local.find(x => x.userId === p.userId);
-            const note = old && old.name ? old.name : '';   // 本地备注名优先于对方昵称
+            const note = old && old.name ? old.name : '';
             return { ...p, name: note || p.name };
         });
-        // 本地刚手动打开、服务器上还没有消息的会话，保留在最前
         const extra = local.filter(x => !server.some(p => p.userId === x.userId));
         setPeers([...extra, ...merged]);
-        // 有未读数的会话自动解除隐藏
-        setHidden(getHidden().filter(id => !(merged.find(x => x.userId === id) || {}).unread));
+        setHidden(getHidden().filter(id => {
+            const p = merged.find(x => x.userId === id);
+            return !(p && p.unread > 0);
+        }));
         renderPeers();
     }
 
@@ -264,48 +270,57 @@
         try {
             const r = await YT.api.get('/api/private_message/select/inbox', { me: me.userId });
             const rows = Array.isArray(r.data) ? r.data : [];
-            lastInboxSig = inboxSig(rows);   // 记下基线，免得紧接着的轮询又重绘一次
+            lastInboxSig = inboxSig(rows);
             applyInboxRows(rows);
-        } catch (e) {
-            // 后端不可用时沿用本地缓存，不打断使用
-            renderPeers();
-        }
+        } catch (e) { renderPeers(); }
     }
 
-    // 未读总数显示在左栏标题（数字没变就完全不碰 DOM）
     async function refreshUnread() {
         if (!sideHead) return;
         try {
             const r = await YT.api.get('/api/private_message/count/unread', { me: me.userId });
             const n = Number((r.data && r.data.count) || 0);
-            if (n === lastUnread) return;      // 与上次一致 → 静默跳过
+            if (n === lastUnread) return;
             lastUnread = n;
-            sideHead.textContent = n > 0 ? `私信 · 未读 ${n}` : '私信';
-        } catch (e) { /* 保持默认文案 */ }
+
+            // 👇 修复：不要覆盖整个 innerHTML，而是只更新 span 标签的内容
+            let titleSpan = sideHead.querySelector('span');
+            if (titleSpan) {
+                titleSpan.textContent = n > 0 ? `私信 · 未读 ${n}` : '私信';
+            }
+        } catch (e) { }
     }
 
-    // ---------- 数据 ----------
+    // ---------- 私聊逻辑 ----------
     async function openChat(userId, name) {
         if (!userId || userId.length !== 13) { YT.toast('用户ID应为13位'); return; }
         if (userId === me.userId) { YT.toast('不能和自己聊天'); return; }
+
+        // 退出群聊状态，恢复私聊输入区
+        currentGroup = null;
+        ta.disabled = false;
+        ta.placeholder = '写私信…（Enter 发送，Shift+Enter 换行）';
+        sendBtn.disabled = false;
+        emojiBtn.disabled = false;
+        picBtn.disabled = false;
+        videoBtn.disabled = false;
+
         current = { userId, name: name || '' };
         renderHead();
         renderPeers();
+        renderMyGroups();
+
         msgs.innerHTML = '<div class="empty">加载对话…</div>';
         loading = true;
         try {
             const r = await YT.api.get('/api/private_message/select/message', { a: me.userId, b: userId });
             const list = Array.isArray(r.data) ? r.data : [];
-            lastChatSig = chatSig(list);   // 记下基线：轮询发现同样内容时不再重绘
-            // 用最后一条消息 + 对方昵称回写镜像；刚打开视为已读，未读清零
+            lastChatSig = chatSig(list);
             const last = list[list.length - 1];
             const lastPreview = last ? previewOf(last) : undefined;
-            touchPeer(userId, name,
-                lastPreview,
-                last ? last.createTime : '', 0);
-            renderMsgs(list);
-            // 把对方发给我的消息标记已读（没有未读时 UPDATE 影响 0 行，无副作用）
-            try { await YT.api.post('/api/private_message/read', { me: me.userId, other: userId }); } catch (e) { /* 忽略 */ }
+            touchPeer(userId, name, lastPreview, last ? last.createTime : '', 0);
+            renderMsgs(list, false);
+            try { await YT.api.post('/api/private_message/read', { me: me.userId, other: userId }); } catch (e) { }
             refreshUnread();
         } catch (e) {
             msgs.innerHTML = `<div class="empty">加载失败：${YT.esc(e.message)}</div>`;
@@ -315,13 +330,12 @@
     }
 
     async function doSend() {
+        if (currentGroup) return; // 群聊不能发
         if (!current) { YT.toast('请先选择聊天对象'); return; }
         const content = ta.value.trim();
         if (!content) { YT.toast('消息不能为空'); return; }
         if (loading) return;
         sendBtn.disabled = true;
-        // 置 loading 让轮询本轮让路：否则"服务器已落库、前端还没乐观上屏"这个窗口里，
-        // 轮询会先渲染出真实消息，紧接着乐观上屏再追加一条 → 同一条消息重复显示
         loading = true;
         try {
             const r = await YT.api.post('/api/private_message/send', {
@@ -330,33 +344,26 @@
             if (!r.success) { YT.toast(r.message || '发送失败'); return; }
             ta.value = '';
             const sentMsgId = String((r.data && r.data.msgId) || '');
-            // 乐观上屏：带上真实 msgId 与时间，保证刚发出的消息能立即撤回/删除。
-            // 必须用本地时间格式：toISOString() 是 UTC，与服务器时间差 8 小时，
-            // 会让刚发出的消息被误判为"早已超出撤回时限"，撤回按钮永远不出现。
             const nowMsg = {
                 msgId: sentMsgId, fromUser: me.userId, toUser: current.userId,
                 contents: content, createTime: localNow(),
             };
             curList = [...curList, nowMsg];
-            msgs.insertAdjacentHTML('beforeend', msgHtml(nowMsg));
+            msgs.insertAdjacentHTML('beforeend', msgHtml(nowMsg, false));
             msgs.scrollTop = msgs.scrollHeight;
-            scheduleWithdrawRefresh(curList);   // 刚发的这条 2 分钟后到期，登记收起撤回按钮
+            scheduleWithdrawRefresh(curList);
             touchPeer(current.userId, current.name, content.slice(0, 30), nowMsg.createTime);
 
-            // 把 lastChatSig 对齐到"已乐观上屏"的内容，否则 1 秒后轮询发现指纹是旧的，
-            // 会整块重绘，把"我 · 刚刚"换成真实时间戳——那就是一次可见的界面动作。
             try {
                 const chk = await YT.api.get('/api/private_message/select/message', { a: me.userId, b: current.userId });
                 const list = Array.isArray(chk.data) ? chk.data : [];
                 const lastItem = list[list.length - 1];
                 lastChatSig = chatSig(list);
-                // 最后一条不是我刚发的那条 = 期间对方也发了消息，重绘以显示新内容
                 if (list.length && !(sentMsgId && String(lastItem.msgId) === sentMsgId)) {
-                    renderMsgs(list);
+                    renderMsgs(list, false);
                     msgs.scrollTop = msgs.scrollHeight;
                 }
-            } catch (e) { /* 拉取失败就交给轮询兜底 */ }
-
+            } catch (e) { }
             loadInbox();
         } catch (e) {
             YT.toast('发送失败：' + e.message);
@@ -368,10 +375,8 @@
     }
 
     // ---------- 发送图片 / 视频 ----------
-    // 两步：① multipart 上传文件 → 后端落盘返回 {mediaPath,url}；
-    //       ② 表单调 /send/picture/video 入库（msgType 由后端按扩展名推导，前端不传）。
-    // 上传接口要发 FormData，YT.api 只会 urlencoded，所以 fetch 手写第一步。
     async function sendMedia(file) {
+        if (currentGroup) return;
         if (!current) { YT.toast('请先选择聊天对象'); return; }
         if (loading) return;
         if (!file) return;
@@ -382,7 +387,6 @@
         loading = true;
         picBtn.disabled = true; videoBtn.disabled = true;
         try {
-            // ① 上传文件本体
             const fd = new FormData();
             fd.append('file', file);
             const upRes = await fetch('/api/private_message/upload/media', { method: 'POST', body: fd });
@@ -391,13 +395,11 @@
             const mediaPath = String(up.data && up.data.mediaPath || '');
             if (!mediaPath) { YT.toast('上传异常：未拿到文件名'); return; }
 
-            // ② 登记为一条私信消息
             const r = await YT.api.post('/api/private_message/send/picture/video', {
                 fromUser: me.userId, toUser: current.userId, mediaPath,
             });
             if (!r.success) { YT.toast(r.message || '发送失败'); return; }
 
-            // ③ 乐观上屏 + 会话预览（和文字发送同一套路，防止轮询抢先重绘重复显示）
             const sentMsgId = String((r.data && r.data.msgId) || '');
             const nowMsg = {
                 msgId: sentMsgId, fromUser: me.userId, toUser: current.userId,
@@ -405,7 +407,7 @@
                 mediaPath, createTime: localNow(),
             };
             curList = [...curList, nowMsg];
-            msgs.insertAdjacentHTML('beforeend', msgHtml(nowMsg));
+            msgs.insertAdjacentHTML('beforeend', msgHtml(nowMsg, false));
             msgs.scrollTop = msgs.scrollHeight;
             scheduleWithdrawRefresh(curList);
             touchPeer(current.userId, current.name, previewOf(nowMsg), nowMsg.createTime);
@@ -416,11 +418,10 @@
                 const lastItem = list[list.length - 1];
                 lastChatSig = chatSig(list);
                 if (list.length && !(sentMsgId && String(lastItem.msgId) === sentMsgId)) {
-                    renderMsgs(list);
+                    renderMsgs(list, false);
                     msgs.scrollTop = msgs.scrollHeight;
                 }
-            } catch (e) { /* 拉取失败就交给轮询兜底 */ }
-
+            } catch (e) { }
             loadInbox();
         } catch (e) {
             YT.toast('发送失败：' + e.message);
@@ -432,9 +433,7 @@
     }
 
     // ---------- 表情包 ----------
-    // 面板首次打开时从 /emoji/list 拉一次并缓存（表情是全局静态资源，不随会话变化）。
-    // 点击表情 → 表单调 /send/emoji 入库（后端按 file_name 白名单校验，前端只传文件名）。
-    let emojiCache = null;      // 已拉取的表情列表
+    let emojiCache = null;
     let emojiLoading = false;
 
     async function loadEmojiPanel() {
@@ -455,7 +454,6 @@
             emojiPanel.innerHTML = '<div class="pm-empty-emoji">暂无可用表情</div>';
             return;
         }
-        // 不分类：全部表情平铺在一个网格里，顺序跟接口返回（按 sort_no）一致
         const cells = emojiCache
             .map(e => ({
                 file: String(YT.pick(e, 'fileName', 'file_name') || ''),
@@ -471,6 +469,7 @@
     }
 
     function toggleEmojiPanel(forceHide) {
+        if (currentGroup) return; // 群聊禁用
         const show = !forceHide && emojiPanel.hidden;
         emojiPanel.hidden = !show;
         emojiBtn.classList.toggle('on', show);
@@ -478,6 +477,7 @@
     }
 
     async function doSendEmoji(fileName) {
+        if (currentGroup) return;
         if (!current) { YT.toast('请先选择聊天对象'); return; }
         if (loading) return;
         loading = true;
@@ -488,7 +488,6 @@
             });
             if (!r.success) { YT.toast(r.message || '发送失败'); return; }
 
-            // 乐观上屏（与文字/图片同套路）；发送成功后收起面板，观感同微信
             toggleEmojiPanel(true);
             const sentMsgId = String((r.data && r.data.msgId) || '');
             const nowMsg = {
@@ -496,7 +495,7 @@
                 contents: '', msgType: 'emoji', mediaPath: fileName, createTime: localNow(),
             };
             curList = [...curList, nowMsg];
-            msgs.insertAdjacentHTML('beforeend', msgHtml(nowMsg));
+            msgs.insertAdjacentHTML('beforeend', msgHtml(nowMsg, false));
             msgs.scrollTop = msgs.scrollHeight;
             scheduleWithdrawRefresh(curList);
             touchPeer(current.userId, current.name, previewOf(nowMsg), nowMsg.createTime);
@@ -510,46 +509,73 @@
         }
     }
 
-    // ---------- 静默轮询（1 秒）----------
-    // 用 setTimeout 链而非 setInterval：某轮请求慢于 1 秒时不会堆积并发请求。
-    // 三道闸门共同保证"数据没变 → 界面零动作"：
-    //   1) pollBusy 单飞：上一轮没跑完就跳过本轮
-    //   2) 指纹比对：inbox/chat/unread 三者各自与上次一致时，完全不碰 DOM
-    //   3) 页面不可见（切到后台标签）时整条链暂停，回前台再恢复
-    async function pollOnce() {
-        if (loading) return;                       // 正在打开对话/发消息，本轮让路，避免和 loading、乐观上屏打架
-        const peerId = current ? current.userId : null;
+    // ---------- 群聊逻辑 ----------
+    async function openGroupChat(groupId, groupName) {
+        // 退出私聊状态
+        current = null;
+        currentGroup = { groupId, groupName };
 
-        // 三个请求并行发；任一失败返回 null，不影响其余两个
+        // 锁定输入区（后端无发群消息接口）
+        ta.disabled = true;
+        ta.placeholder = '由于后端未提供发送群消息接口，目前仅支持查看历史消息';
+        sendBtn.disabled = true;
+        emojiBtn.disabled = true;
+        picBtn.disabled = true;
+        videoBtn.disabled = true;
+        toggleEmojiPanel(true); // 强制收起表情面板
+
+        renderHead();
+        renderPeers();
+        renderMyGroups();
+
+        msgs.innerHTML = '<div class="empty">加载群聊消息…</div>';
+        try {
+            const r = await YT.api.get('/api/private_message/select/group/message', { groupId });
+            const list = Array.isArray(r.data) ? r.data : [];
+            const normList = list.map(m => ({
+                msgId: YT.pick(m, 'msg_id'),
+                fromUser: YT.pick(m, 'from_user'),
+                toUser: groupId,
+                contents: YT.pick(m, 'contents'),
+                msgType: YT.pick(m, 'msg_type') || 'text',
+                mediaPath: YT.pick(m, 'media_path'),
+                createTime: YT.pick(m, 'create_time'),
+                senderName: YT.pick(m, 'senderName', 'sender_name')
+            }));
+            renderMsgs(normList, true);
+        } catch (e) {
+            msgs.innerHTML = `<div class="empty">群聊加载失败：${YT.esc(e.message)}</div>`;
+        }
+    }
+
+    // ---------- 轮询 ----------
+    async function pollOnce() {
+        if (loading) return;
+        if (currentGroup) return; // 群聊模式下跳过私信轮询
+
+        const peerId = current ? current.userId : null;
         const [inboxR, unreadR, chatR] = await Promise.all([
             YT.api.get('/api/private_message/select/inbox', { me: me.userId }).catch(() => null),
             YT.api.get('/api/private_message/count/unread', { me: me.userId }).catch(() => null),
-            peerId
-                ? YT.api.get('/api/private_message/select/message', { a: me.userId, b: peerId }).catch(() => null)
-                : Promise.resolve(null),
+            peerId ? YT.api.get('/api/private_message/select/message', { a: me.userId, b: peerId }).catch(() => null) : Promise.resolve(null),
         ]);
 
-        // --- 当前打开的对话：只有真来了新消息才重绘 ---
         let didMarkRead = false;
         if (chatR && peerId && current && current.userId === peerId) {
             const list = Array.isArray(chatR.data) ? chatR.data : [];
             const sig = chatSig(list);
             if (sig !== lastChatSig) {
                 lastChatSig = sig;
-                // 用户正在往上翻历史时不抢滚动条，只有贴着底部才跟随最新消息
                 const atBottom = msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 40;
                 const keepTop = msgs.scrollTop;
-                renderMsgs(list);
+                renderMsgs(list, false);
                 if (!atBottom) msgs.scrollTop = keepTop;
-                // 新消息属于"正在看"的会话，顺手标已读，免得未读数残留
-                try { await YT.api.post('/api/private_message/read', { me: me.userId, other: peerId }); didMarkRead = true; } catch (e) { /* 忽略 */ }
+                try { await YT.api.post('/api/private_message/read', { me: me.userId, other: peerId }); didMarkRead = true; } catch (e) { }
             }
         }
 
-        // --- 会话列表：指纹没变就一个 DOM 都不碰 ---
         if (inboxR) {
             const rows = Array.isArray(inboxR.data) ? inboxR.data : [];
-            // 刚把当前会话标成已读，服务器这份快照还是旧的未读数，先就地归零再渲染，避免红点闪一下
             if (didMarkRead && peerId) {
                 rows.forEach(r => { if (String(YT.pick(r, 'peerId', 'peer_id')) === peerId) r.unread = 0; });
             }
@@ -560,45 +586,46 @@
             }
         }
 
-        // --- 未读总数：标过已读就重新取一次准确值，否则用本轮快照 ---
         if (didMarkRead) {
             refreshUnread();
         } else if (unreadR) {
             const n = Number((unreadR.data && unreadR.data.count) || 0);
             if (n !== lastUnread) {
                 lastUnread = n;
-                if (sideHead) sideHead.textContent = n > 0 ? `私信 · 未读 ${n}` : '私信';
+                // 👇 修复：这里千万别用 textContent，要用 querySelector 找 span
+                if (sideHead) {
+                    let titleSpan = sideHead.querySelector('span');
+                    if (titleSpan) {
+                        titleSpan.textContent = n > 0 ? `私信 · 未读 ${n}` : '私信';
+                    }
+                }
             }
         }
     }
 
     function schedulePoll() {
-        if (document.hidden) { pollTimer = null; return; }   // 后台不排下一轮，等 visibilitychange 恢复
+        if (document.hidden) { pollTimer = null; return; }
         pollTimer = setTimeout(async () => {
             if (!pollBusy && !document.hidden) {
                 pollBusy = true;
                 try { await pollOnce(); }
-                catch (e) { /* 单轮失败不中断轮询，下一轮继续 */ }
+                catch (e) { }
                 finally { pollBusy = false; }
             }
             schedulePoll();
         }, POLL_MS);
     }
 
-    // 切到后台标签停轮询；回到前台先补一次再恢复节奏
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
             if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
         } else if (!pollTimer) {
-            pollOnce().catch(() => { /* 忽略 */ });
+            pollOnce().catch(() => { });
             schedulePoll();
         }
     });
 
     // ---------- 撤回 / 单方面删除 ----------
-    // 撤回：仅我发出的、发送 WITHDRAW_LIMIT_S 秒内有效，成功后双方记录都变成"已撤回"提示。
-    // 删除：仅从我这里消失（后端软删 from_deleted），对方仍能看到原文，所以不发撤回提示。
-    // 两者都在请求成功后就地更新本地列表与 DOM，避免等 1 秒轮询造成闪动。
     async function doWithdraw(msgId, node) {
         if (loading) return;
         try {
@@ -608,10 +635,10 @@
             if (!r.success) { YT.toast(r.message || '撤回失败'); return; }
             const m = curList.find(x => String(x.msgId) === msgId);
             if (m) m.isWithdrawn = 1;
-            if (node && m) node.outerHTML = msgHtml({ ...m, contents: '' });
-            lastChatSig = chatSig(curList);   // 本地已与服务器一致，对齐指纹免得轮询再重绘一次
+            if (node && m) node.outerHTML = msgHtml({ ...m, contents: '' }, false);
+            lastChatSig = chatSig(curList);
             YT.toast(r.message || '已撤回');
-            loadInbox();   // 会话列表预览要同步成"[已撤回]"
+            loadInbox();
         } catch (e) {
             YT.toast('撤回失败：' + e.message);
         }
@@ -628,12 +655,13 @@
             if (node) node.remove();
             if (!curList.length) msgs.innerHTML = '<div class="empty">还没有消息，发第一条吧</div>';
             YT.toast(r.message || '已从我这边删除（对方仍可见）');
-            loadInbox();   // 最后一条被删时，会话列表预览要换上一条
+            loadInbox();
         } catch (e) {
             YT.toast('删除失败：' + e.message);
         }
     }
 
+    // ---------- 事件绑定 ----------
     msgs.addEventListener('click', e => {
         const w = e.target.closest('[data-withdraw]');
         if (w) { doWithdraw(w.dataset.withdraw, w.closest('.pm-msg')); return; }
@@ -641,27 +669,22 @@
         if (d) { doDeleteFromMySide(d.dataset.del, d.closest('.pm-msg')); }
     });
 
-    // ---------- 事件 ----------
     ta.addEventListener('keydown', e => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
     });
     sendBtn.addEventListener('click', doSend);
 
-    // 图片/视频：按钮只做"打开文件选择器"，真正发送在 change 里；
-    // 每次选完把 value 清空，保证连续选同一个文件也能再次触发 change
-    picBtn.addEventListener('click', () => { picInput.value = ''; picInput.click(); });
-    videoBtn.addEventListener('click', () => { videoInput.value = ''; videoInput.click(); });
+    picBtn.addEventListener('click', () => { if(currentGroup) return; picInput.value = ''; picInput.click(); });
+    videoBtn.addEventListener('click', () => { if(currentGroup) return; videoInput.value = ''; videoInput.click(); });
     picInput.addEventListener('change', () => { const f = picInput.files[0]; picInput.value = ''; if (f) sendMedia(f); });
     videoInput.addEventListener('change', () => { const f = videoInput.files[0]; videoInput.value = ''; if (f) sendMedia(f); });
 
-    // 表情：按钮开合面板；面板里点空白提示重试加载；点表情格发送
-    emojiBtn.addEventListener('click', () => toggleEmojiPanel());
+    emojiBtn.addEventListener('click', () => { if(currentGroup) return; toggleEmojiPanel(); });
     emojiPanel.addEventListener('click', e => {
         if (e.target.closest('.pm-empty-emoji')) { loadEmojiPanel(); return; }
         const cell = e.target.closest('[data-emoji]');
         if (cell) doSendEmoji(cell.dataset.emoji);
     });
-    // 点击面板与按钮以外的任何地方收起面板
     document.addEventListener('click', e => {
         if (emojiPanel.hidden) return;
         if (!emojiPanel.contains(e.target) && !emojiBtn.contains(e.target)) toggleEmojiPanel(true);
@@ -685,20 +708,97 @@
         }
     });
 
-    // 先用本地缓存秒开，再拉服务器收件箱对账
+    if (groupsBox) {
+        groupsBox.addEventListener('click', e => {
+            const row = e.target.closest('[data-group]');
+            if (row) openGroupChat(row.dataset.group, row.dataset.gname);
+        });
+    }
+
+    // ---------- 建群弹窗 ----------
+    (function initGroupChat() {
+        document.addEventListener('DOMContentLoaded', () => {
+            const btnOpen = document.getElementById('btn-create-group');
+            const modal = document.getElementById('group-modal');
+            const btnCancel = document.getElementById('cancel-group');
+            const btnSubmit = document.getElementById('submit-group');
+
+            if (!btnOpen || !modal) return;
+
+            btnOpen.addEventListener('click', () => { modal.style.display = 'flex'; });
+            btnCancel.addEventListener('click', () => { modal.style.display = 'none'; });
+
+            btnSubmit.addEventListener('click', async () => {
+                const groupNameInput = document.getElementById('new-group-name');
+                const membersInput = document.getElementById('new-group-members');
+                const groupName = groupNameInput.value.trim();
+                const raw = membersInput.value.split(',').map(s => s.trim()).filter(Boolean);
+
+                if (!groupName) return YT.toast('请输入群名称');
+                if (raw.length < 2) return YT.toast('至少需要拉 2 个好友才能建群');
+
+                const ids = [...new Set(raw)].filter(id => {
+                    if (id.length !== 13) { YT.toast(`用户ID「${id}」应为13位`); return false; }
+                    if (id === me.userId) { YT.toast('不能把自己作为成员填入'); return false; }
+                    return true;
+                });
+                if (ids.length < 2) return YT.toast('有效成员不足 2 人');
+
+                btnSubmit.disabled = true;
+                btnSubmit.innerText = '创建中...';
+
+                const groupId = YT.randId();
+                let groupCreated = false;
+                const addedMembers = [];
+
+                try {
+                    const r1 = await YT.api.post('/api/private_message/establish/group', {
+                        groupId, groupName, ownerId: me.userId
+                    });
+                    if (!r1.success) throw new Error(r1.message || '建群失败');
+                    groupCreated = true;
+
+                    for (let uid of ids) {
+                        const r2 = await YT.api.post('/api/private_message/add/member', { groupId, userId: uid });
+                        if (r2.success) addedMembers.push(uid);
+                    }
+
+                    if (addedMembers.length < 2) throw new Error('有效拉入人数不足 2 人');
+
+                    const groups = getMyGroups();
+                    groups.unshift({ groupId, groupName, createTime: localNow() });
+                    setMyGroups(groups);
+                    renderMyGroups();
+
+                    YT.toast('建群成功！');
+                    modal.style.display = 'none';
+                    groupNameInput.value = '';
+                    membersInput.value = '';
+                } catch (err) {
+                    YT.toast('建群失败：' + err.message);
+                    if (groupCreated) console.warn('群已建但未满人，群号：', groupId);
+                } finally {
+                    btnSubmit.disabled = false;
+                    btnSubmit.innerText = '创建';
+                }
+            });
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.style.display = 'none';
+            });
+        });
+    })();
+
+    // ---------- 启动 ----------
     renderPeers();
-    // 串行启动：基线加载 → 打开跳转对话 → 启动轮询。
-    // 顺序很关键：loadInbox/openChat 会写下 lastInboxSig、lastChatSig、lastUnread 基线，
-    // 基线就位后再轮询，首轮就是纯比对，不会重复渲染或与首次加载抢请求。
+    renderMyGroups();
+
     (async () => {
         await Promise.all([loadInbox(), refreshUnread()]);
-
-        // 支持从播放页"发私信"跳转：message.html?peer=xxx&name=yyy
         const qs = new URLSearchParams(location.search);
         if (qs.get('peer')) {
             await openChat(qs.get('peer'), qs.get('name') || '');
         }
-
         schedulePoll();
     })();
 })();

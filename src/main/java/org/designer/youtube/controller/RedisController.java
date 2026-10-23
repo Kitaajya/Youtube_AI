@@ -13,8 +13,8 @@ public class RedisController {
     private StringRedisTemplate stringRedisTemplate;
     @GetMapping("/get")
     public String test(){
-        stringRedisTemplate.opsForValue().set("存一个字符串","String");
-        stringRedisTemplate.opsForSet().add("存一个集合","set");
+        stringRedisTemplate.opsForValue().set("store","String");
+        stringRedisTemplate.opsForSet().add("store:set","set");
         return "写入成功";
     }
 }

@@ -11,38 +11,66 @@
     <link rel="stylesheet" href="css/pm.css?v=8">
 </head>
 <body>
-    <div id="app-header"></div>
+<div id="app-header"></div>
 
-    <div class="pm-wrap">
-        <!-- 左栏：会话列表 -->
-        <aside class="pm-side">
-            <div class="pm-side-head" id="pm-side-head">私信</div>
-            <div class="pm-peers" id="pm-peers"></div>
-        </aside>
+<div class="pm-wrap">
+    <!-- 左栏：会话列表 -->
+    <aside class="pm-side">
+        <div class="pm-side-head" id="pm-side-head" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>私信</span>
+            <!-- 建群按钮 -->
+            <button class="btn sm primary" id="btn-create-group" style="height: 24px; padding: 0 8px; font-size: 12px;">➕ 建群</button>
+        </div>
 
-        <!-- 右栏：聊天窗口 -->
-        <main class="pm-main">
-            <div class="pm-chat-head" id="pm-chat-head">选择左侧会话开始聊天</div>
-            <div class="pm-msgs" id="pm-msgs">
-                <div class="empty">还没有打开任何对话</div>
+        <!-- 👇 新增：群聊列表容器（之前缺失的） -->
+        <div class="pm-groups" id="pm-groups" style="border-bottom: 1px solid var(--divider); padding-bottom: 6px; margin-bottom: 6px;"></div>
+
+        <!-- 私信列表容器 -->
+        <div class="pm-peers" id="pm-peers"></div>
+    </aside>
+
+    <!-- 右栏：聊天窗口 -->
+    <main class="pm-main">
+        <div class="pm-chat-head" id="pm-chat-head">选择左侧会话开始聊天</div>
+        <div class="pm-msgs" id="pm-msgs">
+            <div class="empty">还没有打开任何对话</div>
+        </div>
+        <div class="pm-emoji-panel" id="pm-emoji-panel" hidden></div>
+        <div class="pm-input">
+            <div class="pm-tools">
+                <button class="pm-tool" id="pm-emoji-btn" title="表情包">&#128514;</button>
+                <button class="pm-tool" id="pm-pic-btn" title="发送图片">&#128247;</button>
+                <button class="pm-tool" id="pm-video-btn" title="发送视频">&#127909;</button>
             </div>
-            <div class="pm-emoji-panel" id="pm-emoji-panel" hidden></div>
-            <div class="pm-input">
-                <div class="pm-tools">
-                    <button class="pm-tool" id="pm-emoji-btn" title="表情包">&#128514;</button>
-                    <button class="pm-tool" id="pm-pic-btn" title="发送图片">&#128247;</button>
-                    <button class="pm-tool" id="pm-video-btn" title="发送视频">&#127909;</button>
-                </div>
-                <textarea id="pm-content" rows="2" placeholder="写私信…（Enter 发送，Shift+Enter 换行）"></textarea>
-                <button class="btn red" id="pm-send">发送</button>
-                <input type="file" id="pm-pic-input" accept="image/jpeg,image/png,image/gif,image/webp,image/bmp" hidden>
-                <input type="file" id="pm-video-input" accept="video/mp4,video/webm,video/quicktime,video/x-m4v" hidden>
-            </div>
-        </main>
+            <textarea id="pm-content" rows="2" placeholder="写私信…（Enter 发送，Shift+Enter 换行）"></textarea>
+            <button class="btn red" id="pm-send">发送</button>
+            <input type="file" id="pm-pic-input" accept="image/jpeg,image/png,image/gif,image/webp,image/bmp" hidden>
+            <input type="file" id="pm-video-input" accept="video/mp4,video/webm,video/quicktime,video/x-m4v" hidden>
+        </div>
+    </main>
+</div>
+
+<!-- 建群弹窗（默认隐藏） -->
+<div id="group-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:var(--surface); padding:20px; border-radius:12px; width:300px;">
+        <h3 style="margin-bottom:15px;">创建群聊</h3>
+        <div class="field">
+            <label>群名称</label>
+            <input type="text" id="new-group-name" placeholder="输入群名称" style="width:100%; margin-bottom:10px;">
+        </div>
+        <div class="field">
+            <label>拉人进群（输入用户ID，用逗号分隔）</label>
+            <input type="text" id="new-group-members" placeholder="例如: user1,user2,user3" style="width:100%; margin-bottom:20px;">
+        </div>
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button class="btn sm" id="cancel-group">取消</button>
+            <button class="btn sm primary" id="submit-group">创建</button>
+        </div>
     </div>
+</div>
 
-    <script src="js/theme.js?v=1"></script>
-    <script src="js/common.js?v=12"></script>
-    <script src="js/message.js?v=8"></script>
+<script src="js/theme.js?v=1"></script>
+<script src="js/common.js?v=12"></script>
+<script src="js/message.js?v=9"></script>
 </body>
 </html>
