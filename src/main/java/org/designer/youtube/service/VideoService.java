@@ -206,9 +206,8 @@ public class VideoService {
             else count=vm.selectLikeQuantity(id);
             return Result.success("had done",Map.of("like_count",count,"liked",true));
         }
-        /**
-         * 设置消息新增
-         * **/
+        redisTemplate.opsForSet().add(likeSetKey,userId);
+        redisTemplate.opsForValue().increment(countKey);
         sendLikeNotify(id,userId);
         return Result.success("点赞成功", Map.of(
                 "like_count", vm.selectLikeQuantity(id), "liked", true));
