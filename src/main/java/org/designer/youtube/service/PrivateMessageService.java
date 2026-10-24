@@ -212,4 +212,13 @@ public class PrivateMessageService {
     public List<Map<String,Object>> selectGroupMessage(String groupId){
         return privateMessageMapper.selectGroupMessage(groupId);
     }
+    //向群聊中发消息
+    public Result<Map<String,Object>> sendMessageToGroup(String msgId,String groupId,
+                                                         String fromUser,String contents,String msgType,String mediaPath){
+        if(msgId==null||groupId==null||fromUser==null||mediaPath==null||msgType==null) return Result.fail("出bug了！");
+        if(contents==null) return Result.fail("消息不能为空！");
+        int k= privateMessageMapper.sendMessageToGroup(msgId, groupId, fromUser, contents, msgType, mediaPath);
+        if(k==0) return Result.fail("发送失败!");
+        return Result.success("发送成功！",Map.of("contents",contents));
+    }
 }
