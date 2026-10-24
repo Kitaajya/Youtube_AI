@@ -514,14 +514,15 @@
         // 退出私聊状态
         current = null;
         currentGroup = { groupId, groupName };
+        
+        //解锁输入区
+        ta.disabled = false;
+        ta.placeholder = '发送群消息…（Enter 发送）';
+        sendBtn.disabled = false;
+        emojiBtn.disabled = false;
+        picBtn.disabled = false;
+        videoBtn.disabled = false;
 
-        // 锁定输入区（后端无发群消息接口）
-        ta.disabled = true;
-        ta.placeholder = '由于后端未提供发送群消息接口，目前仅支持查看历史消息';
-        sendBtn.disabled = true;
-        emojiBtn.disabled = true;
-        picBtn.disabled = true;
-        videoBtn.disabled = true;
         toggleEmojiPanel(true); // 强制收起表情面板
 
         renderHead();
