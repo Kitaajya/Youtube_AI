@@ -659,6 +659,10 @@ const setGroupUnread = (groupId, count) => {
                 createTime: YT.pick(m, 'create_time'),
                 senderName: YT.pick(m, 'senderName', 'sender_name')
             }));
+
+            //进群了，标记为已读（把最新一条的时间存为已读时间）
+            setGroupReadTime(groupId);
+            renderMyGroups(); // 刷新左侧红点
             if (!normList.length) msgs.innerHTML = '';
             renderMsgs(normList, true);
         } catch (e) {
