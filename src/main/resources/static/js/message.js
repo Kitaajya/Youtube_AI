@@ -914,7 +914,8 @@ const setGroupUnread = (groupId, count) => {
                     groups.unshift({ groupId, groupName, createTime: localNow() });
                     setMyGroups(groups);
                     renderMyGroups();
-
+                    //直接重新拉服务器数据，保证拉的人也对齐
+                    await syncMyGroups();
                     YT.toast('建群成功！');
                     modal.style.display = 'none';
                     groupNameInput.value = '';
