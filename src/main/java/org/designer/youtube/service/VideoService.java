@@ -449,25 +449,46 @@ public class VideoService {
                 .content();
     }
     /**把视频id为id`(特定视频)的评论区喂给DeepSeek，并让它总结评论**/
-    public Flux<String>selectSpecialVideoCommentsForDeepSeek(ChatClient client,long vid,String question){
-        List<Map<String,Object>> list=vm.selectSpecialVideoCommentsForDeepSeek(vid);
-        StringBuilder sb=new StringBuilder();
-        for(Map<String,Object> map:list){
-            Object commentId=map.get("comment_id");
-            Object userId=map.get("user_id");
-            Object parentId=map.get("parent_id");
-            Object contents=map.get("contents");
-            Object createTime=map.get("create_time");//发表时间
-            sb.append("视频Id为").append(vid).append("，父评论是").append(parentId)
-                    .append("，父评论的id为").append(commentId).append(",发表此父评论的用户是:").append(userId)
-                    .append("，评论内容").append(contents).append("发表时间:").append(createTime);
-        }
-        String systemPrompt= """
-                你是一个视频内容分析师。
-                如果用户的问题是让你总结视频的评论区，请严格根据我提供的【数据库评论数据】进行总结。
-                如果用户问的是其他无关问题，请用你自己的知识回答。
-                """;
-        String finalQuestion="视频数据如下："+sb+"用户最终提问："+question;
-        return client.prompt().system(systemPrompt).user(finalQuestion).stream().content();
+
+    public Flux<String> selectSpecialVideoCommentsForDeepSeek(ChatClient client, long vid, String question) {
+        //将阻塞的 MyBatis 查询和字符串拼接包裹在 Mono.fromCallable 中
+        Mono<String> commentsMono = Mono.fromCallable(() -> {
+                    // ================= 阻塞区域开始 =================
+                    // MyBatis 查询，线程会在这里死等数据库返回
+                    List<Map<String, Object>> list = vm.selectSpecialVideoCommentsForDeepSeek(vid);
+
+                    StringBuilder sb = new StringBuilder();
+                    for (Map<String, Object> map : list) {
+                        Object commentId = map.get("comment_id");
+                        Object userId = map.get("user_id");
+                        Object parentId = map.get("parent_id");
+                        Object contents = map.get("contents");
+                        Object createTime = map.get("create_time");
+                        sb.append("视频Id为").append(vid).append("，父评论是").append(parentId)
+                                .append("，父评论的id为").append(commentId).append(",发表此父评论的用户是:").append(userId)
+                                .append("，评论内容").append(contents).append("发表时间:").append(createTime);
+                    }
+                    return sb.toString();
+                    // ================= 阻塞区域结束 =================
+                })
+                //核心：将这个阻塞任务调度到弹性线程池，绝不占用主线程
+                .subscribeOn(Schedulers.boundedElastic());
+
+        String systemPrompt = """
+            你是一个视频内容分析师。
+            如果用户的问题是让你总结视频的评论区，请严格根据我提供的【数据库评论数据】进行总结。
+            如果用户问的是其他无关问题，请用你自己的知识回答。
+            """;
+
+        // 组装 Prompt 并调用 DeepSeek (Spring AI 的流式接口天然是响应式的)
+        return commentsMono.flatMapMany(comments -> {
+            String finalQuestion = "视频数据如下：" + comments + "用户最终提问：" + question;
+
+            return client.prompt()
+                    .system(systemPrompt)
+                    .user(finalQuestion)
+                    .stream()
+                    .content();
+        });
     }
 }
