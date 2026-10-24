@@ -165,10 +165,12 @@ public interface PrivateMessageMapper {
     """)
     int removeGroupMember(@Param("groupId")String groupId,@Param("userId")String userId);
     //查看群聊消息
-    @Select("""
-    SELECT gm.msg_id, gm.group_id, gm.from_user, CASE WHEN from_user = 'AI_BOT' THEN '你(AI)' ELSE sender_name END AS sender_name ,gm.contents, gm.msg_type, gm.media_path,
+     @Select("""
+    SELECT gm.msg_id, gm.group_id, gm.from_user, 
+           u.nickname AS senderName, 
+           gm.contents, gm.msg_type, gm.media_path,
            DATE_FORMAT(gm.create_time, '%Y-%m-%d %H:%i:%s') AS create_time,
-           u.nickname AS senderName, u.avatar AS senderAvatar
+           u.avatar AS senderAvatar
     FROM group_message gm
     LEFT JOIN user_information u ON gm.from_user = u.user_id
     WHERE gm.group_id = #{groupId}

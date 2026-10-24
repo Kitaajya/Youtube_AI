@@ -147,6 +147,7 @@ public class PrivateMessageController {
     //向群聊中发消息
     @PostMapping("/add/group/message")
     public Result<Map<String,Object>> sendMessageToGroup(
+            @RequestParam(required = false) String msgId, // 允许前端传 msgId
             @RequestParam String groupId,
             @RequestParam String fromUser,
             @RequestParam(required = false) String contents,

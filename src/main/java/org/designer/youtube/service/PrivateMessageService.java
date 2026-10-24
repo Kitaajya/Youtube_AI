@@ -11,6 +11,8 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.List;
 import java.util.Map;
@@ -238,41 +240,39 @@ public class PrivateMessageService {
      * **/
     //把群聊信息插入DeepSeek里
     public Flux<String> selectGroupMessageForDeepSeek(ChatClient client, String groupId, String question) {
-        List<Map<String, Object>> list = privateMessageMapper.selectGroupMessage(groupId);
-        StringBuilder sb = new StringBuilder();
-        if (list == null || list.isEmpty()) sb.append("当前群聊没有任何聊天记录。\n");
-        else {
-            //遍历聊天记录，拼装成自然语言
-            for (Map<String, Object> map : list) {
-                Object senderName = map.get("senderName"); // 发送者昵称
-                Object contents = map.get("contents");     // 消息正文
-                Object createTime = map.get("create_time");// 发送时间
-                Object msgType = map.get("msg_type");      // 消息类型
-                // 如果发的是图片、视频或表情，就不把文件名读出来了，直接告诉 AI 发了个媒体
-                if ("image".equals(msgType) || "video".equals(msgType) || "emoji".equals(msgType))
-                    contents = "[发送了一个" + msgType + "]";
-                //拼装格式：[时间] 昵称: 内容
-                sb.append("[").append(createTime).append("] ")
-                        .append(senderName).append(": ")
-                        .append(contents).append("\n");
+        // 1. 将阻塞查询包装进 Mono
+        Mono<String> contextMono = Mono.fromCallable(() -> {
+            List<Map<String, Object>> list = privateMessageMapper.selectGroupMessage(groupId);
+            StringBuilder sb = new StringBuilder();
+            if (list == null || list.isEmpty()) sb.append("当前群聊没有任何聊天记录。\n");
+            else {
+                for (Map<String, Object> map : list) {
+                    Object senderName = map.get("senderName");
+                    Object contents = map.get("contents");
+                    Object createTime = map.get("create_time");
+                    Object msgType = map.get("msg_type");
+                    if ("image".equals(msgType) || "video".equals(msgType) || "emoji".equals(msgType))
+                        contents = "[发送了一个" + msgType + "]";
+                    sb.append("[").append(createTime).append("] ")
+                            .append(senderName).append(": ")
+                            .append(contents).append("\n");
+                }
             }
-        }
+            return sb.toString();
+        }).subscribeOn(Schedulers.boundedElastic()); // 关键：切到弹性线程池
 
-        //设定AI的系统提示词（告诉 AI 它是谁，该怎么做）
         String systemPrompt = """
-                你是一个智能群聊助手。
-                下面我为你提供了当前这个群的完整历史聊天记录，请仔细阅读。
-                如果用户让你“总结”群聊内容，请提炼大家讨论的核心重点。
-                如果用户是在向你提问或聊天，请结合群聊上下文，以群友的身份回答。
-                不要暴露你是 AI 模型，除非用户明确询问。
-                """;
+            你是一个智能群聊助手。
+            下面我为你提供了当前这个群的完整历史聊天记录，请仔细阅读。
+            如果用户让你“总结”群聊内容，请提炼大家讨论的核心重点。
+            如果用户是在向你提问或聊天，请结合群聊上下文，以群友的身份回答。
+            不要暴露你是 AI 模型，除非用户明确询问。
+            """;
 
-        //把聊天记录和用户的问题合并发给 AI
-        String finalUserPrompt = "【群聊聊天记录如下】：\n" + sb + "\n【用户当前的提问】：" + question;
-        return client.prompt()
-                .system(systemPrompt)
-                .user(finalUserPrompt)
-                .stream()
-                .content();
+        // 2. 等待上下文查询完成，再请求 DeepSeek
+        return contextMono.flatMapMany(sb -> {
+            String finalUserPrompt = "【群聊聊天记录如下】：\n" + sb + "\n【用户当前的提问】：" + question;
+            return client.prompt().system(systemPrompt).user(finalUserPrompt).stream().content();
+        });
     }
 }

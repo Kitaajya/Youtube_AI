@@ -1,6 +1,7 @@
 package org.designer.youtube.config;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
