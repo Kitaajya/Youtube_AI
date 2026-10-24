@@ -175,4 +175,17 @@ public interface PrivateMessageMapper {
     ORDER BY gm.create_time ASC
     """)
     List<Map<String,Object>> selectGroupMessage(@Param("groupId") String groupId);
+    // 向群聊中发消息
+    @Insert("""
+    INSERT INTO group_message(msg_id, group_id, from_user, contents, msg_type, media_path)
+    VALUES(#{msgId}, #{groupId}, #{fromUser}, #{contents}, #{msgType}, #{mediaPath})
+    """)
+    int sendMessageToGroup(
+            @Param("msgId") String msgId,
+            @Param("groupId") String groupId,
+            @Param("fromUser") String fromUser,
+            @Param("contents") String contents,
+            @Param("msgType") String msgType,
+            @Param("mediaPath") String mediaPath
+    );
 }
