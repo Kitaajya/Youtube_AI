@@ -21,4 +21,8 @@ public class Config {
         cacheManager.setCaffeine(Caffeine.newBuilder().expireAfterAccess(MAX_TIME,TimeUnit.SECONDS).maximumSize(MAX_SIZE));
         return cacheManager;
     }
+    @Bean
+    public ChatClient chat(ChatClient.Builder cb){
+        return cb.build();
+    }
 }
