@@ -913,6 +913,67 @@ const setGroupUnread = (groupId, count) => {
         });
     })();
 
+    // ---------- 群聊辅助函数（请确保放在文件靠前的位置，和 getMyGroups 放一起） ----------
+    const getGroupReadTime = (groupId) => Number(localStorage.getItem('yt_group_read_' + me.userId + '_' + groupId) || 0);
+    const setGroupReadTime = (groupId) => {
+        localStorage.setItem('yt_group_read_' + me.userId + '_' + groupId, Date.now());
+        localStorage.removeItem('yt_group_unread_' + me.userId + '_' + groupId);
+    };
+    const getGroupUnread = (groupId) => Number(localStorage.getItem('yt_group_unread_' + me.userId + '_' + groupId) || 0);
+    const setGroupUnread = (groupId, count) => {
+        localStorage.setItem('yt_group_unread_' + me.userId + '_' + groupId, count);
+    };
+
+    // ---------- 群聊新消息静默检测 ----------
+    let groupPollTimer = null;
+    async function pollGroupUnread() {
+        if (document.hidden || !me) return;
+
+        const myGroups = getMyGroups();
+        if (!myGroups.length) return;
+
+        let hasNewUnread = false;
+        let newMsgSender = '';
+
+        // 注意：为了减少请求，这里按顺序拉取，实际项目建议改成 Promise.all
+        for (const g of myGroups) {
+            try {
+                const r = await YT.api.get('/api/private_message/select/group/message', { groupId: g.groupId });
+                const list = Array.isArray(r.data) ? r.data : [];
+                if (!list.length) continue;
+
+                const lastMsg = list[list.length - 1];
+                if (String(lastMsg.from_user) !== me.userId) {
+                    const lastMsgTime = new Date(String(YT.pick(lastMsg, 'create_time')).replace(' ', 'T')).getTime();
+                    const readTime = getGroupReadTime(g.groupId);
+
+                    if (lastMsgTime > readTime) {
+                        // 如果当前正好打开的是这个群，直接自动已读，不提示
+                        if (currentGroup && currentGroup.groupId === g.groupId) {
+                            setGroupReadTime(g.groupId);
+                        } else {
+                            setGroupUnread(g.groupId, 1); // 为了简单，这里未读数固定设为 1
+                            hasNewUnread = true;
+                            newMsgSender = YT.pick(lastMsg, 'senderName', 'sender_name') || '有人';
+                        }
+                    }
+                }
+            } catch (e) { /* 忽略单个群的请求失败 */ }
+        }
+
+        if (hasNewUnread) {
+            renderMyGroups(); // 刷新左侧红点
+            YT.toast(`群聊有新消息：${newMsgSender} 发来一条消息`);
+        }
+    }
+
+    function scheduleGroupPoll() {
+        if (groupPollTimer) clearInterval(groupPollTimer);
+        groupPollTimer = setInterval(() => {
+            if (!document.hidden) pollGroupUnread();
+        }, 5000);
+    }
+
     // ---------- 启动 ----------
     renderPeers();
     renderMyGroups();
