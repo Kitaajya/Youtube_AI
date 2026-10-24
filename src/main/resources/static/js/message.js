@@ -522,8 +522,7 @@ const setGroupUnread = (groupId, count) => {
 
     // ---------- 发送图片 / 视频 ----------
     async function sendMedia(file) {
-        if (currentGroup) return;
-        if (!current) { YT.toast('请先选择聊天对象'); return; }
+        if (!current && !currentGroup) { YT.toast('请先选择聊天对象或群聊'); return; }
         if (loading) return;
         if (!file) return;
         const isImage = file.type.startsWith('image/');
