@@ -177,7 +177,7 @@ public interface PrivateMessageMapper {
     List<Map<String,Object>> selectGroupMessage(@Param("groupId") String groupId);
     // 向群聊中发消息
     @Insert("""
-    INSERT INTO group_message(msg_id, group_id, from_user, contents, msg_type, media_path)
+    INSERT IGNORE INTO group_message(msg_id, group_id, from_user, contents, msg_type, media_path)
     VALUES(#{msgId}, #{groupId}, #{fromUser}, #{contents}, #{msgType}, #{mediaPath})
     """)
     int sendMessageToGroup(
