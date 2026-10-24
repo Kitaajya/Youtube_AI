@@ -586,6 +586,7 @@
                 createTime: YT.pick(m, 'create_time'),
                 senderName: YT.pick(m, 'senderName', 'sender_name')
             }));
+            if (!normList.length) msgs.innerHTML = '';
             renderMsgs(normList, true);
         } catch (e) {
             msgs.innerHTML = `<div class="empty">群聊加载失败：${YT.esc(e.message)}</div>`;
