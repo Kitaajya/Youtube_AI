@@ -305,3 +305,60 @@
 #btn-create-group {
     flex-shrink: 0; /* 防止按钮被挤压变形或消失 */
 }
+/* ====== 群聊消息头像与名字布局 ====== */
+.pm-group-msg-wrap {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    max-width: 80%;
+    align-self: flex-start;
+}
+
+.pm-group-msg-wrap.me {
+    align-self: flex-end;
+    flex-direction: row-reverse; /* 自己的消息，头像在右边 */
+}
+
+/* 头像点击区域 */
+.pm-group-avatar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-top: 4px;
+}
+
+.pm-group-avatar .avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--surface-2);
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    border: 1px solid var(--border);
+}
+
+/* 头像右上方（或者自己消息的左侧）的名字 */
+.pm-group-name {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-bottom: 4px; /* 名字在头像上面 */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100px;
+}
+
+/* 气泡及其下方的操作行 */
+.pm-group-msg-body {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+.pm-group-msg-wrap.me .pm-group-msg-body {
+    align-items: flex-end;
+}
