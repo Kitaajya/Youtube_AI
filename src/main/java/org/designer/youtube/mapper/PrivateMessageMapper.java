@@ -181,11 +181,11 @@ public interface PrivateMessageMapper {
     VALUES(#{msgId}, #{groupId}, #{fromUser}, #{contents}, #{msgType}, #{mediaPath})
     """)
     int sendMessageToGroup(
-            @Param("msgId") String msgId,
-            @Param("groupId") String groupId,
-            @Param("fromUser") String fromUser,
-            @Param("contents") String contents,
-            @Param("msgType") String msgType,
+            @Param("msgId")     String msgId,
+            @Param("groupId")   String groupId,
+            @Param("fromUser")  String fromUser,
+            @Param("contents")  String contents,
+            @Param("msgType")   String msgType,
             @Param("mediaPath") String mediaPath
     );
     //查看我们的群聊

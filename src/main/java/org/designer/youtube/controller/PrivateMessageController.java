@@ -1,6 +1,7 @@
 package org.designer.youtube.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.designer.youtube.RandomlyCreateID;
 import org.designer.youtube.common.Result;
 import org.designer.youtube.entity.PrivateMessage;
 import org.designer.youtube.service.PrivateMessageService;
@@ -43,7 +44,7 @@ import java.util.Map;
 public class PrivateMessageController {
     private final PrivateMessageService privateMessageService;
     private final VideoFileService videoFileService;
-
+    private final RandomlyCreateID createGroupId;
     // 展示我和某人的完整对话，双向，按时间正序
     @GetMapping("/select/message")
     public Result<List<PrivateMessage>> selectOurMessage(@RequestParam String a, @RequestParam String b) {
@@ -116,8 +117,7 @@ public class PrivateMessageController {
      **/
     //拉群主，群主建群
     @PostMapping("/establish/group")
-    public Result<Map<String, Object>> establishGroup(@RequestParam String groupId,
-                                                      @RequestParam String groupName,
+    public Result<Map<String, Object>> establishGroup(@RequestParam String groupName,
                                                       @RequestParam String ownerId) {
         RandomlyCreateID createGroupId=new RandomlyCreateID();
         String id=createGroupId.createId();
@@ -132,12 +132,11 @@ public class PrivateMessageController {
 
     //群主踢人
     @PostMapping("/remove/member")
-    public Result<Map<String, Object>> removeGroupMember(@RequestParam String groupId,
-                                                         @RequestParam String userId,
+    public Result<Map<String, Object>> removeGroupMember(@RequestParam String userId,
                                                          @RequestParam String groupOwner) {
-        RandomlyCreateID createGroupId=new RandomlyCreateID();
-        String id=createGroupId.createId();
-        return privateMessageService.removeGroupMember(id, userId, groupOwner);
+
+        String newGroupId=createGroupId.createId();
+        return privateMessageService.removeGroupMember(newGroupId, userId, groupOwner);
     }
     //查看群聊消息
     @GetMapping("/select/group/message")
@@ -146,13 +145,14 @@ public class PrivateMessageController {
     }
     //向群聊中发消息
     @PostMapping("/add/group/message")
-    public Result<Map<String,Object>> sendMessageToGroup(@RequestParam String groupId,
-                                                         @RequestParam String fromUser,
-                                                         @RequestParam String contents,
-                                                         @RequestParam String msgType,
-                                                         @RequestParam String mediaPath){
-        String msgId=createGroupId.createId();
-        return privateMessageService.sendMessageToGroup(msgId,groupId,fromUser,contents,msgType,mediaPath);
+    public Result<Map<String,Object>> sendMessageToGroup(
+            @RequestParam String groupId,
+            @RequestParam String fromUser,
+            @RequestParam(required = false) String contents,
+            @RequestParam(defaultValue = "text") String msgType,
+            @RequestParam(required = false) String mediaPath) {
+        String msgId = createGroupId.createId();
+        return privateMessageService.sendMessageToGroup(msgId, groupId, fromUser, contents, msgType, mediaPath);
     }
     // 查询我加入的群（前端私信页加载时调用）
     @GetMapping("/select/my/groups")

@@ -25,6 +25,13 @@
     font-weight: 500;
     padding: 14px 16px;
     border-bottom: 1px solid var(--divider);
+    /* 修复头部 flex 布局和按钮被挤压的问题 */
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+}
+#btn-create-group {
+    flex-shrink: 0;
 }
 
 .pm-peers { flex: 1; overflow-y: auto; padding: 6px 0; }
@@ -121,17 +128,21 @@
     align-self: flex-start;
     display: flex;
     flex-direction: column;
-    align-items: flex-start;   /* 关键：不设的话默认 stretch，对方短消息的气泡会被拉满整行 */
+    align-items: flex-start;
     gap: 3px;
 }
 .pm-msg.me { align-self: flex-end; align-items: flex-end; }
+
+/* 基础气泡 */
 .pm-msg .bubble {
-    padding: 9px 13px;
-    border-radius: 14px;
+    padding: 8px 12px;
+    border-radius: 12px;
     font-size: 14px;
     line-height: 1.5;
     white-space: pre-wrap;
-    word-break: break-word;
+    overflow-wrap: anywhere;  /* 防止长链接撑破 */
+    width: fit-content;       /* 核心：让气泡大小紧贴内容 */
+    max-width: 100%;
     background: var(--surface-2);
     color: var(--text-primary);
     border: 1px solid var(--border);
@@ -143,32 +154,27 @@
 }
 .pm-msg .m-time { font-size: 11px; color: var(--text-tertiary); padding: 0 4px; }
 
-/* ---------- 图片 / 视频消息 ---------- */
-/* 媒体气泡去掉内边距和文字底色，边框/圆角直接包着图，观感接近微信 */
-/* width: fit-content 强制气泡按媒体实际大小收缩，不被媒体原始分辨率撑开 */
+/* 图片/视频消息 */
 .pm-msg .bubble.media {
     width: fit-content;
     max-width: 100%;
     padding: 3px;
     background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 14px;
+    border-radius: 12px;
 }
 .pm-msg .bubble.media img,
 .pm-msg .bubble.media video {
     display: block;
-    /* 必须是确定的像素值：写成 min(320px, 100%) 时，百分比在收缩宽度
-       计算阶段无法解析，浏览器会忽略整个 max-width，视频按原始分辨率
-       把气泡撑满整行（之前"大灰框套小视频"就是这么来的） */
     max-width: 320px;
     max-height: 360px;
-    border-radius: 10px;
+    border-radius: 8px;
     object-fit: contain;
-    background: #000;   /* 视频留黑边，图片加载失败也不刺眼 */
+    background: #000;
 }
 .pm-msg.me .bubble.media { background: var(--surface-2); border-color: var(--border); }
 
-/* ---------- 表情消息气泡：无边框、透明底，只留图本体 ---------- */
+/* 表情消息 */
 .pm-msg .bubble.emoji {
     width: fit-content;
     max-width: 100%;
@@ -184,7 +190,7 @@
     object-fit: contain;
 }
 
-/* ---------- 表情选择面板（挂在输入区上方，默认收起）：不分类，平铺一个网格 ---------- */
+/* 表情选择面板 */
 .pm-emoji-panel {
     max-height: 220px;
     overflow-y: auto;
@@ -206,7 +212,7 @@
 .pm-emoji img { width: 100%; height: 100%; object-fit: contain; }
 .pm-empty-emoji { font-size: 13px; color: var(--text-secondary); text-align: center; padding: 12px; cursor: pointer; }
 
-/* ---------- 输入区左侧的媒体工具按钮 ---------- */
+/* 输入区工具按钮 */
 .pm-tools { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
 .pm-tool {
     width: 40px;
@@ -223,8 +229,7 @@
 .pm-tool.on { border-color: var(--focus-ring); color: var(--text-primary); background: var(--surface-2); }
 .pm-tool:disabled { opacity: .5; cursor: not-allowed; }
 
-/* ---------- 撤回提示 & 单条操作按钮 ---------- */
-/* 已撤回：灰色居中提示，不再显示正文气泡底色 */
+/* 撤回提示 & 操作按钮 */
 .pm-msg.withdrawn { align-self: center; max-width: 100%; align-items: center; }
 .pm-msg.withdrawn.me { align-items: center; }
 .pm-msg.withdrawn .bubble {
@@ -234,7 +239,6 @@
     font-size: 12px;
     padding: 2px 6px;
 }
-/* 操作行：平时隐藏，悬停该条消息时出现 */
 .m-ops { display: flex; gap: 6px; padding: 0 4px; visibility: hidden; }
 .pm-msg:hover .m-ops { visibility: visible; }
 .m-op {
@@ -249,6 +253,7 @@
 }
 .m-op:hover { color: var(--danger); border-color: var(--danger); }
 
+/* 居中时间标签 */
 .pm-day {
     align-self: center;
     font-size: 12px;
@@ -259,6 +264,7 @@
     margin: 6px 0;
 }
 
+/* 输入区 */
 .pm-input {
     display: flex;
     gap: 10px;
@@ -285,79 +291,41 @@
 .pm-input textarea::placeholder { color: var(--text-tertiary); }
 .pm-input .btn { height: 42px; border-radius: 21px; padding: 0 22px; flex-shrink: 0; }
 
-/* 窄屏：列表收起为顶部横滑 */
-@media (max-width: 860px) {
-    .pm-wrap { flex-direction: column; height: auto; }
-    .pm-side { width: 100%; }
-    .pm-main { height: 60vh; }
-}
-/* 群聊模式下锁定的按钮置灰 */
-#pm-send:disabled, .pm-tool:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-/* 修复头部 flex 布局和按钮被挤压的问题 */
-.pm-side-head {
-    display: flex !important;
-    justify-content: space-between !important;
-    align-items: center !important;
-}
-#btn-create-group {
-    flex-shrink: 0; /* 防止按钮被挤压变形或消失 */
-}
-/* ====== 群聊消息头像与名字布局 ====== */
+/* ---------- 群聊微信极简样式 ---------- */
 .pm-group-msg-wrap {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     align-items: flex-start;
-    max-width: 80%;
+    max-width: 75%;
     align-self: flex-start;
+    margin-bottom: 16px;
 }
-
 .pm-group-msg-wrap.me {
     align-self: flex-end;
-    flex-direction: row-reverse; /* 自己的消息，头像在右边 */
+    flex-direction: row-reverse;
 }
-
-/* 头像点击区域 */
 .pm-group-avatar {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
     cursor: pointer;
     flex-shrink: 0;
-    margin-top: 4px;
+    margin-top: 2px; /* 微微向下偏移，对齐名字和气泡的顶部 */
 }
-
 .pm-group-avatar .avatar {
     width: 36px;
     height: 36px;
-    border-radius: 50%;
-    background: var(--surface-2);
+    border-radius: 6px;
+    background: var(--surface-3);
     color: var(--text-primary);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 14px;
-    border: 1px solid var(--border);
+    font-size: 15px;
+    border: none;
 }
-
-/* 头像右上方（或者自己消息的左侧）的名字 */
-.pm-group-name {
-    font-size: 11px;
-    color: var(--text-tertiary);
-    margin-bottom: 4px; /* 名字在头像上面 */
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100px;
-}
-
-/* 气泡及其下方的操作行 */
 .pm-group-msg-body {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
+    /* 移除 min-width: 0，防止 flex 容器挤压气泡 */
 }
 .pm-group-msg-wrap.me .pm-group-msg-body {
     align-items: flex-end;
@@ -371,33 +339,39 @@
     text-overflow: ellipsis;
     max-width: 150px;
 }
-/* 群聊气泡样式覆盖 */
+/* 群聊内部的气泡 */
+.pm-group-msg-body .pm-msg {
+    max-width: 100%;
+    align-self: auto;
+}
 .pm-group-msg-body .bubble {
-    padding: 10px 14px;
-    border-radius: 6px;
+    padding: 8px 12px;
+    border-radius: 8px;
     font-size: 14px;
-    line-height: 1.6;
-    word-break: break-word;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    width: fit-content;
     background: var(--surface-2);
     color: var(--text-primary);
     border: none;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 .pm-group-msg-wrap.me .pm-group-msg-body .bubble {
-    background: #95ec69; /* 微信绿（深色下也好看） */
+    background: #95ec69; /* 自己的消息绿底 */
     color: #000;
 }
 .pm-group-msg-body .m-time {
-    display: none; /* 隐藏单条消息时间，统一在中间显示 */
+    display: none;
 }
 
-/* ---------- 群聊模式下锁定的按钮置灰 ---------- */
+/* 锁定的按钮置灰 */
 #pm-send:disabled, .pm-tool:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
 
-/* 窄屏：列表收起为顶部横滑 */
+/* 窄屏 */
 @media (max-width: 860px) {
     .pm-wrap { flex-direction: column; height: auto; }
     .pm-side { width: 100%; }

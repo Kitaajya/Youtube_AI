@@ -1,27 +1,4 @@
-/* 私信页 + 群聊（前端兜底版）
- * 约束：后端代码不许动。
- * 由于后端无“发群消息”和“查询我的群”接口，群聊列表使用 localStorage，群聊输入框自动锁定。
- */
-
-// 获取群聊已读时间戳
-const getGroupReadTime = (groupId) => {
-    return Number(localStorage.getItem('yt_group_read_' + me.userId + '_' + groupId) || 0);
-};
-// 更新群聊已读时间戳为当前时间
-const setGroupReadTime = (groupId) => {
-    localStorage.setItem('yt_group_read_' + me.userId + '_' + groupId, Date.now());
-    // 已读后清除未读数
-    localStorage.removeItem('yt_group_unread_' + me.userId + '_' + groupId);
-};
-// 获取群聊未读数
-const getGroupUnread = (groupId) => {
-    return Number(localStorage.getItem('yt_group_unread_' + me.userId + '_' + groupId) || 0);
-};
-// 设置群聊未读数
-const setGroupUnread = (groupId, count) => {
-    localStorage.setItem('yt_group_unread_' + me.userId + '_' + groupId, count);
-};
-
+/* 私信页 + 群聊（完整修复版） */
 (async function () {
     const me = YT.user();
     if (!me) {
@@ -51,9 +28,20 @@ const setGroupUnread = (groupId, count) => {
     const getMyGroups = () => JSON.parse(localStorage.getItem(groupKey) || '[]');
     const setMyGroups = arr => localStorage.setItem(groupKey, JSON.stringify(arr));
 
+    // ---------- 群聊辅助函数 ----------
+    const getGroupReadTime = (groupId) => Number(localStorage.getItem('yt_group_read_' + me.userId + '_' + groupId) || 0);
+    const setGroupReadTime = (groupId) => {
+        localStorage.setItem('yt_group_read_' + me.userId + '_' + groupId, Date.now());
+        localStorage.removeItem('yt_group_unread_' + me.userId + '_' + groupId);
+    };
+    const getGroupUnread = (groupId) => Number(localStorage.getItem('yt_group_unread_' + me.userId + '_' + groupId) || 0);
+    const setGroupUnread = (groupId, count) => {
+        localStorage.setItem('yt_group_unread_' + me.userId + '_' + groupId, count);
+    };
+
     // ---------- 聊天状态 ----------
-    let current = null;       // 私聊状态 { userId, name }
-    let currentGroup = null;  // 群聊状态 { groupId, groupName }
+    let current = null;
+    let currentGroup = null;
     let loading = false;
     const WITHDRAW_LIMIT_S = 120;
     let curList = [];
@@ -129,7 +117,10 @@ const setGroupUnread = (groupId, count) => {
             groupsBox.innerHTML = '';
             return;
         }
-        groupsBox.innerHTML = arr.map(g => `
+        groupsBox.innerHTML = arr.map(g => {
+            // 从 localStorage 获取未读数
+            const unreadCount = getGroupUnread(g.groupId);
+            return `
             <div class="pm-peer ${currentGroup && currentGroup.groupId === g.groupId ? 'active' : ''}" 
                  data-group="${YT.esc(g.groupId)}" data-gname="${YT.esc(g.groupName)}" style="border-left: 3px solid var(--link);">
                 <span class="avatar" style="background:var(--link);color:#fff;border-radius:8px;">群</span>
@@ -137,7 +128,9 @@ const setGroupUnread = (groupId, count) => {
                     <div class="p-name">${YT.esc(g.groupName)}</div>
                     <div class="p-sub">群号: ${YT.esc(g.groupId)}</div>
                 </div>
-            </div>`).join('');
+                ${unreadCount > 0 ? `<span class="p-badge">${unreadCount > 99 ? '99+' : unreadCount}</span>` : ''}
+            </div>`;
+        }).join('');
     }
 
     function dayTag(t) {
@@ -158,27 +151,12 @@ const setGroupUnread = (groupId, count) => {
         const time = YT.fmtFull(m.createTime);
         const who = isGroup ? (m.senderName || '群友') : (mine ? '我' : (current ? (current.name || current.userId) : ''));
 
-        if (withdrawn) {
-            return `
-            <div class="pm-msg withdrawn ${mine ? 'me' : ''}" data-msg-id="${YT.esc(msgId)}">
-                <div class="bubble">${mine ? '你撤回了一条消息' : '对方撤回了一条消息'}</div>
-                ${mine && !isGroup ? `<div class="m-ops"><button class="m-op" data-del="${YT.esc(msgId)}">删除</button></div>` : ''}
-            </div>`;
-        }
-
-        let ops = '';
-        if (mine && !isGroup) {
-            const created = new Date(String(m.createTime).replace(' ', 'T')).getTime();
-            const fresh = !isNaN(created) && (Date.now() - created) / 1000 <= WITHDRAW_LIMIT_S;
-            ops = '<div class="m-ops">'
-                + (fresh ? `<button class="m-op" data-withdraw="${YT.esc(msgId)}">撤回</button>` : '')
-                + `<button class="m-op" data-del="${YT.esc(msgId)}">删除</button>`
-                + '</div>';
-        }
         let bodyHtml;
         const mtype = String(m.msgType || 'text').toLowerCase();
         const mediaFile = String(m.mediaPath || '');
-        if (mtype === 'emoji' && mediaFile) {
+        if (withdrawn) {
+            bodyHtml = `<div class="bubble">${mine ? '你撤回了一条消息' : '对方撤回了一条消息'}</div>`;
+        } else if (mtype === 'emoji' && mediaFile) {
             bodyHtml = `<div class="bubble emoji"><img src="${emojiSrc(mediaFile)}" alt="" loading="lazy"></div>`;
         } else if (mtype === 'image' && mediaFile) {
             bodyHtml = `<div class="bubble media"><img src="${YT.mediaUrl(mediaFile)}" alt="" loading="lazy"></div>`;
@@ -188,7 +166,6 @@ const setGroupUnread = (groupId, count) => {
             bodyHtml = `<div class="bubble">${YT.esc(m.contents)}</div>`;
         }
 
-        // 撤回/删除操作
         let ops = '';
         if (mine && !isGroup && !withdrawn) {
             const created = new Date(String(m.createTime).replace(' ', 'T')).getTime();
@@ -199,30 +176,22 @@ const setGroupUnread = (groupId, count) => {
                 + '</div>';
         }
 
-        // ==========================================
-        // 群聊样式（带头像和名字）
-        // ==========================================
         if (isGroup) {
             const avatarHtml = `<div class="pm-group-avatar" onclick="location.href='profile.html?userId=${YT.esc(m.fromUser)}&name=${encodeURIComponent(who)}'" title="查看 ${YT.esc(who)} 的主页">
                 <span class="avatar">${YT.esc(who.slice(0, 1).toUpperCase())}</span>
             </div>`;
-
             return `
             <div class="pm-group-msg-wrap ${mine ? 'me' : ''}" data-msg-id="${YT.esc(msgId)}">
                 ${avatarHtml}
                 <div class="pm-group-msg-body">
                     <span class="pm-group-name">${YT.esc(who)}</span>
-                    <div class="pm-msg ${mine ? 'me' : ''}" style="align-self: auto;">
+                    <div class="pm-msg ${mine ? 'me' : ''}">
                         ${bodyHtml}
-                        <span class="m-time">${YT.esc(time)}</span>
                     </div>
                 </div>
             </div>`;
         }
 
-        // ==========================================
-        // 私聊样式（保持原样）
-        // ==========================================
         if (withdrawn) {
             return `
             <div class="pm-msg withdrawn ${mine ? 'me' : ''}" data-msg-id="${YT.esc(msgId)}">
@@ -249,18 +218,16 @@ const setGroupUnread = (groupId, count) => {
             msgs.innerHTML = '<div class="empty">还没有消息，发第一条吧</div>';
             return;
         }
-        let html = '', lastDay = '';
+        let html = '', lastMsgTime = 0;
         for (const m of list) {
             const currentMsgTime = new Date(String(m.createTime).replace(' ', 'T')).getTime();
-
-            // 如果是第一条消息，或者距离上一条消息超过 5 分钟，显示时间
             if (lastMsgTime === 0 || (currentMsgTime - lastMsgTime) > 5 * 60 * 1000) {
                 const d = new Date(currentMsgTime);
                 const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
                 html += `<div class="pm-day">${timeStr}</div>`;
             }
-
             html += msgHtml(m, isGroup);
+            lastMsgTime = currentMsgTime;
         }
         msgs.innerHTML = html;
         msgs.scrollTop = msgs.scrollHeight;
@@ -344,26 +311,19 @@ const setGroupUnread = (groupId, count) => {
             applyInboxRows(rows);
         } catch (e) { renderPeers(); }
     }
-    // 从服务器拉取我加入的群，并替换掉本地的列表
+
     async function syncMyGroups() {
         try {
             const r = await YT.api.get('/api/private_message/select/my/groups', { me: me.userId });
             const serverGroups = Array.isArray(r.data) ? r.data : [];
-
-            // 转成前端需要的格式
             const myGroups = serverGroups.map(g => ({
                 groupId: String(YT.pick(g, 'groupId', 'group_id')),
                 groupName: String(YT.pick(g, 'groupName', 'group_name')),
                 createTime: String(YT.pick(g, 'createTime', 'create_time'))
             }));
-
-            // 覆盖本地缓存
             setMyGroups(myGroups);
             renderMyGroups();
-        } catch (e) {
-            // 如果后端出错（比如没写这个接口），就退回本地缓存，不报错
-            renderMyGroups();
-        }
+        } catch (e) { renderMyGroups(); }
     }
 
     async function refreshUnread() {
@@ -373,21 +333,15 @@ const setGroupUnread = (groupId, count) => {
             const n = Number((r.data && r.data.count) || 0);
             if (n === lastUnread) return;
             lastUnread = n;
-
-            // 👇 修复：不要覆盖整个 innerHTML，而是只更新 span 标签的内容
             let titleSpan = sideHead.querySelector('span');
-            if (titleSpan) {
-                titleSpan.textContent = n > 0 ? `私信 · 未读 ${n}` : '私信';
-            }
+            if (titleSpan) { titleSpan.textContent = n > 0 ? `私信 · 未读 ${n}` : '私信'; }
         } catch (e) { }
     }
 
-    // ---------- 私聊逻辑 ----------
     async function openChat(userId, name) {
         if (!userId || userId.length !== 13) { YT.toast('用户ID应为13位'); return; }
         if (userId === me.userId) { YT.toast('不能和自己聊天'); return; }
 
-        // 退出群聊状态，恢复私聊输入区
         currentGroup = null;
         ta.disabled = false;
         ta.placeholder = '写私信…（Enter 发送，Shift+Enter 换行）';
@@ -397,9 +351,7 @@ const setGroupUnread = (groupId, count) => {
         videoBtn.disabled = false;
 
         current = { userId, name: name || '' };
-        renderHead();
-        renderPeers();
-        renderMyGroups();
+        renderHead(); renderPeers(); renderMyGroups();
 
         msgs.innerHTML = '<div class="empty">加载对话…</div>';
         loading = true;
@@ -408,98 +360,49 @@ const setGroupUnread = (groupId, count) => {
             const list = Array.isArray(r.data) ? r.data : [];
             lastChatSig = chatSig(list);
             const last = list[list.length - 1];
-            const lastPreview = last ? previewOf(last) : undefined;
-            touchPeer(userId, name, lastPreview, last ? last.createTime : '', 0);
+            touchPeer(userId, name, last ? previewOf(last) : undefined, last ? last.createTime : '', 0);
             renderMsgs(list, false);
             try { await YT.api.post('/api/private_message/read', { me: me.userId, other: userId }); } catch (e) { }
             refreshUnread();
-        } catch (e) {
-            msgs.innerHTML = `<div class="empty">加载失败：${YT.esc(e.message)}</div>`;
-        } finally {
-            loading = false;
-        }
+        } catch (e) { msgs.innerHTML = `<div class="empty">加载失败：${YT.esc(e.message)}</div>`; } finally { loading = false; }
     }
 
     async function doSend() {
-        // ==========================================
-        //  群聊发送逻辑（分流处理）
-        // ==========================================
         if (currentGroup) {
             const content = ta.value.trim();
             if (!content) { YT.toast('消息不能为空'); return; }
             if (loading) return;
-
-            sendBtn.disabled = true;
-            loading = true;
+            sendBtn.disabled = true; loading = true;
             try {
-                // 调用你后端写好的群聊发送接口
-                const r = await YT.api.post('/api/private_message/add/group/message', {
-                    groupId: currentGroup.groupId,
-                    fromUser: me.userId,
-                    contents: content,
-                    msgType: 'text'
-                });
-
-                if (!r.success) {
-                    YT.toast(r.message || '发送失败');
-                    return;
-                }
-
+                const r = await YT.api.post('/api/private_message/add/group/message', { groupId: currentGroup.groupId, fromUser: me.userId, contents: content, msgType: 'text' });
+                if (!r.success) { YT.toast(r.message || '发送失败'); return; }
                 ta.value = '';
-                const sentMsgId = String((r.data && r.data.msgId) || '');
-                const nowMsg = {
-                    msgId: sentMsgId,
-                    fromUser: me.userId,
-                    toUser: currentGroup.groupId,
-                    contents: content,
-                    msgType: 'text',
-                    createTime: localNow(),
-                    senderName: me.nickname
-                };
-
-                // 乐观上屏（立刻显示在屏幕上）
+                const nowMsg = { msgId: String((r.data && r.data.msgId) || ''), fromUser: me.userId, toUser: currentGroup.groupId, contents: content, msgType: 'text', createTime: localNow(), senderName: me.nickname };
                 curList = [...curList, nowMsg];
                 msgs.insertAdjacentHTML('beforeend', msgHtml(nowMsg, true));
                 msgs.scrollTop = msgs.scrollHeight;
-                //自己发完消息也算已读
                 setGroupReadTime(currentGroup.groupId);
                 renderMyGroups();
-            } catch (e) {
-                YT.toast('发送失败：' + e.message);
-            } finally {
-                loading = false;
-                sendBtn.disabled = false;
-                ta.focus();
-            }
-            return; // 群聊发送完毕，拦截后续私聊逻辑
+            } catch (e) { YT.toast('发送失败：' + e.message); } finally { loading = false; sendBtn.disabled = false; ta.focus(); }
+            return;
         }
 
-        // ==========================================
-        //   私聊发送逻辑（原本的代码）
-        // ==========================================
         if (!current) { YT.toast('请先选择聊天对象'); return; }
         const content = ta.value.trim();
         if (!content) { YT.toast('消息不能为空'); return; }
         if (loading) return;
-        sendBtn.disabled = true;
-        loading = true;
+        sendBtn.disabled = true; loading = true;
         try {
-            const r = await YT.api.post('/api/private_message/send', {
-                fromUser: me.userId, toUser: current.userId, contents: content,
-            });
+            const r = await YT.api.post('/api/private_message/send', { fromUser: me.userId, toUser: current.userId, contents: content });
             if (!r.success) { YT.toast(r.message || '发送失败'); return; }
             ta.value = '';
             const sentMsgId = String((r.data && r.data.msgId) || '');
-            const nowMsg = {
-                msgId: sentMsgId, fromUser: me.userId, toUser: current.userId,
-                contents: content, createTime: localNow(),
-            };
+            const nowMsg = { msgId: sentMsgId, fromUser: me.userId, toUser: current.userId, contents: content, createTime: localNow() };
             curList = [...curList, nowMsg];
             msgs.insertAdjacentHTML('beforeend', msgHtml(nowMsg, false));
             msgs.scrollTop = msgs.scrollHeight;
             scheduleWithdrawRefresh(curList);
             touchPeer(current.userId, current.name, content.slice(0, 30), nowMsg.createTime);
-
             try {
                 const chk = await YT.api.get('/api/private_message/select/message', { a: me.userId, b: current.userId });
                 const list = Array.isArray(chk.data) ? chk.data : [];
@@ -511,16 +414,9 @@ const setGroupUnread = (groupId, count) => {
                 }
             } catch (e) { }
             loadInbox();
-        } catch (e) {
-            YT.toast('发送失败：' + e.message);
-        } finally {
-            loading = false;
-            sendBtn.disabled = false;
-            ta.focus();
-        }
+        } catch (e) { YT.toast('发送失败：' + e.message); } finally { loading = false; sendBtn.disabled = false; ta.focus(); }
     }
 
-    // ---------- 发送图片 / 视频 ----------
     async function sendMedia(file) {
         if (!current && !currentGroup) { YT.toast('请先选择聊天对象或群聊'); return; }
         if (loading) return;
@@ -529,92 +425,52 @@ const setGroupUnread = (groupId, count) => {
         const limitMb = isImage ? 20 : 100;
         if (file.size > limitMb * 1024 * 1024) { YT.toast(`文件超过 ${limitMb}MB 上限`); return; }
 
-        loading = true;
-        picBtn.disabled = true; videoBtn.disabled = true;
+        loading = true; picBtn.disabled = true; videoBtn.disabled = true;
         try {
-            const fd = new FormData();
-            fd.append('file', file);
+            const fd = new FormData(); fd.append('file', file);
             const upRes = await fetch('/api/private_message/upload/media', { method: 'POST', body: fd });
             const up = await upRes.json();
             if (!up.success) { YT.toast(up.message || '上传失败'); return; }
             const mediaPath = String(up.data && up.data.mediaPath || '');
             if (!mediaPath) { YT.toast('上传异常：未拿到文件名'); return; }
 
-            const r = await YT.api.post('/api/private_message/send/picture/video', {
-                fromUser: me.userId, toUser: current.userId, mediaPath,
-            });
+            let r;
+            if (currentGroup) {
+                r = await YT.api.post('/api/private_message/add/group/message', { groupId: currentGroup.groupId, fromUser: me.userId, contents: '', msgType: isImage ? 'image' : 'video', mediaPath });
+            } else {
+                r = await YT.api.post('/api/private_message/send/picture/video', { fromUser: me.userId, toUser: current.userId, mediaPath });
+            }
             if (!r.success) { YT.toast(r.message || '发送失败'); return; }
 
-            const sentMsgId = String((r.data && r.data.msgId) || '');
-            const nowMsg = {
-                msgId: sentMsgId, fromUser: me.userId, toUser: current.userId,
-                contents: '', msgType: isImage ? 'image' : 'video',
-                mediaPath, createTime: localNow(),
-            };
+            const nowMsg = { msgId: String((r.data && r.data.msgId) || ''), fromUser: me.userId, toUser: currentGroup ? currentGroup.groupId : current.userId, contents: '', msgType: isImage ? 'image' : 'video', mediaPath, createTime: localNow(), senderName: me.nickname };
             curList = [...curList, nowMsg];
-            msgs.insertAdjacentHTML('beforeend', msgHtml(nowMsg, false));
+            msgs.insertAdjacentHTML('beforeend', msgHtml(nowMsg, !!currentGroup));
             msgs.scrollTop = msgs.scrollHeight;
-            scheduleWithdrawRefresh(curList);
-            touchPeer(current.userId, current.name, previewOf(nowMsg), nowMsg.createTime);
 
-            try {
-                const chk = await YT.api.get('/api/private_message/select/message', { a: me.userId, b: current.userId });
-                const list = Array.isArray(chk.data) ? chk.data : [];
-                const lastItem = list[list.length - 1];
-                lastChatSig = chatSig(list);
-                if (list.length && !(sentMsgId && String(lastItem.msgId) === sentMsgId)) {
-                    renderMsgs(list, false);
-                    msgs.scrollTop = msgs.scrollHeight;
-                }
-            } catch (e) { }
-            loadInbox();
-        } catch (e) {
-            YT.toast('发送失败：' + e.message);
-        } finally {
-            loading = false;
-            picBtn.disabled = false; videoBtn.disabled = false;
-            ta.focus();
-        }
+            if (currentGroup) {
+                setGroupReadTime(currentGroup.groupId); renderMyGroups();
+            } else {
+                scheduleWithdrawRefresh(curList); touchPeer(current.userId, current.name, previewOf(nowMsg), nowMsg.createTime);
+                try { const chk = await YT.api.get('/api/private_message/select/message', { a: me.userId, b: current.userId }); const list = Array.isArray(chk.data) ? chk.data : []; lastChatSig = chatSig(list); } catch (e) {}
+                loadInbox();
+            }
+        } catch (e) { YT.toast('发送失败：' + e.message); } finally { loading = false; picBtn.disabled = false; videoBtn.disabled = false; ta.focus(); }
     }
 
-    // ---------- 表情包 ----------
-    let emojiCache = null;
-    let emojiLoading = false;
-
+    let emojiCache = null, emojiLoading = false;
     async function loadEmojiPanel() {
         if (emojiLoading) return;
         if (!emojiCache) {
             emojiLoading = true;
-            try {
-                const r = await YT.api.get('/api/private_message/emoji/list');
-                emojiCache = Array.isArray(r.data) ? r.data : [];
-            } catch (e) {
-                emojiPanel.innerHTML = '<div class="pm-empty-emoji">表情加载失败，点击重试</div>';
-                emojiLoading = false;
-                return;
-            }
+            try { const r = await YT.api.get('/api/private_message/emoji/list'); emojiCache = Array.isArray(r.data) ? r.data : []; } catch (e) { emojiPanel.innerHTML = '<div class="pm-empty-emoji">表情加载失败，点击重试</div>'; emojiLoading = false; return; }
             emojiLoading = false;
         }
-        if (!emojiCache.length) {
-            emojiPanel.innerHTML = '<div class="pm-empty-emoji">暂无可用表情</div>';
-            return;
-        }
-        const cells = emojiCache
-            .map(e => ({
-                file: String(YT.pick(e, 'fileName', 'file_name') || ''),
-                name: String(YT.pick(e, 'name') || ''),
-            }))
-            .filter(it => it.file)
-            .map(it => `
-            <button class="pm-emoji" data-emoji="${YT.esc(it.file)}" title="${YT.esc(it.name || it.file)}">
-                <img src="${emojiSrc(it.file)}" alt="${YT.esc(it.name || it.file)}" loading="lazy">
-            </button>`)
-            .join('');
+        if (!emojiCache.length) { emojiPanel.innerHTML = '<div class="pm-empty-emoji">暂无可用表情</div>'; return; }
+        const cells = emojiCache.map(e => ({ file: String(YT.pick(e, 'fileName', 'file_name') || ''), name: String(YT.pick(e, 'name') || '') })).filter(it => it.file).map(it => `<button class="pm-emoji" data-emoji="${YT.esc(it.file)}" title="${YT.esc(it.name || it.file)}"><img src="${emojiSrc(it.file)}" alt="${YT.esc(it.name || it.file)}" loading="lazy"></button>`).join('');
         emojiPanel.innerHTML = `<div class="pm-emoji-cells">${cells}</div>`;
     }
 
     function toggleEmojiPanel(forceHide) {
-        if (currentGroup) return; // 群聊禁用
         const show = !forceHide && emojiPanel.hidden;
         emojiPanel.hidden = !show;
         emojiBtn.classList.toggle('on', show);
@@ -622,96 +478,111 @@ const setGroupUnread = (groupId, count) => {
     }
 
     async function doSendEmoji(fileName) {
-        if (currentGroup) return;
-        if (!current) { YT.toast('请先选择聊天对象'); return; }
+        if (!current && !currentGroup) { YT.toast('请先选择聊天对象或群聊'); return; }
         if (loading) return;
-        loading = true;
-        emojiBtn.disabled = true;
+        loading = true; emojiBtn.disabled = true;
         try {
             let r;
             if (currentGroup) {
-                r = await YT.api.post('/api/private_message/add/group/message', {
-                    groupId: currentGroup.groupId, fromUser: me.userId,
-                    contents: '', msgType: 'emoji', mediaPath: fileName
-                });
+                r = await YT.api.post('/api/private_message/add/group/message', { groupId: currentGroup.groupId, fromUser: me.userId, contents: '', msgType: 'emoji', mediaPath: fileName });
             } else {
-                r = await YT.api.post('/api/private_message/send/emoji', {
-                    fromUser: me.userId, toUser: current.userId, mediaPath: fileName,
-                });
+                r = await YT.api.post('/api/private_message/send/emoji', { fromUser: me.userId, toUser: current.userId, mediaPath: fileName });
             }
             if (!r.success) { YT.toast(r.message || '发送失败'); return; }
 
             toggleEmojiPanel(true);
-            const sentMsgId = String((r.data && r.data.msgId) || '');
-            const nowMsg = {
-                msgId: sentMsgId, fromUser: me.userId, toUser: current.userId,
-                contents: '', msgType: 'emoji', mediaPath: fileName, createTime: localNow(),
-            };
+            const nowMsg = { msgId: String((r.data && r.data.msgId) || ''), fromUser: me.userId, toUser: currentGroup ? currentGroup.groupId : current.userId, contents: '', msgType: 'emoji', mediaPath: fileName, createTime: localNow(), senderName: me.nickname };
             curList = [...curList, nowMsg];
-            msgs.insertAdjacentHTML('beforeend', msgHtml(nowMsg, false));
+            msgs.insertAdjacentHTML('beforeend', msgHtml(nowMsg, !!currentGroup));
             msgs.scrollTop = msgs.scrollHeight;
-            scheduleWithdrawRefresh(curList);
-            touchPeer(current.userId, current.name, previewOf(nowMsg), nowMsg.createTime);
-            loadInbox();
-        } catch (e) {
-            YT.toast('发送失败：' + e.message);
-        } finally {
-            loading = false;
-            emojiBtn.disabled = false;
-            ta.focus();
-        }
+
+            if (currentGroup) {
+                setGroupReadTime(currentGroup.groupId); renderMyGroups();
+            } else {
+                scheduleWithdrawRefresh(curList); touchPeer(current.userId, current.name, previewOf(nowMsg), nowMsg.createTime); loadInbox();
+            }
+        } catch (e) { YT.toast('发送失败：' + e.message); } finally { loading = false; emojiBtn.disabled = false; ta.focus(); }
     }
 
-    // ---------- 群聊逻辑 ----------
     async function openGroupChat(groupId, groupName) {
-        // 退出私聊状态
         current = null;
         currentGroup = { groupId, groupName };
-        
-        //解锁输入区
         ta.disabled = false;
         ta.placeholder = '发送群消息…（Enter 发送）';
         sendBtn.disabled = false;
         emojiBtn.disabled = false;
         picBtn.disabled = false;
         videoBtn.disabled = false;
-
-        toggleEmojiPanel(true); // 强制收起表情面板
-
-        renderHead();
-        renderPeers();
-        renderMyGroups();
+        toggleEmojiPanel(true);
+        renderHead(); renderPeers(); renderMyGroups();
 
         msgs.innerHTML = '<div class="empty">加载群聊消息…</div>';
         try {
             const r = await YT.api.get('/api/private_message/select/group/message', { groupId });
             const list = Array.isArray(r.data) ? r.data : [];
             const normList = list.map(m => ({
-                msgId: YT.pick(m, 'msg_id'),
-                fromUser: YT.pick(m, 'from_user'),
-                toUser: groupId,
-                contents: YT.pick(m, 'contents'),
-                msgType: YT.pick(m, 'msg_type') || 'text',
-                mediaPath: YT.pick(m, 'media_path'),
-                createTime: YT.pick(m, 'create_time'),
+                msgId: YT.pick(m, 'msg_id'), fromUser: YT.pick(m, 'from_user'), toUser: groupId,
+                contents: YT.pick(m, 'contents'), msgType: YT.pick(m, 'msg_type') || 'text',
+                mediaPath: YT.pick(m, 'media_path'), createTime: YT.pick(m, 'create_time'),
                 senderName: YT.pick(m, 'senderName', 'sender_name')
             }));
-
-            //进群了，标记为已读（把最新一条的时间存为已读时间）
-            setGroupReadTime(groupId);
-            renderMyGroups(); // 刷新左侧红点
+            setGroupReadTime(groupId); renderMyGroups();
             if (!normList.length) msgs.innerHTML = '';
             renderMsgs(normList, true);
-        } catch (e) {
-            msgs.innerHTML = `<div class="empty">群聊加载失败：${YT.esc(e.message)}</div>`;
-        }
+            lastGroupChatSig = chatSig(normList)
+        } catch (e) { msgs.innerHTML = `<div class="empty">群聊加载失败：${YT.esc(e.message)}</div>`; }
     }
 
     // ---------- 轮询 ----------
     async function pollOnce() {
         if (loading) return;
-        if (currentGroup) return; // 群聊模式下跳过私信轮询
 
+        // ==========================================
+        // 👇 新增：群聊模式下的实时消息刷新（每秒查一次）
+        // ==========================================
+        if (currentGroup) {
+            try {
+                const peerId = currentGroup.groupId;
+                const r = await YT.api.get('/api/private_message/select/group/message', { groupId: peerId });
+                const list = Array.isArray(r.data) ? r.data : [];
+
+                // 计算群聊消息指纹
+                const sig = chatSig(list);
+                if (sig !== lastGroupChatSig) {
+                    lastGroupChatSig = sig;
+
+                    // 把后端返回的数据格式化
+                    const normList = list.map(m => ({
+                        msgId: YT.pick(m, 'msg_id'),
+                        fromUser: YT.pick(m, 'from_user'),
+                        toUser: peerId,
+                        contents: YT.pick(m, 'contents'),
+                        msgType: YT.pick(m, 'msg_type') || 'text',
+                        mediaPath: YT.pick(m, 'media_path'),
+                        createTime: YT.pick(m, 'create_time'),
+                        senderName: YT.pick(m, 'senderName', 'sender_name')
+                    }));
+
+                    // 判断用户是否在翻历史（如果在底部，就自动跟随最新消息；不在底部就保持不动）
+                    const atBottom = msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 40;
+                    const keepTop = msgs.scrollTop;
+
+                    renderMsgs(normList, true);
+
+                    if (!atBottom) msgs.scrollTop = keepTop;
+
+                    // 收到新消息了，顺便把红点清除，并更新本地已读时间
+                    setGroupReadTime(peerId);
+                    renderMyGroups();
+                }
+            } catch (e) { /* 忽略单次请求失败 */ }
+
+            // 群聊模式下，直接结束本轮轮询，不去查私信了
+            return;
+        }
+        // ==========================================
+
+        // 👇 下面是原本的私信轮询逻辑（保持不变）
         const peerId = current ? current.userId : null;
         const [inboxR, unreadR, chatR] = await Promise.all([
             YT.api.get('/api/private_message/select/inbox', { me: me.userId }).catch(() => null),
@@ -761,15 +632,11 @@ const setGroupUnread = (groupId, count) => {
             }
         }
     }
-
     function schedulePoll() {
         if (document.hidden) { pollTimer = null; return; }
         pollTimer = setTimeout(async () => {
             if (!pollBusy && !document.hidden) {
-                pollBusy = true;
-                try { await pollOnce(); }
-                catch (e) { }
-                finally { pollBusy = false; }
+                pollBusy = true; try { await pollOnce(); } catch (e) { } finally { pollBusy = false; }
             }
             schedulePoll();
         }, POLL_MS);
@@ -778,46 +645,75 @@ const setGroupUnread = (groupId, count) => {
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
             if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
-        } else if (!pollTimer) {
-            pollOnce().catch(() => { });
-            schedulePoll();
-        }
+        } else if (!pollTimer) { pollOnce().catch(() => { }); schedulePoll(); }
     });
 
-    // ---------- 撤回 / 单方面删除 ----------
     async function doWithdraw(msgId, node) {
         if (loading) return;
         try {
-            const r = await YT.api.post('/api/private_message/withdraw/private/message', {
-                msgId, userId: me.userId, timeWithdraw: WITHDRAW_LIMIT_S,
-            });
+            const r = await YT.api.post('/api/private_message/withdraw/private/message', { msgId, userId: me.userId, timeWithdraw: WITHDRAW_LIMIT_S });
             if (!r.success) { YT.toast(r.message || '撤回失败'); return; }
             const m = curList.find(x => String(x.msgId) === msgId);
             if (m) m.isWithdrawn = 1;
             if (node && m) node.outerHTML = msgHtml({ ...m, contents: '' }, false);
             lastChatSig = chatSig(curList);
-            YT.toast(r.message || '已撤回');
-            loadInbox();
-        } catch (e) {
-            YT.toast('撤回失败：' + e.message);
-        }
+            YT.toast(r.message || '已撤回'); loadInbox();
+        } catch (e) { YT.toast('撤回失败：' + e.message); }
     }
 
     async function doDeleteFromMySide(msgId, node) {
         if (loading) return;
         try {
-            const r = await YT.api.post('/api/private_message/delete/private/message', {
-                msgId, userId: me.userId,
-            });
+            const r = await YT.api.post('/api/private_message/delete/private/message', { msgId, userId: me.userId });
             if (!r.success) { YT.toast(r.message || '删除失败'); return; }
             curList = curList.filter(x => String(x.msgId) !== msgId);
             if (node) node.remove();
             if (!curList.length) msgs.innerHTML = '<div class="empty">还没有消息，发第一条吧</div>';
-            YT.toast(r.message || '已从我这边删除（对方仍可见）');
-            loadInbox();
-        } catch (e) {
-            YT.toast('删除失败：' + e.message);
+            YT.toast(r.message || '已从我这边删除（对方仍可见）'); loadInbox();
+        } catch (e) { YT.toast('删除失败：' + e.message); }
+    }
+
+    // ---------- 群聊新消息静默检测 ----------
+    let groupPollTimer = null;
+    async function pollGroupUnread() {
+        if (document.hidden || !me) return;
+        const myGroups = getMyGroups();
+        if (!myGroups.length) return;
+        let hasNewUnread = false, newMsgSender = '';
+
+        for (const g of myGroups) {
+            try {
+                const r = await YT.api.get('/api/private_message/select/group/message', { groupId: g.groupId });
+                const list = Array.isArray(r.data) ? r.data : [];
+                if (!list.length) continue;
+                const lastMsg = list[list.length - 1];
+                if (String(lastMsg.from_user) !== me.userId) {
+                    const timeStr = String(YT.pick(lastMsg, 'create_time')).replace(' ', 'T');
+                    const lastMsgTime = new Date(timeStr).getTime();
+                    const readTime = getGroupReadTime(g.groupId);
+                    if (lastMsgTime > readTime) {
+                        if (currentGroup && currentGroup.groupId === g.groupId) {
+                            setGroupReadTime(g.groupId);
+                        } else {
+                            setGroupUnread(g.groupId, 1);
+                            hasNewUnread = true;
+                            newMsgSender = YT.pick(lastMsg, 'senderName', 'sender_name') || '有人';
+                        }
+                    }
+                }
+            } catch (e) { }
         }
+        if (hasNewUnread) {
+            renderMyGroups();
+            YT.toast(`群聊有新消息：${newMsgSender}`);
+        }
+    }
+
+    function scheduleGroupPoll() {
+        if (groupPollTimer) clearInterval(groupPollTimer);
+        groupPollTimer = setInterval(() => {
+            if (!document.hidden) pollGroupUnread();
+        }, 5000);
     }
 
     // ---------- 事件绑定 ----------
@@ -833,12 +729,13 @@ const setGroupUnread = (groupId, count) => {
     });
     sendBtn.addEventListener('click', doSend);
 
-    picBtn.addEventListener('click', () => { if(currentGroup) return; picInput.value = ''; picInput.click(); });
-    videoBtn.addEventListener('click', () => { if(currentGroup) return; videoInput.value = ''; videoInput.click(); });
+    // 允许群聊发媒体
+    picBtn.addEventListener('click', () => { picInput.value = ''; picInput.click(); });
+    videoBtn.addEventListener('click', () => { videoInput.value = ''; videoInput.click(); });
     picInput.addEventListener('change', () => { const f = picInput.files[0]; picInput.value = ''; if (f) sendMedia(f); });
     videoInput.addEventListener('change', () => { const f = videoInput.files[0]; videoInput.value = ''; if (f) sendMedia(f); });
 
-    emojiBtn.addEventListener('click', () => { if(currentGroup) return; toggleEmojiPanel(); });
+    emojiBtn.addEventListener('click', () => { toggleEmojiPanel(); });
     emojiPanel.addEventListener('click', e => {
         if (e.target.closest('.pm-empty-emoji')) { loadEmojiPanel(); return; }
         const cell = e.target.closest('[data-emoji]');
@@ -852,13 +749,10 @@ const setGroupUnread = (groupId, count) => {
     peersBox.addEventListener('click', e => {
         const rm = e.target.closest('[data-remove]');
         if (rm) {
-            e.stopPropagation();
-            const id = rm.dataset.remove;
-            const arr = getHidden();
+            e.stopPropagation(); const id = rm.dataset.remove; const arr = getHidden();
             if (!arr.includes(id)) { arr.push(id); setHidden(arr); }
             if (current && current.userId === id) { current = null; renderHead(); msgs.innerHTML = '<div class="empty">还没有打开任何对话</div>'; }
-            renderPeers();
-            return;
+            renderPeers(); return;
         }
         const row = e.target.closest('[data-peer]');
         if (row) {
@@ -881,146 +775,53 @@ const setGroupUnread = (groupId, count) => {
             const modal = document.getElementById('group-modal');
             const btnCancel = document.getElementById('cancel-group');
             const btnSubmit = document.getElementById('submit-group');
-
             if (!btnOpen || !modal) return;
-
             btnOpen.addEventListener('click', () => { modal.style.display = 'flex'; });
             btnCancel.addEventListener('click', () => { modal.style.display = 'none'; });
-
             btnSubmit.addEventListener('click', async () => {
                 const groupNameInput = document.getElementById('new-group-name');
                 const membersInput = document.getElementById('new-group-members');
                 const groupName = groupNameInput.value.trim();
                 const raw = membersInput.value.split(',').map(s => s.trim()).filter(Boolean);
-
                 if (!groupName) return YT.toast('请输入群名称');
                 if (raw.length < 2) return YT.toast('至少需要拉 2 个好友才能建群');
-
                 const ids = [...new Set(raw)].filter(id => {
                     if (id.length !== 13) { YT.toast(`用户ID「${id}」应为13位`); return false; }
                     if (id === me.userId) { YT.toast('不能把自己作为成员填入'); return false; }
                     return true;
                 });
                 if (ids.length < 2) return YT.toast('有效成员不足 2 人');
-
-                btnSubmit.disabled = true;
-                btnSubmit.innerText = '创建中...';
-
-                const groupId = YT.randId();
-                let groupCreated = false;
-                const addedMembers = [];
-
+                btnSubmit.disabled = true; btnSubmit.innerText = '创建中...';
+                const groupId = YT.randId(); let groupCreated = false; const addedMembers = [];
                 try {
-                    const r1 = await YT.api.post('/api/private_message/establish/group', {
-                        groupId, groupName, ownerId: me.userId
-                    });
+                    const r1 = await YT.api.post('/api/private_message/establish/group', { groupId, groupName, ownerId: me.userId });
                     if (!r1.success) throw new Error(r1.message || '建群失败');
                     groupCreated = true;
-
                     for (let uid of ids) {
                         const r2 = await YT.api.post('/api/private_message/add/member', { groupId, userId: uid });
                         if (r2.success) addedMembers.push(uid);
                     }
-
                     if (addedMembers.length < 2) throw new Error('有效拉入人数不足 2 人');
-
-                    const groups = getMyGroups();
-                    groups.unshift({ groupId, groupName, createTime: localNow() });
-                    setMyGroups(groups);
-                    renderMyGroups();
-                    //直接重新拉服务器数据，保证拉的人也对齐
                     await syncMyGroups();
-                    YT.toast('建群成功！');
-                    modal.style.display = 'none';
-                    groupNameInput.value = '';
-                    membersInput.value = '';
-                } catch (err) {
-                    YT.toast('建群失败：' + err.message);
-                    if (groupCreated) console.warn('群已建但未满人，群号：', groupId);
-                } finally {
-                    btnSubmit.disabled = false;
-                    btnSubmit.innerText = '创建';
-                }
+                    YT.toast('建群成功！'); modal.style.display = 'none'; groupNameInput.value = ''; membersInput.value = '';
+                } catch (err) { YT.toast('建群失败：' + err.message); if (groupCreated) console.warn('群已建但未满人，群号：', groupId); } finally { btnSubmit.disabled = false; btnSubmit.innerText = '创建'; }
             });
-
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) modal.style.display = 'none';
-            });
+            modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
         });
     })();
-
-    // ---------- 群聊辅助函数（请确保放在文件靠前的位置，和 getMyGroups 放一起） ----------
-    const getGroupReadTime = (groupId) => Number(localStorage.getItem('yt_group_read_' + me.userId + '_' + groupId) || 0);
-    const setGroupReadTime = (groupId) => {
-        localStorage.setItem('yt_group_read_' + me.userId + '_' + groupId, Date.now());
-        localStorage.removeItem('yt_group_unread_' + me.userId + '_' + groupId);
-    };
-    const getGroupUnread = (groupId) => Number(localStorage.getItem('yt_group_unread_' + me.userId + '_' + groupId) || 0);
-    const setGroupUnread = (groupId, count) => {
-        localStorage.setItem('yt_group_unread_' + me.userId + '_' + groupId, count);
-    };
-
-    // ---------- 群聊新消息静默检测 ----------
-    let groupPollTimer = null;
-    async function pollGroupUnread() {
-        if (document.hidden || !me) return;
-
-        const myGroups = getMyGroups();
-        if (!myGroups.length) return;
-
-        let hasNewUnread = false;
-        let newMsgSender = '';
-
-        // 注意：为了减少请求，这里按顺序拉取，实际项目建议改成 Promise.all
-        for (const g of myGroups) {
-            try {
-                const r = await YT.api.get('/api/private_message/select/group/message', { groupId: g.groupId });
-                const list = Array.isArray(r.data) ? r.data : [];
-                if (!list.length) continue;
-
-                const lastMsg = list[list.length - 1];
-                if (String(lastMsg.from_user) !== me.userId) {
-                    const lastMsgTime = new Date(String(YT.pick(lastMsg, 'create_time')).replace(' ', 'T')).getTime();
-                    const readTime = getGroupReadTime(g.groupId);
-
-                    if (lastMsgTime > readTime) {
-                        // 如果当前正好打开的是这个群，直接自动已读，不提示
-                        if (currentGroup && currentGroup.groupId === g.groupId) {
-                            setGroupReadTime(g.groupId);
-                        } else {
-                            setGroupUnread(g.groupId, 1); // 为了简单，这里未读数固定设为 1
-                            hasNewUnread = true;
-                            newMsgSender = YT.pick(lastMsg, 'senderName', 'sender_name') || '有人';
-                        }
-                    }
-                }
-            } catch (e) { /* 忽略单个群的请求失败 */ }
-        }
-
-        if (hasNewUnread) {
-            renderMyGroups(); // 刷新左侧红点
-            YT.toast(`群聊有新消息：${newMsgSender} 发来一条消息`);
-        }
-    }
-
-    function scheduleGroupPoll() {
-        if (groupPollTimer) clearInterval(groupPollTimer);
-        groupPollTimer = setInterval(() => {
-            if (!document.hidden) pollGroupUnread();
-        }, 5000);
-    }
 
     // ---------- 启动 ----------
     renderPeers();
     renderMyGroups();
 
     (async () => {
-        await Promise.all([loadInbox(), refreshUnread()]);
-        await syncMyGroups();
+        await Promise.all([loadInbox(), refreshUnread(), syncMyGroups()]);
         const qs = new URLSearchParams(location.search);
         if (qs.get('peer')) {
             await openChat(qs.get('peer'), qs.get('name') || '');
         }
-        schedulePoll();
+        schedulePoll();       // 启动私信轮询
+        scheduleGroupPoll();  // 启动群聊轮询
     })();
+
 })();
