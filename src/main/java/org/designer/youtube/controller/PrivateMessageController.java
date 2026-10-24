@@ -132,7 +132,9 @@ public class PrivateMessageController {
     public Result<Map<String, Object>> removeGroupMember(@RequestParam String groupId,
                                                          @RequestParam String userId,
                                                          @RequestParam String groupOwner) {
-        return privateMessageService.removeGroupMember(groupId, userId, groupOwner);
+        RandomlyCreateID createGroupId=new RandomlyCreateID();
+        String id=createGroupId.createId();
+        return privateMessageService.removeGroupMember(id, userId, groupOwner);
     }
     //查看群聊消息
     @GetMapping("/select/group/message")
