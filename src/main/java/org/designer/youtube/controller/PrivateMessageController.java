@@ -143,4 +143,11 @@ public class PrivateMessageController {
     public Result<List<Map<String,Object>>> selectGroupMessage(@RequestParam String groupId){
         return Result.success(privateMessageService.selectGroupMessage(groupId));
     }
+    //向群聊中发消息
+    public Result<Map<String,Object>> sendMessageToGroup(String groupId,
+                                                         String fromUser,String contents,String msgType,String mediaPath){
+        String msgId=createGroupId.createId();
+        return privateMessageService.sendMessageToGroup(msgId,groupId,fromUser,contents,msgType,mediaPath);
+    }
+
 }
