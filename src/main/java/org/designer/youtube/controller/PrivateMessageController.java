@@ -152,7 +152,8 @@ public class PrivateMessageController {
             @RequestParam(required = false) String contents,
             @RequestParam(defaultValue = "text") String msgType,
             @RequestParam(required = false) String mediaPath) {
-        String msgId = createGroupId.createId();
+        // 如果前端没传，才自动生成
+        if (msgId == null || msgId.isBlank()) msgId = createGroupId.createId();
         return privateMessageService.sendMessageToGroup(msgId, groupId, fromUser, contents, msgType, mediaPath);
     }
     // 查询我加入的群（前端私信页加载时调用）
