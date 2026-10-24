@@ -2,6 +2,26 @@
  * 约束：后端代码不许动。
  * 由于后端无“发群消息”和“查询我的群”接口，群聊列表使用 localStorage，群聊输入框自动锁定。
  */
+
+// 获取群聊已读时间戳
+const getGroupReadTime = (groupId) => {
+    return Number(localStorage.getItem('yt_group_read_' + me.userId + '_' + groupId) || 0);
+};
+// 更新群聊已读时间戳为当前时间
+const setGroupReadTime = (groupId) => {
+    localStorage.setItem('yt_group_read_' + me.userId + '_' + groupId, Date.now());
+    // 已读后清除未读数
+    localStorage.removeItem('yt_group_unread_' + me.userId + '_' + groupId);
+};
+// 获取群聊未读数
+const getGroupUnread = (groupId) => {
+    return Number(localStorage.getItem('yt_group_unread_' + me.userId + '_' + groupId) || 0);
+};
+// 设置群聊未读数
+const setGroupUnread = (groupId, count) => {
+    localStorage.setItem('yt_group_unread_' + me.userId + '_' + groupId, count);
+};
+
 (async function () {
     const me = YT.user();
     if (!me) {
