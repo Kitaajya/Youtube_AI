@@ -6,8 +6,10 @@ import org.designer.youtube.common.Result;
 import org.designer.youtube.entity.PrivateMessage;
 import org.designer.youtube.service.PrivateMessageService;
 import org.designer.youtube.service.VideoFileService;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import reactor.core.publisher.Flux;
 
 import java.util.List;
 import java.util.Map;
@@ -37,7 +39,6 @@ import java.util.Map;
  *
  * **/
 
-
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/api/private_message")
@@ -45,6 +46,7 @@ public class PrivateMessageController {
     private final PrivateMessageService privateMessageService;
     private final VideoFileService videoFileService;
     private final RandomlyCreateID createGroupId;
+    private final ChatClient client;
     // 展示我和某人的完整对话，双向，按时间正序
     @GetMapping("/select/message")
     public Result<List<PrivateMessage>> selectOurMessage(@RequestParam String a, @RequestParam String b) {
@@ -132,11 +134,10 @@ public class PrivateMessageController {
 
     //群主踢人
     @PostMapping("/remove/member")
-    public Result<Map<String, Object>> removeGroupMember(@RequestParam String userId,
+    public Result<Map<String, Object>> removeGroupMember(@RequestParam String groupId,
+                                                         @RequestParam String userId,
                                                          @RequestParam String groupOwner) {
-
-        String newGroupId=createGroupId.createId();
-        return privateMessageService.removeGroupMember(newGroupId, userId, groupOwner);
+        return privateMessageService.removeGroupMember(groupId, userId, groupOwner);
     }
     //查看群聊消息
     @GetMapping("/select/group/message")
@@ -159,4 +160,10 @@ public class PrivateMessageController {
     public Result<List<Map<String, Object>>> selectMyGroups(@RequestParam String me) {
         return Result.success(privateMessageService.selectMyGroups(me));
     }
+    //把DeepSeek插入群聊里，使之总结聊天内容、与人聊天。先查询聊天记录数据库
+    @GetMapping("/select/group/message/deepseek")
+    public Flux<String> selectGroupMessageForDeepSeek(@RequestParam String question,@RequestParam String groupId){
+        return privateMessageService.selectGroupMessageForDeepSeek(this.client,groupId,question);
+    }
+
 }

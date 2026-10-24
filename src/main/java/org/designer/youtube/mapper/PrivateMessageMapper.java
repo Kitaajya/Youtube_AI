@@ -200,16 +200,5 @@ public interface PrivateMessageMapper {
     WHERE gm.user_id = #{me}
     ORDER BY g.create_time DESC
     """)
-    //把DeepSeek插入群聊里，使之总结聊天内容、与人聊天。先查询聊天记录数据库
-    //deepseek查看群聊消息
-    @Select("""
-    SELECT gm.msg_id, gm.group_id, gm.from_user, gm.contents, gm.msg_type, gm.media_path,
-           DATE_FORMAT(gm.create_time, '%Y-%m-%d %H:%i:%s') AS create_time,
-           u.nickname AS senderName, u.avatar AS senderAvatar
-    FROM group_message gm
-    LEFT JOIN user_information u ON gm.from_user = u.user_id
-    WHERE gm.group_id = #{groupId}
-    ORDER BY gm.create_time ASC
-    """)
-    List<Map<String,Object>> selectGroupMessageForDeepSeek(@Param("groupId") String groupId);
+    List<Map<String, Object>> selectMyGroups(@Param("me") String me);
 }

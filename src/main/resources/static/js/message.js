@@ -540,18 +540,20 @@
         // ==========================================
         // 👇 新增：群聊模式下的实时消息刷新（每秒查一次）
         // ==========================================
+        // ==========================================
+        // 群聊模式下的实时消息刷新（每秒查一次）
+        // ==========================================
         if (currentGroup) {
             try {
                 const peerId = currentGroup.groupId;
                 const r = await YT.api.get('/api/private_message/select/group/message', { groupId: peerId });
                 const list = Array.isArray(r.data) ? r.data : [];
 
-                // 计算群聊消息指纹
                 const sig = chatSig(list);
                 if (sig !== lastGroupChatSig) {
+                    const oldLastMsg = curList.length ? curList[curList.length - 1] : null;
                     lastGroupChatSig = sig;
 
-                    // 把后端返回的数据格式化
                     const normList = list.map(m => ({
                         msgId: YT.pick(m, 'msg_id'),
                         fromUser: YT.pick(m, 'from_user'),
@@ -563,21 +565,29 @@
                         senderName: YT.pick(m, 'senderName', 'sender_name')
                     }));
 
-                    // 判断用户是否在翻历史（如果在底部，就自动跟随最新消息；不在底部就保持不动）
                     const atBottom = msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 40;
                     const keepTop = msgs.scrollTop;
-
                     renderMsgs(normList, true);
-
                     if (!atBottom) msgs.scrollTop = keepTop;
 
-                    // 收到新消息了，顺便把红点清除，并更新本地已读时间
                     setGroupReadTime(peerId);
                     renderMyGroups();
-                }
-            } catch (e) { /* 忽略单次请求失败 */ }
 
-            // 群聊模式下，直接结束本轮轮询，不去查私信了
+                    //新增：检测是否有人呼叫 AI
+                    const lastMsg = normList[normList.length - 1];
+                    if (lastMsg && (!oldLastMsg || String(lastMsg.msgId) !== String(oldLastMsg.msgId))) {
+                        // 如果最后一条消息不是自己发的，且包含触发词
+                        if (String(lastMsg.fromUser) !== me.userId &&
+                            (lastMsg.contents.includes('问问DeepSeek') ||
+                                lastMsg.contents.includes('问问AI') ||
+                                lastMsg.contents.includes('问问人工智能'))) {
+
+                            // 触发 AI 自动回复
+                            triggerGroupAi(lastMsg);
+                        }
+                    }
+                }
+            } catch (e) { }
             return;
         }
         // ==========================================
@@ -823,5 +833,58 @@
         schedulePoll();       // 启动私信轮询
         scheduleGroupPoll();  // 启动群聊轮询
     })();
+    // ---------- AI 自动回复逻辑 ----------
+    let aiBusy = false; // 防止 AI 连发
 
+    async function triggerGroupAi(triggerMsg) {
+        if (aiBusy) return;
+        aiBusy = true;
+        loading = true;//防止因为1秒重绘而使得AI的message被吞掉
+        // 在聊天框底部插入 AI 的气泡
+        const aiMsgDiv = document.createElement('div');
+        aiMsgDiv.className = 'pm-group-msg-wrap';
+        aiMsgDiv.innerHTML = `
+            <div class="pm-group-avatar"><span class="avatar" style="background:#3ea6ff; color:#fff;">AI</span></div>
+            <div class="pm-group-msg-body">
+                <span class="pm-group-name">DeepSeek 助手</span>
+                <div class="pm-msg"><div class="bubble" style="background:var(--surface-2); border: 1px dashed var(--link); color:var(--text-primary);">正在阅读群聊...</div></div>
+            </div>`;
+        msgs.appendChild(aiMsgDiv);
+        msgs.scrollTop = msgs.scrollHeight;
+
+        const bubble = aiMsgDiv.querySelector('.bubble');
+
+        try {
+            // 把触发 AI 的那句话，作为问题发给 AI
+            const question = `${triggerMsg.senderName} 说：“${triggerMsg.contents}”。请给出你的回答。`;
+
+            const response = await fetch(`/api/private_message/select/group/message/deepseek?groupId=${currentGroup.groupId}&question=${encodeURIComponent(question)}`);
+            if (!response.ok) throw new Error('网络请求失败');
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let isFirstChunk = true;
+            let fullText = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const chunk = decoder.decode(value, { stream: true });
+                if (isFirstChunk) {
+                    bubble.innerText = '';
+                    isFirstChunk = false;
+                }
+                fullText += chunk;
+                bubble.innerText = fullText;
+                msgs.scrollTop = msgs.scrollHeight;
+            }
+        } catch (e) {
+            bubble.innerText = 'AI 出错了：' + e.message;
+        } finally {
+            setTimeout(() => {
+                aiBusy = false;
+                loading = false; //  解除锁定
+            }, 5000);
+        }
+    }
 })();
