@@ -433,7 +433,9 @@ const setGroupUnread = (groupId, count) => {
                 curList = [...curList, nowMsg];
                 msgs.insertAdjacentHTML('beforeend', msgHtml(nowMsg, true));
                 msgs.scrollTop = msgs.scrollHeight;
-
+                //自己发完消息也算已读
+                setGroupReadTime(currentGroup.groupId);
+                renderMyGroups();
             } catch (e) {
                 YT.toast('发送失败：' + e.message);
             } finally {
