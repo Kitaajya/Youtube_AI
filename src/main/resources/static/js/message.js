@@ -535,7 +535,7 @@
 
     // ---------- 轮询 ----------
     async function pollOnce() {
-        if (loading) return;
+        if (loading || aiLock) return;
 
         // ==========================================
         // 👇 新增：群聊模式下的实时消息刷新（每秒查一次）
