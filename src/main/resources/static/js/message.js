@@ -373,7 +373,60 @@
     }
 
     async function doSend() {
-        if (currentGroup) return; // 群聊不能发
+        // ==========================================
+        //  群聊发送逻辑（分流处理）
+        // ==========================================
+        if (currentGroup) {
+            const content = ta.value.trim();
+            if (!content) { YT.toast('消息不能为空'); return; }
+            if (loading) return;
+
+            sendBtn.disabled = true;
+            loading = true;
+            try {
+                // 调用你后端写好的群聊发送接口
+                const r = await YT.api.post('/api/private_message/add/group/message', {
+                    groupId: currentGroup.groupId,
+                    fromUser: me.userId,
+                    contents: content,
+                    msgType: 'text'
+                });
+
+                if (!r.success) {
+                    YT.toast(r.message || '发送失败');
+                    return;
+                }
+
+                ta.value = '';
+                const sentMsgId = String((r.data && r.data.msgId) || '');
+                const nowMsg = {
+                    msgId: sentMsgId,
+                    fromUser: me.userId,
+                    toUser: currentGroup.groupId,
+                    contents: content,
+                    msgType: 'text',
+                    createTime: localNow(),
+                    senderName: me.nickname
+                };
+
+                // 乐观上屏（立刻显示在屏幕上）
+                curList = [...curList, nowMsg];
+                msgs.insertAdjacentHTML('beforeend', msgHtml(nowMsg, true));
+                msgs.scrollTop = msgs.scrollHeight;
+
+            } catch (e) {
+                YT.toast('发送失败：' + e.message);
+            } finally {
+                loading = false;
+                sendBtn.disabled = false;
+                ta.focus();
+            }
+            return; // 群聊发送完毕，拦截后续私聊逻辑
+        }
+
+        // ==========================================
+        //   私聊发送逻辑（原本的代码）
+        // ==========================================
         if (!current) { YT.toast('请先选择聊天对象'); return; }
         const content = ta.value.trim();
         if (!content) { YT.toast('消息不能为空'); return; }
