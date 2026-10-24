@@ -146,8 +146,11 @@ public class PrivateMessageController {
     }
     //向群聊中发消息
     @PostMapping("/add/group/message")
-    public Result<Map<String,Object>> sendMessageToGroup(String groupId,
-                                                         String fromUser,String contents,String msgType,String mediaPath){
+    public Result<Map<String,Object>> sendMessageToGroup(@RequestParam String groupId,
+                                                         @RequestParam String fromUser,
+                                                         @RequestParam String contents,
+                                                         @RequestParam String msgType,
+                                                         @RequestParam String mediaPath){
         String msgId=createGroupId.createId();
         return privateMessageService.sendMessageToGroup(msgId,groupId,fromUser,contents,msgType,mediaPath);
     }
