@@ -168,6 +168,49 @@
             bodyHtml = `<div class="bubble">${YT.esc(m.contents)}</div>`;
         }
 
+        // 撤回/删除操作
+        let ops = '';
+        if (mine && !isGroup && !withdrawn) {
+            const created = new Date(String(m.createTime).replace(' ', 'T')).getTime();
+            const fresh = !isNaN(created) && (Date.now() - created) / 1000 <= WITHDRAW_LIMIT_S;
+            ops = '<div class="m-ops">'
+                + (fresh ? `<button class="m-op" data-withdraw="${YT.esc(msgId)}">撤回</button>` : '')
+                + `<button class="m-op" data-del="${YT.esc(msgId)}">删除</button>`
+                + '</div>';
+        }
+
+        // ==========================================
+        // 群聊样式（带头像和名字）
+        // ==========================================
+        if (isGroup) {
+            const avatarHtml = `<div class="pm-group-avatar" onclick="location.href='profile.html?userId=${YT.esc(m.fromUser)}&name=${encodeURIComponent(who)}'" title="查看 ${YT.esc(who)} 的主页">
+                <span class="avatar">${YT.esc(who.slice(0, 1).toUpperCase())}</span>
+            </div>`;
+
+            return `
+            <div class="pm-group-msg-wrap ${mine ? 'me' : ''}" data-msg-id="${YT.esc(msgId)}">
+                ${avatarHtml}
+                <div class="pm-group-msg-body">
+                    <span class="pm-group-name">${YT.esc(who)}</span>
+                    <div class="pm-msg ${mine ? 'me' : ''}" style="align-self: auto;">
+                        ${bodyHtml}
+                        <span class="m-time">${YT.esc(time)}</span>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        // ==========================================
+        // 私聊样式（保持原样）
+        // ==========================================
+        if (withdrawn) {
+            return `
+            <div class="pm-msg withdrawn ${mine ? 'me' : ''}" data-msg-id="${YT.esc(msgId)}">
+                <div class="bubble">${mine ? '你撤回了一条消息' : '对方撤回了一条消息'}</div>
+                ${mine ? `<div class="m-ops"><button class="m-op" data-del="${YT.esc(msgId)}">删除</button></div>` : ''}
+            </div>`;
+        }
+
         return `
             <div class="pm-msg ${mine ? 'me' : ''}" data-msg-id="${YT.esc(msgId)}">
                 ${bodyHtml}
