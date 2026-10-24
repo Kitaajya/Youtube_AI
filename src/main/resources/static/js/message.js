@@ -298,7 +298,7 @@ const setGroupUnread = (groupId, count) => {
     const POLL_MS = 1000;
     let pollTimer = null, pollBusy = false;
     let lastInboxSig = '', lastChatSig = '', lastUnread = -1;
-
+    let lastGroupChatSig = '';
     function inboxSig(rows) {
         return rows.map(r => [
             YT.pick(r, 'peerId', 'peer_id'), YT.pick(r, 'unread'),
