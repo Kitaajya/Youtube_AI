@@ -628,9 +628,17 @@ const setGroupUnread = (groupId, count) => {
         loading = true;
         emojiBtn.disabled = true;
         try {
-            const r = await YT.api.post('/api/private_message/send/emoji', {
-                fromUser: me.userId, toUser: current.userId, mediaPath: fileName,
-            });
+            let r;
+            if (currentGroup) {
+                r = await YT.api.post('/api/private_message/add/group/message', {
+                    groupId: currentGroup.groupId, fromUser: me.userId,
+                    contents: '', msgType: 'emoji', mediaPath: fileName
+                });
+            } else {
+                r = await YT.api.post('/api/private_message/send/emoji', {
+                    fromUser: me.userId, toUser: current.userId, mediaPath: fileName,
+                });
+            }
             if (!r.success) { YT.toast(r.message || '发送失败'); return; }
 
             toggleEmojiPanel(true);
