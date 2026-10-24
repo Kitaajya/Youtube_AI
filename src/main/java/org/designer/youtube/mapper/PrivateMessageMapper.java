@@ -188,4 +188,18 @@ public interface PrivateMessageMapper {
             @Param("msgType") String msgType,
             @Param("mediaPath") String mediaPath
     );
+    //查看我们的群聊
+    //查询我加入的所有群（根据 group_member 表联查 chat_group）
+    @Select("""
+    SELECT g.group_id    AS groupId, 
+           g.group_name  AS groupName, 
+           g.owner_id    AS ownerId,
+           DATE_FORMAT(g.create_time, '%Y-%m-%d %H:%i:%S') AS createTime
+    FROM chat_group g
+    INNER JOIN group_member gm ON g.group_id = gm.group_id
+    WHERE gm.user_id = #{me}
+    ORDER BY g.create_time DESC
+    """)
+    List<Map<String, Object>> selectMyGroups(@Param("me") String me);
+
 }
