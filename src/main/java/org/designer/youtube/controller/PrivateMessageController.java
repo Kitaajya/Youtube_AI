@@ -154,5 +154,9 @@ public class PrivateMessageController {
         String msgId=createGroupId.createId();
         return privateMessageService.sendMessageToGroup(msgId,groupId,fromUser,contents,msgType,mediaPath);
     }
-
+    // 查询我加入的群（前端私信页加载时调用）
+    @GetMapping("/select/my/groups")
+    public Result<List<Map<String, Object>>> selectMyGroups(@RequestParam String me) {
+        return Result.success(privateMessageService.selectMyGroups(me));
+    }
 }
