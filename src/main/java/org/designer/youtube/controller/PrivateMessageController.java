@@ -118,7 +118,9 @@ public class PrivateMessageController {
     public Result<Map<String, Object>> establishGroup(@RequestParam String groupId,
                                                       @RequestParam String groupName,
                                                       @RequestParam String ownerId) {
-        return privateMessageService.establishGroup(groupId, groupName, ownerId);
+        RandomlyCreateID createGroupId=new RandomlyCreateID();
+        String id=createGroupId.createId();
+        return privateMessageService.establishGroup(id, groupName, ownerId);
     }
 
     //拉人
