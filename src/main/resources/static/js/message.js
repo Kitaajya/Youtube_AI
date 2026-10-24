@@ -337,6 +337,27 @@ const setGroupUnread = (groupId, count) => {
             applyInboxRows(rows);
         } catch (e) { renderPeers(); }
     }
+    // 从服务器拉取我加入的群，并替换掉本地的列表
+    async function syncMyGroups() {
+        try {
+            const r = await YT.api.get('/api/private_message/select/my/groups', { me: me.userId });
+            const serverGroups = Array.isArray(r.data) ? r.data : [];
+
+            // 转成前端需要的格式
+            const myGroups = serverGroups.map(g => ({
+                groupId: String(YT.pick(g, 'groupId', 'group_id')),
+                groupName: String(YT.pick(g, 'groupName', 'group_name')),
+                createTime: String(YT.pick(g, 'createTime', 'create_time'))
+            }));
+
+            // 覆盖本地缓存
+            setMyGroups(myGroups);
+            renderMyGroups();
+        } catch (e) {
+            // 如果后端出错（比如没写这个接口），就退回本地缓存，不报错
+            renderMyGroups();
+        }
+    }
 
     async function refreshUnread() {
         if (!sideHead) return;
