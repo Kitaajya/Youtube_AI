@@ -1001,6 +1001,7 @@ const setGroupUnread = (groupId, count) => {
 
     (async () => {
         await Promise.all([loadInbox(), refreshUnread()]);
+        await syncMyGroups();
         const qs = new URLSearchParams(location.search);
         if (qs.get('peer')) {
             await openChat(qs.get('peer'), qs.get('name') || '');
