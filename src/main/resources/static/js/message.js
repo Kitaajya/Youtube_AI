@@ -251,8 +251,15 @@ const setGroupUnread = (groupId, count) => {
         }
         let html = '', lastDay = '';
         for (const m of list) {
-            const day = dayTag(m.createTime);
-            if (day && day !== lastDay) { html += `<div class="pm-day">${day}</div>`; lastDay = day; }
+            const currentMsgTime = new Date(String(m.createTime).replace(' ', 'T')).getTime();
+
+            // 如果是第一条消息，或者距离上一条消息超过 5 分钟，显示时间
+            if (lastMsgTime === 0 || (currentMsgTime - lastMsgTime) > 5 * 60 * 1000) {
+                const d = new Date(currentMsgTime);
+                const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                html += `<div class="pm-day">${timeStr}</div>`;
+            }
+
             html += msgHtml(m, isGroup);
         }
         msgs.innerHTML = html;
