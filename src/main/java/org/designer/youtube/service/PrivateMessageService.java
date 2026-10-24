@@ -221,4 +221,8 @@ public class PrivateMessageService {
         if(k==0) return Result.fail("发送失败!");
         return Result.success("发送成功！",Map.of("contents",contents));
     }
+    // 查询我加入的群
+    public List<Map<String, Object>> selectMyGroups(String me) {
+        return privateMessageMapper.selectMyGroups(me);
+    }
 }
