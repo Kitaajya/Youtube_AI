@@ -154,6 +154,22 @@ public interface PrivateMessageMapper {
     INSERT IGNORE INTO group_member(group_id,user_id) VALUES (#{groupId},#{userId})
     """)
     int addGroupMember(@Param("groupId") String groupId,@Param("userId") String userId);
+    //查询群名称（发入群邀请通知时拼文案用）
+    @Select("SELECT group_name FROM chat_group WHERE group_id = #{groupId}")
+    String selectGroupName(@Param("groupId") String groupId);
+    //校验用户是否真实存在（拉人前防脏数据：group_member 与 notification 都引用 user_information）
+    @Select("SELECT COUNT(*) FROM user_information WHERE user_id = #{userId}")
+    int countUser(@Param("userId") String userId);
+    //写入一条“群聊邀请”通知：ref_id 存 groupId，供前端点击精确跳转到对应群
+    @Insert("""
+    INSERT INTO notification(notify_id,to_user,from_user,type,ref_id,contents)
+    VALUES(#{notifyId},#{toUser},#{fromUser},'group_invite',#{groupId},#{contents})
+    """)
+    int insertGroupInviteNotify(@Param("notifyId") String notifyId,
+                                @Param("toUser")   String toUser,
+                                @Param("fromUser") String fromUser,
+                                @Param("groupId")  String groupId,
+                                @Param("contents") String contents);
     //查询群主号
     @Select(""" 
     SELECT owner_id FROM chat_group WHERE group_id = #{groupId}

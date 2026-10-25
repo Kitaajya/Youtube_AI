@@ -307,18 +307,33 @@
         } catch (e) { renderPeers(); }
     }
 
+    // 强制轮询同步群列表（防止被拉进群了自己不知道）
+    let lastGroupCount = -1;
     async function syncMyGroups() {
         try {
             const r = await YT.api.get('/api/private_message/select/my/groups', { me: me.userId });
+            if (!r || !r.data) return;
+
             const serverGroups = Array.isArray(r.data) ? r.data : [];
+            // 兼容后端可能返回的下划线或驼峰命名
             const myGroups = serverGroups.map(g => ({
                 groupId: String(YT.pick(g, 'groupId', 'group_id')),
                 groupName: String(YT.pick(g, 'groupName', 'group_name')),
+                ownerId: String(YT.pick(g, 'ownerId', 'owner_id')),
                 createTime: String(YT.pick(g, 'createTime', 'create_time'))
             }));
+
+            // 如果发现后台多了一个群，说明被拉进去了，弹个提示
+            if (lastGroupCount !== -1 && myGroups.length > lastGroupCount) {
+                YT.toast('🔔 你已被拉入新的群聊！');
+            }
+            lastGroupCount = myGroups.length;
+
             setMyGroups(myGroups);
             renderMyGroups();
-        } catch (e) { renderMyGroups(); }
+        } catch (e) {
+            console.error("同步群列表失败", e);
+        }
     }
 
     async function refreshUnread() {
@@ -553,7 +568,7 @@
     async function pollOnce() {
         // 🟢 如果 AI 正在思考，直接 return，绝对不能重绘！
         if (loading || aiLock) return;
-
+        syncMyGroups();
         if (currentGroup) {
             try {
                 const peerId = currentGroup.groupId;
@@ -829,9 +844,160 @@
     // 启动
     renderPeers();
     renderMyGroups();
+    // =========================================================
+    // 🟢 终极建群逻辑（直接覆盖，防止前面有多余的冲突）
+    // =========================================================
+    const finalSubmitBtn = document.getElementById('submit-group');
+    if (finalSubmitBtn) {
+        finalSubmitBtn.onclick = async function(e) {
+            e.preventDefault();
+            const groupName = document.getElementById('new-group-name').value.trim();
+            const membersStr = document.getElementById('new-group-members').value.trim();
 
+            if (!groupName) {
+                return YT.toast('请输入群名称');
+            }
+
+            finalSubmitBtn.disabled = true;
+            finalSubmitBtn.textContent = '创建中...';
+
+            try {
+                // 1. 调后端建群
+                const r = await YT.api.post('/api/private_message/establish/group', {
+                    groupName: groupName,
+                    ownerId: me.userId
+                });
+
+                if (r.success && r.data && r.data.groupId) {
+                    const newGroupId = r.data.groupId;
+
+                    // 2. 拉人
+                    if (membersStr) {
+                        const memberIds = membersStr.split(',').map(s => s.trim()).filter(s => s);
+
+                        for (const uid of memberIds) {
+                            try {
+                                const addRes = await YT.api.post('/api/private_message/add/member', {
+                                    groupId: newGroupId,
+                                    userId: uid
+                                });
+                                // 🚨 强制弹窗报错，绝不吞掉
+                                if (!addRes.success) {
+                                    alert("拉 " + uid + " 失败: " + (addRes.message || "未知错误"));
+                                } else {
+                                    console.log("拉人成功: " + uid);
+                                }
+                            } catch (err) {
+                                alert("网络错误，拉 " + uid + " 失败");
+                            }
+                        }
+                    }
+
+                    YT.toast('群聊创建成功！');
+                    document.getElementById('group-modal').style.display = 'none';
+
+                    // 3. 刷新并进入
+                    await syncMyGroups();
+                    openGroupChat(newGroupId, groupName);
+                } else {
+                    YT.toast(r.message || '创建群聊失败');
+                }
+            } catch (err) {
+                YT.toast('请求失败：' + err.message);
+            } finally {
+                finalSubmitBtn.disabled = false;
+                finalSubmitBtn.textContent = '创建';
+            }
+        };
+    }
     (async () => {
         await Promise.all([loadInbox(), refreshUnread(), syncMyGroups()]);
         schedulePoll();
     })();
+    // ==========================================
+    // 建群按钮绑定（如果原来有，加这个也不会冲突）
+    // ==========================================
+    // =========================================================
+    // 🟢 强行绑定建群功能（使用 onclick 覆盖一切冲突）
+    // =========================================================
+
+    // 1. 打开建群弹窗
+    const btnCreateGroup = document.getElementById('btn-create-group');
+    if (btnCreateGroup) {
+        btnCreateGroup.onclick = function(e) {
+            e.preventDefault();
+            const modal = document.getElementById('group-modal');
+            if (modal) {
+                modal.style.display = 'flex';
+                document.getElementById('new-group-name').value = '';
+                document.getElementById('new-group-members').value = '';
+            }
+        };
+    }
+
+    // 2. 取消按钮
+    const btnCancelGroup = document.getElementById('cancel-group');
+    if (btnCancelGroup) {
+        btnCancelGroup.onclick = function(e) {
+            e.preventDefault();
+            const modal = document.getElementById('group-modal');
+            if (modal) modal.style.display = 'none';
+        };
+    }
+
+    // 3. 提交创建（包含拉人逻辑）
+    const btnSubmitGroup = document.getElementById('submit-group');
+    if (btnSubmitGroup) {
+        btnSubmitGroup.onclick = async function(e) {
+            e.preventDefault();
+            const groupName = document.getElementById('new-group-name').value.trim();
+            const membersStr = document.getElementById('new-group-members').value.trim();
+
+            if (!groupName) {
+                return YT.toast('请输入群名称');
+            }
+
+            btnSubmitGroup.disabled = true;
+            btnSubmitGroup.textContent = '创建中...';
+
+            try {
+                // 1. 调后端建群
+                const r = await YT.api.post('/api/private_message/establish/group', {
+                    groupName: groupName,
+                    ownerId: me.userId
+                });
+
+                if (r.success && r.data && r.data.groupId) {
+                    const newGroupId = r.data.groupId;
+
+                    // 2. 如果有填要拉的人，开始拉人
+                    if (membersStr) {
+                        const memberIds = membersStr.split(',').map(s => s.trim()).filter(s => s);
+                        for (const uid of memberIds) {
+                            await YT.api.post('/api/private_message/add/member', {
+                                groupId: newGroupId,
+                                userId: uid
+                            }).catch(() => {}); // 拉人失败不阻挡整体流程
+                        }
+                    }
+
+                    YT.toast('群聊创建成功！');
+                    document.getElementById('group-modal').style.display = 'none'; // 关闭弹窗
+
+                    // 3. 刷新左侧群聊列表
+                    await syncMyGroups();
+
+                    // 4. 自动点进刚刚建好的群聊
+                    openGroupChat(newGroupId, groupName);
+                } else {
+                    YT.toast(r.message || '创建群聊失败');
+                }
+            } catch (err) {
+                YT.toast('请求失败：' + err.message);
+            } finally {
+                btnSubmitGroup.disabled = false;
+                btnSubmitGroup.textContent = '创建';
+            }
+        };
+    }
 })();
