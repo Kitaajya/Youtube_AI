@@ -162,7 +162,9 @@
     function forceRenderVideoLike(isLiked, count) {
         if (!likeBtn) return;
         likeBtn.setAttribute('aria-pressed', isLiked ? 'true' : 'false');
-        likeBtn.classList.toggle('light', isLiked);
+        // 移除原本的 .light 写法，直接用属性控制样式即可
+        // likeBtn.classList.toggle('light', isLiked);
+
         if (likeIc) likeIc.innerHTML = isLiked ? svgLiked : svgLike;
         if (likeNum) {
             const n = Number(count) || 0;

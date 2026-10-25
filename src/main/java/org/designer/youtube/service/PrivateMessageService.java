@@ -173,11 +173,11 @@ public class PrivateMessageService {
      *
      * 群聊数据库：
      *  chat_group
-     字段名	     类型	     作用	            设计亮点
-     group_id	VARCHAR(13)	群号（主键）	延续了你项目 13 位随机字符串的规范，比自增数字更安全，防爬防遍历。
-     group_name	VARCHAR(50)	群名称	限制 50 字符，防止有人起超长名字把前端 UI 撑爆。
-     owner_id	VARCHAR(13)	群主ID	记录这个群是谁建的，方便后续做“解散群”、“踢人”等权限控制。
-     create_time	DATETIME	建群时间	默认当前时间，方便按建群时间倒序排列“我最近加了什么群”。
+     字段名	         类型	     作用	            设计亮点
+     group_id	    VARCHAR(13)	群号（主键）	延续了你项目 13 位随机字符串的规范，比自增数字更安全，防爬防遍历。
+     group_name	    VARCHAR(50)	群名称	    限制 50 字符，防止有人起超长名字把前端 UI 撑爆。
+     owner_id	    VARCHAR(13)	群主ID	    记录这个群是谁建的，方便后续做“解散群”、“踢人”等权限控制。
+     create_time	DATETIME	建群时间	    默认当前时间，方便按建群时间倒序排列“我最近加了什么群”。
      * **/
     // 建立群聊（这里只负责建群并拉群主，拉别人可以再写个方法）
     public Result<Map<String,Object>> establishGroup(String groupId, String groupName, String ownerId){

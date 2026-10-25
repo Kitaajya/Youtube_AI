@@ -134,6 +134,9 @@
     }
 
     function msgHtml(m, isGroup = false) {
+        // 🟢 新增：如果内容是固定的思考话术，直接 return 空字符串，不显示在聊天历史中
+        if (String(m.contents || '').includes('正在阅读群聊并思考')) return '';
+
         const mine = String(m.fromUser) === me.userId;
         const withdrawn = Number(m.isWithdrawn || 0) === 1;
         const msgId = String(m.msgId || '');
@@ -493,9 +496,12 @@
                 if (content.includes('问问DeepSeek') || content.includes('问问AI') ||
                     content.includes('问问人工智能')||
                     content.includes('DeepSeek')||
-                content.includes('deepseek')) {
+                    content.includes('deepseek')) {
                     if (!document.getElementById('typing-ai-bubble')) {
                         aiLock = true; // 锁死轮询
+                        const thinkingMsgId = YT.randId();
+
+                        // 1. 在本地插入气泡
                         msgs.insertAdjacentHTML('beforeend', `
                         <div class="pm-group-msg-wrap" id="typing-ai-bubble">
                             <div class="pm-group-avatar"><span class="avatar" style="background:#3ea6ff; color:#fff;">AI</span></div>
@@ -505,8 +511,18 @@
                             </div>
                         </div>`);
                         msgs.scrollTop = msgs.scrollHeight;
-                        // 直接触发 AI
-                        triggerGroupAi(nowMsg);
+
+                        // 2. 🟢 关键：用真实的 msgType: 'text' 发送，确保后台 100% 能入库且别人能查到！
+                        YT.api.post('/api/private_message/add/group/message', {
+                            msgId: thinkingMsgId,
+                            groupId: currentGroup.groupId,
+                            fromUser: 'AI_BOT',
+                            contents: '正在阅读群聊并思考...',
+                            msgType: 'text'
+                        }).then(() => {
+                            // 3. 发送成功后，真正触发 AI
+                            triggerGroupAi(nowMsg, thinkingMsgId);
+                        });
                     }
                 }
             } catch (e) { YT.toast('发送失败：' + e.message); } finally { loading = false; sendBtn.disabled = false; ta.focus(); }
@@ -532,6 +548,8 @@
     }
 
     // ---------- 轮询（核心重写：只追加缺失消息） ----------
+    // ---------- 轮询（核心重写：只追加缺失消息） ----------
+    // ---------- 轮询（核心重写：只追加缺失消息） ----------
     async function pollOnce() {
         // 🟢 如果 AI 正在思考，直接 return，绝对不能重绘！
         if (loading || aiLock) return;
@@ -555,7 +573,26 @@
                     const newMsgs = normList.filter(m => !existingIds.has(m.msgId));
 
                     if (newMsgs.length > 0) {
-                        appendMsgs(newMsgs, true);
+                        newMsgs.forEach(m => {
+                            // 🟢 旁观者视角：如果看到 AI 发了“正在阅读群聊并思考...”，给他画气泡
+                            if (String(m.fromUser) === 'AI_BOT' && String(m.contents).includes('正在阅读群聊并思考')) {
+                                if (!document.getElementById('typing-ai-bubble')) {
+                                    msgs.insertAdjacentHTML('beforeend', `
+                                    <div class="pm-group-msg-wrap" id="typing-ai-bubble">
+                                        <div class="pm-group-avatar"><span class="avatar" style="background:#3ea6ff; color:#fff;">AI</span></div>
+                                        <div class="pm-group-msg-body">
+                                            <span class="pm-group-name">DeepSeek 助手</span>
+                                            <div class="pm-msg"><div class="bubble" style="background:var(--surface-2); border: 1px dashed var(--link); color:var(--text-primary);" id="typing-ai-bubble-content">正在阅读群聊并思考...</div></div>
+                                        </div>
+                                    </div>`);
+                                    msgs.scrollTop = msgs.scrollHeight;
+                                }
+                            } else {
+                                // 其他正常消息，直接追加渲染
+                                appendMsgs([m], true);
+                            }
+                        });
+
                         curList.push(...newMsgs);
                     }
                     lastGroupChatSig = sig;
@@ -563,36 +600,11 @@
                     renderMyGroups();
 
                     const lastMsg = normList[normList.length - 1];
-                    if (lastMsg) {
-                        const text = lastMsg.contents || '';
-                        // 🟢 旁观者视角：如果看到了别人发的触发词，立刻给自己加气泡
-                        if (String(lastMsg.fromUser) !== me.userId &&
-                            String(lastMsg.fromUser) !== 'AI_BOT' &&
-                            (text.includes('问问DeepSeek') || text.includes('问问AI') || text.includes('问问人工智能'))) {
-
-                            if (!document.getElementById('typing-ai-bubble') && !aiLock) {
-                                msgs.insertAdjacentHTML('beforeend', `
-                                <div class="pm-group-msg-wrap" id="typing-ai-bubble">
-                                    <div class="pm-group-avatar"><span class="avatar" style="background:#3ea6ff; color:#fff;">AI</span></div>
-                                    <div class="pm-group-msg-body">
-                                        <span class="pm-group-name">DeepSeek 助手</span>
-                                        <div class="pm-msg"><div class="bubble" style="background:var(--surface-2); border: 1px dashed var(--link); color:var(--text-primary);" id="typing-ai-bubble-content">正在阅读群聊并思考...</div></div>
-                                    </div>
-                                </div>`);
-                                msgs.scrollTop = msgs.scrollHeight;
-                            }
-
-                            // 如果本地还没人触发过，这里触发
-                            if (!processedAiMsgIds.has(lastMsg.msgId)) {
-                                triggerGroupAi(lastMsg);
-                            }
-                        }
-
-                        // 如果 AI 已经回复了，把所有人页面上的气泡清理掉
-                        if (String(lastMsg.fromUser) === 'AI_BOT') {
-                            const ghost = document.getElementById('typing-ai-bubble');
-                            if (ghost) ghost.remove();
-                        }
+                    // 如果最后一条是真正的 AI 回复（不是思考中的那句），清理气泡
+                    if (lastMsg && String(lastMsg.fromUser) === 'AI_BOT' && !String(lastMsg.contents).includes('正在阅读群聊并思考')) {
+                        const ghost = document.getElementById('typing-ai-bubble');
+                        if (ghost) ghost.remove();
+                        if (aiLock) aiLock = false;
                     }
                 }
             } catch (e) { console.error("群聊轮询失败", e); }
@@ -643,7 +655,6 @@
             }
         }
     }
-
     function schedulePoll() {
         if (document.hidden) { pollTimer = null; return; }
         pollTimer = setTimeout(async () => {
@@ -660,32 +671,19 @@
         } else if (!pollTimer) { pollOnce().catch(() => { }); schedulePoll(); }
     });
 
+
+
     // ---------- AI 自动回复 ----------
     const processedAiMsgIds = new Set();
 
-    async function triggerGroupAi(triggerMsg) {
+    async function triggerGroupAi(triggerMsg, thinkingMsgId) {
         if (processedAiMsgIds.has(triggerMsg.msgId)) return;
         processedAiMsgIds.add(triggerMsg.msgId);
-        aiLock = true; // 🟢 再次确认锁死
+        aiLock = true; // 锁死轮询
 
         const question = `${triggerMsg.senderName} 说：“${triggerMsg.contents}”。请给出你的回答。`;
 
-        // 🟢 统一抓取气泡（无论是 doSend 触发的还是 pollOnce 触发的）
         let bubble = document.getElementById('typing-ai-bubble-content');
-
-        // 兜底：如果没抓到（比如直接调用的），再画一个
-        if (!bubble) {
-            msgs.insertAdjacentHTML('beforeend', `
-            <div class="pm-group-msg-wrap" id="typing-ai-bubble">
-                <div class="pm-group-avatar"><span class="avatar" style="background:#3ea6ff; color:#fff;">AI</span></div>
-                <div class="pm-group-msg-body">
-                    <span class="pm-group-name">DeepSeek 助手</span>
-                    <div class="pm-msg"><div class="bubble" style="background:var(--surface-2); border: 1px dashed var(--link); color:var(--text-primary);" id="typing-ai-bubble-content">正在阅读群聊并思考...</div></div>
-                </div>
-            </div>`);
-            msgs.scrollTop = msgs.scrollHeight;
-            bubble = document.getElementById('typing-ai-bubble-content');
-        }
 
         let fullText = '';
 
@@ -702,17 +700,18 @@
                 if (done) break;
                 const chunk = decoder.decode(value, { stream: true });
                 if (isFirstChunk) {
-                    bubble.innerText = '';
+                    if (bubble) bubble.innerText = '';
                     isFirstChunk = false;
                 }
                 fullText += chunk;
-                bubble.innerText = fullText;
+                if (bubble) bubble.innerText = fullText;
                 msgs.scrollTop = msgs.scrollHeight;
             }
 
-            // 流式结束，入库
             if (fullText.trim()) {
                 const aiReplyMsgId = YT.randId();
+
+                // 🟢 1. 先发真正的 AI 回复入库
                 const r = await YT.api.post('/api/private_message/add/group/message', {
                     msgId: aiReplyMsgId,
                     groupId: currentGroup.groupId,
@@ -722,6 +721,16 @@
                 });
 
                 if (r.success) {
+                    // 🟢 2. 前端移除气泡并渲染真正的回复
+                    const tempNode = document.getElementById('typing-ai-bubble');
+                    if (tempNode) tempNode.remove();
+
+                    // 🟢 3. 把刚才存进数据库的假消息（思考中）删掉，防止历史记录残留
+                    if (thinkingMsgId) {
+                        YT.api.post('/api/private_message/delete/private/message', { msgId: thinkingMsgId, userId: me.userId })
+                            .catch(() => {}); // 静默失败即可，防报错
+                    }
+
                     const aiMsg = {
                         msgId: aiReplyMsgId,
                         fromUser: 'AI_BOT',
@@ -732,11 +741,9 @@
                         senderName: 'DeepSeek 助手'
                     };
 
+                    curList = curList.filter(m => m.msgId !== thinkingMsgId);
                     curList = curList.filter(m => m.msgId !== aiReplyMsgId);
                     curList.push(aiMsg);
-
-                    const tempNode = document.getElementById('typing-ai-bubble');
-                    if (tempNode) tempNode.remove();
 
                     appendMsgs([aiMsg], true);
                     lastGroupChatSig = chatSig(curList);
@@ -748,16 +755,11 @@
             console.error('AI 回复出错', e);
             if (bubble) bubble.innerText = 'AI 出错了：' + e.message;
         } finally {
-            // 🟢 解锁轮询
             aiLock = false;
             const ghost = document.getElementById('typing-ai-bubble');
-            // 如果因为某种原因残留了，且没有文字，就删掉
-            if (ghost && ghost.querySelector('.bubble').innerText.includes('正在阅读')) {
-                ghost.remove();
-            }
+            if (ghost) ghost.remove();
         }
     }
-
     // ---------- 事件绑定 ----------
     // 1. 聊天窗口内的点击（撤回、删除等）
     msgs.addEventListener('click', e => {
