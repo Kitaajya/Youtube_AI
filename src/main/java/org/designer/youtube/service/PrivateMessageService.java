@@ -277,6 +277,19 @@ public class PrivateMessageService {
         //将阻塞查询包装进 Mono
         Mono<String> contextMono = Mono.fromCallable(() -> {
             List<Map<String, Object>> list = privateMessageMapper.selectGroupMessage(groupId);
+
+            //过滤掉“正在阅读群聊并思考...”这种干扰信息
+            if (list != null) {
+                list = list.stream()
+                        .filter(m -> !"正在阅读群聊并思考...".equals(m.get("contents")))
+                        .collect(java.util.stream.Collectors.toList());
+            }
+
+            //如果历史记录超过 20 条，只截取最后 20 条（防止 Ollama 报 400 错误）
+            if (list != null && list.size() > 20) {
+                list = list.subList(list.size() - 20, list.size());
+            }
+
             StringBuilder sb = new StringBuilder();
             if (list == null || list.isEmpty()) sb.append("当前群聊没有任何聊天记录。\n");
             else {
