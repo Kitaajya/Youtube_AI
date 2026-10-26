@@ -11,7 +11,7 @@
 
 ## 🖼️ 界面预览
 
-**🤖 DeepSeek AI 助手**
+**🐳 DeepSeek AI 助手**
 <img width="100%" src="https://github.com/user-attachments/assets/3b2a585b-672f-434d-a1f8-f6b17af81ac3" alt="DeepSeek AI样式" />
 
 **🗄️ 数据库智能问答（NL2SQL 逻辑）**
