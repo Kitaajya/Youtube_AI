@@ -198,53 +198,107 @@ public class VideoService {
     }
     //点赞：已赞过时不报错，返回当前状态；返回 data 里带上最新 like_count，前端就地更新
     //改造后的点赞方法
+    // 点赞：数据库为主，Redis 为辅，彻底解决刷新丢失问题
+    /**    这两个原方法会导致Redis缓存没写入数据库而使得前端数据与后端数据不一致的bug
+     *     public Result<Map<String,Object>> addLike(long id, String userId){
+     *         int k=vm.countVideo(id);
+     *         if(k==0) return Result.fail("video_bug!");
+     *         String likeSetKey="video:like"+id;//点赞的人
+     *         String countKey="video:like_count"+id;
+     *         Boolean isDone=redisTemplate.opsForSet().isMember(likeSetKey,userId);
+     *         //如果点赞过了，直接从缓存里拿出值
+     *         if(Boolean.TRUE.equals(isDone)){
+     *             long count;
+     *             String redisLikeCount=redisTemplate.opsForValue().get(countKey);
+     *             if(redisLikeCount!=null) count=Long.parseLong(redisLikeCount);
+     *             else count=vm.selectLikeQuantity(id);
+     *             return Result.success("had done",Map.of("like_count",count,"liked",true));
+     *         }
+     *         redisTemplate.opsForSet().add(likeSetKey,userId);
+     *         redisTemplate.opsForValue().increment(countKey);
+     *         sendLikeNotify(id,userId);
+     *         String notInRedisCountLike=redisTemplate.opsForValue().get(countKey);
+     *         long newNotInRedisCountLike;
+     *         if (notInRedisCountLike != null)
+     *             newNotInRedisCountLike=Long.parseLong(notInRedisCountLike);
+     *         else newNotInRedisCountLike=1L;
+     *         return Result.success("success",Map.of("like_count",newNotInRedisCountLike,"liked",true));
+     *     }
+     *     //取消点赞
+     *     public Result<Map<String,Object>> cancelLike(long id, String userId){
+     *         if (vm.countVideo(id) == 0) return Result.fail("video bug!");
+     *         String likeSetKey="video:like"+id;
+     *         String countKey="video:like_count"+id;
+     *         Boolean isDone=redisTemplate.opsForSet().isMember(likeSetKey,userId);
+     *         //如果本来就没有点赞
+     *         if(Boolean.FALSE.equals(isDone)){
+     *             long count;
+     *             String redisLikeCount=redisTemplate.opsForValue().get(countKey);
+     *             if(redisLikeCount!=null) count=Long.parseLong(redisLikeCount);
+     *             else count=vm.selectLikeQuantity(id);
+     *             return Result.success("cancel the like successfully",Map.of("like_count",count,"liked",false));
+     *         }
+     *         //如果已经点赞了
+     *         redisTemplate.opsForSet().remove(likeSetKey,userId);
+     *         redisTemplate.opsForValue().decrement(countKey);
+     *         String notInRedisCountLike=redisTemplate.opsForValue().get(countKey);
+     *         long newNotInRedisCountLike;
+     *         if (notInRedisCountLike != null) newNotInRedisCountLike=Long.parseLong(notInRedisCountLike);
+     *         else newNotInRedisCountLike=0;
+     *         if(newNotInRedisCountLike<0) newNotInRedisCountLike=0;
+     *         return Result.success("cancel the like successfully",Map.of("like_count",newNotInRedisCountLike,"liked",false));
+     *     }
+     *
+     * **/
     public Result<Map<String,Object>> addLike(long id, String userId){
-        int k=vm.countVideo(id);
-        if(k==0) return Result.fail("video_bug!");
-        String likeSetKey="video:like"+id;//点赞的人
-        String countKey="video:like_count"+id;
-        Boolean isDone=redisTemplate.opsForSet().isMember(likeSetKey,userId);
-        //如果点赞过了，直接从缓存里拿出值
+        if(vm.countVideo(id) == 0) return Result.fail("视频不存在！");
+
+        String likeSetKey = "video:like:" + id;
+        String countKey = "video:like_count:" + id;
+
+        //先查 Redis 是否已经点过赞（拦截重复点击）
+        Boolean isDone = redisTemplate.opsForSet().isMember(likeSetKey, userId);
         if(Boolean.TRUE.equals(isDone)){
-            long count;
-            String redisLikeCount=redisTemplate.opsForValue().get(countKey);
-            if(redisLikeCount!=null) count=Long.parseLong(redisLikeCount);
-            else count=vm.selectLikeQuantity(id);
-            return Result.success("had done",Map.of("like_count",count,"liked",true));
+            String redisLikeCount = redisTemplate.opsForValue().get(countKey);
+            long count = redisLikeCount != null ? Long.parseLong(redisLikeCount) : vm.selectLikeQuantity(id);
+            return Result.success("已经点过赞了", Map.of("like_count", count, "liked", true));
         }
-        redisTemplate.opsForSet().add(likeSetKey,userId);
-        redisTemplate.opsForValue().increment(countKey);
-        sendLikeNotify(id,userId);
-        String notInRedisCountLike=redisTemplate.opsForValue().get(countKey);
-        long newNotInRedisCountLike;
-        if (notInRedisCountLike != null)
-            newNotInRedisCountLike=Long.parseLong(notInRedisCountLike);
-        else newNotInRedisCountLike=1L;
-        return Result.success("success",Map.of("like_count",newNotInRedisCountLike,"liked",true));
+
+        //写入 MySQL 数据库
+        // INSERT IGNORE 保证如果数据库里已经有这条记录，也不会报错
+        int dbResult = vm.addLike(id, userId);
+        //如果数据库写入成功（>0 代表是新点赞），更新 Redis
+        if (dbResult > 0) {
+            // 写入 Redis 缓存
+            redisTemplate.opsForSet().add(likeSetKey, userId);
+            redisTemplate.opsForValue().increment(countKey);
+            sendLikeNotify(id, userId);
+        }
+
+        //无论Redis怎么操作，最终返回给前端的点赞数，都以数据库的真实数量为准
+        long finalCount = vm.selectLikeQuantity(id);
+
+        return Result.success("点赞成功", Map.of("like_count", finalCount, "liked", true));
     }
-    //取消点赞
+
+    // 取消点赞
     public Result<Map<String,Object>> cancelLike(long id, String userId){
-        if (vm.countVideo(id) == 0) return Result.fail("video bug!");
-        String likeSetKey="video:like"+id;
-        String countKey="video:like_count"+id;
-        Boolean isDone=redisTemplate.opsForSet().isMember(likeSetKey,userId);
-        //如果本来就没有点赞
-        if(Boolean.FALSE.equals(isDone)){
-            long count;
-            String redisLikeCount=redisTemplate.opsForValue().get(countKey);
-            if(redisLikeCount!=null) count=Long.parseLong(redisLikeCount);
-            else count=vm.selectLikeQuantity(id);
-            return Result.success("cancel the like successfully",Map.of("like_count",count,"liked",false));
+        if (vm.countVideo(id) == 0) return Result.fail("视频不存在！");
+
+        String likeSetKey = "video:like:" + id;
+        String countKey = "video:like_count:" + id;
+
+        int dbResult = vm.cancelLike(id, userId);
+
+        if (dbResult > 0) {
+            redisTemplate.opsForSet().remove(likeSetKey, userId);
+            //注意这里不要用decrement了，**的已经吃过一次亏了，直接把Redis里的数字重置为数据库的最新数字，防止 Redis 数据错乱
+            long latestCount = vm.selectLikeQuantity(id);
+            redisTemplate.opsForValue().set(countKey, String.valueOf(latestCount));
         }
-        //如果已经点赞了
-        redisTemplate.opsForSet().remove(likeSetKey,userId);
-        redisTemplate.opsForValue().decrement(countKey);
-        String notInRedisCountLike=redisTemplate.opsForValue().get(countKey);
-        long newNotInRedisCountLike;
-        if (notInRedisCountLike != null) newNotInRedisCountLike=Long.parseLong(notInRedisCountLike);
-        else newNotInRedisCountLike=0;
-        if(newNotInRedisCountLike<0) newNotInRedisCountLike=0;
-        return Result.success("cancel the like successfully",Map.of("like_count",newNotInRedisCountLike,"liked",false));
+        //返回给前端最新的数据库真实点赞数
+        long finalCount = vm.selectLikeQuantity(id);
+        return Result.success("取消点赞成功", Map.of("like_count", finalCount, "liked", false));
     }
     //建立收藏夹，不是把视频放进收藏夹里，因为收藏夹还没创建呢！
     public Result<Map<String,Object>> createLikeFormat(String pList,
