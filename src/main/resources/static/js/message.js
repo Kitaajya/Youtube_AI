@@ -1037,6 +1037,25 @@
             if (row) openGroupChat(row.dataset.group, row.dataset.gname);
         });
     }
+    // ---------- 退出群聊逻辑 ----------
+    const btnExitGroup = document.getElementById('btn-exit-group');
+    if (btnExitGroup) {
+        btnExitGroup.onclick = async function () {
+            if (!currentGroup) return;
+
+            if (!confirm(`确定要退出群聊「${currentGroup.groupName}」吗？`)) {
+                return;
+            }
+
+            btnExitGroup.disabled = true;
+            btnExitGroup.textContent = '处理中...';
+
+            try {
+                // 调用你刚刚写好的后端退群接口
+                const r = await YT.api.post('/api/private_message/exit/group', {
+                    groupId: currentGroup.groupId,
+                    userId: me.userId
+                });
 
     // ---------- 建群逻辑 ----------
     const btnCreateGroup = document.getElementById('btn-create-group');
