@@ -11,11 +11,23 @@
 <br>
 
 ![Java](https://img.shields.io/badge/Java-17-orange?style=for-the-badge&logo=openjdk)
+
+<br>
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-brightgreen?style=for-the-badge&logo=spring)
+
+<br>
 ![Spring AI](https://img.shields.io/badge/Spring%20AI-Ollama%20%2F%20DeepSeek-blueviolet?style=for-the-badge&logo=openai)
+
+<br>
 ![Redis](https://img.shields.io/badge/Redis-Latest-red?style=for-the-badge&logo=redis)
+
+<br>
 ![MyBatis](https://img.shields.io/badge/MyBatis-annotation%20SQL-red?style=for-the-badge&logo=mybatis)
+
+<br>
 ![MySQL](https://img.shields.io/badge/MySQL-8.0-blue?style=for-the-badge&logo=mysql)
+
+<br>
 ![License](https://img.shields.io/badge/license-学习项目-lightgrey?style=for-the-badge)
 
 </div>
