@@ -20,6 +20,7 @@ import reactor.core.scheduler.Schedulers;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Random;
 
 /**
  *
@@ -270,7 +271,7 @@ public class PrivateMessageService {
      * **/
     //把群聊信息插入DeepSeek里
     public Flux<String> selectGroupMessageForDeepSeek(ChatClient client, String groupId, String question) {
-        // 1. 将阻塞查询包装进 Mono
+        //将阻塞查询包装进 Mono
         Mono<String> contextMono = Mono.fromCallable(() -> {
             List<Map<String, Object>> list = privateMessageMapper.selectGroupMessage(groupId);
             StringBuilder sb = new StringBuilder();
@@ -299,10 +300,60 @@ public class PrivateMessageService {
             不要暴露你是 AI 模型，除非用户明确询问。
             """;
 
-        // 2. 等待上下文查询完成，再请求 DeepSeek
+        //等待上下文查询完成，再请求 DeepSeek
         return contextMono.flatMapMany(sb -> {
             String finalUserPrompt = "【群聊聊天记录如下】：\n" + sb + "\n【用户当前的提问】：" + question;
             return client.prompt().system(systemPrompt).user(finalUserPrompt).stream().content();
         });
+    }
+    /**
+     * 寻找新的群主候选人（排除当前要退出的群主，并且绝对排除 AI_BOT）
+     *    关于查找群主id的Mapper方法：String selectGroupOwner(String groupId)
+     * **/
+    // 退出群聊
+    @Transactional(rollbackFor = Exception.class) // 涉及多张表更新，必须加事务
+    public Result<Map<String,Object>> exitMyGroup(String groupId, String userId){
+        if (groupId == null || userId == null) return Result.fail("参数错误");
+        //查一下当前群主是谁
+        String ownerId = privateMessageMapper.selectGroupOwner(groupId);
+        if (ownerId == null) return Result.fail("群不存在！");
+        //如果退出的人是群主，需要处理转让或解散
+        if (Objects.equals(ownerId, userId)) {
+            //找群里的其他活人（排除自己，绝对排除AI_BOT）
+            List<String> candidates = privateMessageMapper.findNewOwnerCandidates(groupId, userId);
+
+            if (candidates != null && !candidates.isEmpty()) {
+                //还有别的活人，随机选一个接盘，转让群主
+                Random random = new Random();
+                String newOwnerId = candidates.get(random.nextInt(candidates.size()));
+                privateMessageMapper.transferGroupOwner(groupId, newOwnerId);
+            } else {
+                //群里除了自己只剩下 AI_BOT 或者空无一人，直接解散群聊，查一下群内总人数（包含自己，可能包含AI_BOT）
+                int countQ = privateMessageMapper.countGroupMembers(groupId);
+                if (countQ <= 2) {
+                    //只需要删掉主表chat_group，底下的group_member和group_message会自动被数据库清空
+                    int deleteGroup = privateMessageMapper.deleteChatGroup(groupId);
+                    if (deleteGroup == 0) return Result.fail("解散群聊失败，群可能已不存在");
+                    return Result.success("群里只剩下你一个活人（或仅有AI助手），本次退出将彻底解散该群",
+                            Map.of("group_id", groupId, "user_id", userId));
+                }
+                return Result.fail("系统异常：该群还有其他活人，未触发转让逻辑");
+            }
+        }
+
+        //执行退群操作（普通人退群，或者群主已经成功转让后退群）
+        int k = privateMessageMapper.exitMyGroup(groupId, userId);
+        if (k == 0) return Result.fail("你不在这个群里，退群失败！");
+        return Result.success("退群成功！", Map.of("groupId", groupId, "userId", userId));
+    }
+    /**
+     * 查看群聊里还有多少人，算上DeepSeek
+     * **/
+    int countQuantityInGroup(String groupId){
+        return privateMessageMapper.countGroupMembers(groupId);
+    }
+    /**查询当前群聊的成员信息**/
+    public Result<List<Map<String,Object>>> selectMemberInformation(String groupId){
+        return Result.success(privateMessageMapper.selectMemberInformation(groupId));
     }
 }

@@ -31,7 +31,15 @@
 
     <!-- 右栏：聊天窗口 -->
     <main class="pm-main">
-        <div class="pm-chat-head" id="pm-chat-head">选择左侧会话开始聊天</div>
+        <div class="pm-chat-head" id="pm-chat-head" style="display:flex; justify-content:space-between;">
+            <span id="pm-chat-title">选择左侧会话开始聊天</span>
+            <div style="display:flex; gap:8px;">
+                <!-- 新增：查看成员按钮 -->
+                <button class="btn sm" id="btn-view-members" style="display:none;">👥 成员列表</button>
+                <button class="btn sm" id="btn-exit-group" style="display:none; background:var(--danger); color:#fff;">退出群聊</button>
+            </div>
+        </div>
+
         <div class="pm-msgs" id="pm-msgs">
             <div class="empty">还没有打开任何对话</div>
         </div>
@@ -68,7 +76,18 @@
         </div>
     </div>
 </div>
-
+ <!-- 成员列表弹窗 -->
+<div id="members-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:var(--surface); padding:20px; border-radius:12px; width:320px; max-height:80vh; display:flex; flex-direction:column;">
+        <h3 style="margin-bottom:15px; font-size:16px;">群成员列表</h3>
+        <div id="members-list-box" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:8px;">
+            <!-- 成员列表将通过 JS 渲染到这里 -->
+        </div>
+        <div style="display:flex; justify-content:flex-end; margin-top:15px;">
+            <button class="btn sm" id="close-members-modal">关闭</button>
+        </div>
+    </div>
+</div>
 <script src="js/theme.js?v=1"></script>
 <script src="js/common.js?v=12"></script>
 <script src="js/message.js?v=9"></script>
