@@ -957,7 +957,8 @@
                             try {
                                 const addRes = await YT.api.post('/api/private_message/add/member', {
                                     groupId: newGroupId,
-                                    userId: uid
+                                    userId: uid,
+                                    fromUser: me.userId
                                 });
                                 // 🚨 强制弹窗报错，绝不吞掉
                                 if (!addRes.success) {
