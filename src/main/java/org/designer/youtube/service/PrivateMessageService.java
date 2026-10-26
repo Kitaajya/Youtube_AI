@@ -253,6 +253,8 @@ public class PrivateMessageService {
                                                          String fromUser,String contents,String msgType,String mediaPath){
         if(msgId==null||groupId==null||fromUser==null) return Result.fail("出bug了！");
         if(contents==null) return Result.fail("消息不能为空！");
+        if(isContainsProhibitedWord(contents))
+            return Result.fail("发的消息带有敏感词！");
         int k= privateMessageMapper.sendMessageToGroup(msgId, groupId, fromUser, contents, msgType, mediaPath);
         if(k==0) return Result.fail("发送失败!");
         return Result.success("发送成功！", Map.of("msgId", msgId, "contents", contents));
