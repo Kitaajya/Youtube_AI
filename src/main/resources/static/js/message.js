@@ -19,9 +19,9 @@
     // ---------- 本地镜像 ----------
     const peerKey = 'yt_pm_peers_' + me.userId;
     const hiddenKey = 'yt_pm_hidden_' + me.userId;
-    const groupKey = 'yt_my_groups_' + me.userId;
-    const groupIdsKey = 'yt_my_group_ids_' + me.userId;
-
+    //const groupKey = 'yt_my_groups_' + me.userId;
+    //const groupIdsKey = 'yt_my_group_ids_' + me.userId;
+//
     const getPeers = () => {
         try { return JSON.parse(localStorage.getItem(peerKey) || '[]'); } catch { return []; }
     };
@@ -30,6 +30,10 @@
         try { return JSON.parse(localStorage.getItem(hiddenKey) || '[]'); } catch { return []; }
     };
     const setHidden = arr => localStorage.setItem(hiddenKey, JSON.stringify(arr));
+    // 只保留这几个缓存键
+    const groupKey = 'yt_my_groups_' + me.userId;
+    const groupIdsKey = 'yt_my_group_ids_' + me.userId;
+
     const getMyGroups = () => {
         try { return JSON.parse(localStorage.getItem(groupKey) || '[]'); } catch { return []; }
     };
@@ -38,7 +42,6 @@
         try { return JSON.parse(localStorage.getItem(groupIdsKey) || '[]'); } catch { return []; }
     };
     const setStoredGroupIds = ids => localStorage.setItem(groupIdsKey, JSON.stringify(ids));
-
     // ---------- 群聊辅助函数 ----------
     const getGroupReadTime = (groupId) => Number(localStorage.getItem('yt_group_read_' + me.userId + '_' + groupId) || 0);
     const setGroupReadTime = (groupId) => {
@@ -331,12 +334,12 @@
                 createTime: String(YT.pick(g, 'createTime', 'create_time'))
             }));
 
-            // 关键修复：以 groupId 差异判断是否被拉进群，不再用纯数量判断
             const oldIds = new Set(getStoredGroupIds());
             const newIds = myGroups.map(g => g.groupId);
             const addedIds = newIds.filter(id => !oldIds.has(id));
 
             if (addedIds.length > 0) {
+                console.log('发现新群：', addedIds);
                 for (const gid of addedIds) {
                     const g = myGroups.find(x => x.groupId === gid);
                     YT.toast('🔔 你已被拉入新的群聊：' + (g ? g.groupName : '群聊'));
@@ -356,9 +359,9 @@
 
         } catch (e) {
             console.error("同步群列表失败", e);
+            YT.toast('同步群列表失败：' + (e && e.message ? e.message : '未知错误'));
         }
     }
-
     async function refreshUnread() {
         if (!sideHead) return;
         try {
@@ -813,6 +816,24 @@
 
         if (currentGroup) {
             try {
+
+
+                // 在 pollOnce 内部处理群消息时：
+                const lastMsg = normList[normList.length - 1];
+                if (lastMsg && String(lastMsg.fromUser) !== me.userId) {
+                    // 如果当前没有打开这个群，增加未读数
+                    const readTime = getGroupReadTime(peerId); // 上次已读时间
+                    const lastTimeStr = lastMsg.createTime.replace(' ', 'T');
+                    const lastTime = new Date(lastTimeStr).getTime();
+
+                    if (lastTime > readTime) {
+                        const currentUnread = getGroupUnread(peerId);
+                        setGroupUnread(peerId, currentUnread + 1);
+                        renderMyGroups(); // 重新渲染左侧列表显示红点
+                    }
+                }
+
+
                 const peerId = currentGroup.groupId;
                 const r = await YT.api.get('/api/private_message/select/group/message', { groupId: peerId });
                 const list = Array.isArray(r.data) ? r.data : [];
@@ -1081,6 +1102,42 @@
             }
         };
     }
+
+
+    //这两行用于测试清理缓存
+    //localStorage.removeItem('yt_my_groups_' + me.userId);
+    //localStorage.removeItem('yt_my_group_ids_' + me.userId);
+    //强制重新刷新前端
+    //async function forceSyncGroups() {
+    //    try {
+    //        const r = await YT.api.get('/api/private_message/select/my/groups', { me: me.userId });
+    //        console.log('真实群列表', r);
+    //        const serverGroups = Array.isArray(r.data) ? r.data : [];
+    //        const myGroups = serverGroups.map(g => ({
+    //            groupId: String(YT.pick(g, 'groupId', 'group_id')),
+    //            groupName: String(YT.pick(g, 'groupName', 'group_name')),
+    //            ownerId: String(YT.pick(g, 'ownerId', 'owner_id')),
+    //            createTime: String(YT.pick(g, 'createTime', 'create_time'))
+    //        }));
+    //        localStorage.setItem('yt_my_groups_' + me.userId, JSON.stringify(myGroups));
+    //        localStorage.setItem('yt_my_group_ids_' + me.userId, JSON.stringify(myGroups.map(g => g.groupId)));
+    //        renderMyGroups();
+    //    } catch (e) {
+    //        console.error('强制同步群失败', e);
+    //    }
+    //}
+
+
+
+
+
+
+
+
+
+
+
+
 
     renderPeers();
     renderMyGroups();

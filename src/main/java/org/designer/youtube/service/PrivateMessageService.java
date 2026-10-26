@@ -6,10 +6,13 @@ import org.designer.youtube.common.Result;
 import org.designer.youtube.entity.PrivateMessage;
 import org.designer.youtube.mapper.PrivateMessageMapper;
 import org.jspecify.annotations.NonNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -42,7 +45,7 @@ import java.util.Objects;
 @Component
 public class PrivateMessageService {
     private final PrivateMessageMapper privateMessageMapper;
-
+    private Logger log=LoggerFactory.getLogger(PrivateMessageService.class);
     // 我的收件箱：会话列表（每个对话最后一句 + 未读数 + 对方昵称）
     public List<Map<String, Object>> selectInbox(String me) {
         if (me == null || me.isEmpty()) return List.of();
@@ -191,19 +194,32 @@ public class PrivateMessageService {
         return Result.success("建立成功", Map.of("groupId", groupId));
     }
     //在原有的群里拉人
+    //在原有的群里拉人
+    @Transactional(rollbackFor = Exception.class) //加上事务，保证拉人和通知的一致性
     public Result<Map<String,Object>> addGroupMember(String groupId, String userId, String fromUser){
         if (groupId == null || groupId.isBlank()) return Result.fail("群号不能为空！");
         if (userId == null || userId.isBlank()) return Result.fail("用户不得为空！");
         if (fromUser == null || fromUser.isBlank()) return Result.fail("邀请人不能为空！");
-        //拉人前要确认用户真实存在
+
+        //校验被拉的人是否存在
         if (privateMessageMapper.countUser(userId) == 0) return Result.fail("用户不存在，无法拉入群聊！");
+        //顺便校验一下邀请人（群主）是否存在，防止 fromUser 乱传导致通知表外键报错
+        if (privateMessageMapper.countUser(fromUser) == 0) return Result.fail("邀请人不存在！");
+
+        //拉人入库（加了 INSERT IGNORE，重复拉不会报错，返回 0 说明已经在了）
         int k = privateMessageMapper.addGroupMember(groupId, userId);
-        if (k == 0) return Result.fail("拉人失败！重新拉人！");
-        //发送群邀请通知给被拉用户
-        String groupName = privateMessageMapper.selectGroupName(groupId);
-        if (groupName == null || groupName.isBlank()) groupName = "新群聊";
-        String notifyId = new RandomlyCreateID().createId();
-        privateMessageMapper.insertGroupInviteNotify(notifyId, userId, fromUser, groupId, "你已被加入群聊：" + groupName);
+        if (k == 0) return Result.fail("该用户已经在群里了！");
+
+        //发送群邀请通知
+        try {
+            String groupName = privateMessageMapper.selectGroupName(groupId);
+            if (groupName == null || groupName.isBlank()) groupName = "新群聊";
+            String notifyId = new RandomlyCreateID().createId();
+            privateMessageMapper.insertGroupInviteNotify(notifyId, userId, fromUser, groupId, "你已被加入群聊：" + groupName);
+        } catch (Exception e) {
+            //就算通知发失败（比如外键问题），也不能影响拉人这个主业务，打日志记录一下即可
+            log.error("发送入群通知失败, groupId={}, userId={}", groupId, userId, e);
+        }
         return Result.success("成功！", Map.of("userId", userId));
     }
 

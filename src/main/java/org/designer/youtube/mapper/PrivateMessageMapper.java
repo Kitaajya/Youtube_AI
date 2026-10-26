@@ -150,8 +150,9 @@ public interface PrivateMessageMapper {
     """)
     int establishGroup(@Param("groupId") String groupId,@Param("groupName") String groupName,@Param("ownerId") String ownerId);
     //在一个已建好的群里拉进来一个人
+    //取消了ignore，Service层用于查重抛出异常
     @Insert("""
-    INSERT IGNORE INTO group_member(group_id,user_id) VALUES (#{groupId},#{userId})
+    INSERT INTO group_member(group_id,user_id) VALUES (#{groupId},#{userId})
     """)
     int addGroupMember(@Param("groupId") String groupId,@Param("userId") String userId);
     //查询群名称（发入群邀请通知时拼文案用）
