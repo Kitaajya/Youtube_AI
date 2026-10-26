@@ -315,7 +315,6 @@
             if (!r || !r.data) return;
 
             const serverGroups = Array.isArray(r.data) ? r.data : [];
-            // 兼容后端可能返回的下划线或驼峰命名
             const myGroups = serverGroups.map(g => ({
                 groupId: String(YT.pick(g, 'groupId', 'group_id')),
                 groupName: String(YT.pick(g, 'groupName', 'group_name')),
@@ -323,18 +322,97 @@
                 createTime: String(YT.pick(g, 'createTime', 'create_time'))
             }));
 
-            // 如果发现后台多了一个群，说明被拉进去了，弹个提示
-            if (lastGroupCount !== -1 && myGroups.length > lastGroupCount) {
-                YT.toast('🔔 你已被拉入新的群聊！');
-            }
-            lastGroupCount = myGroups.length;
+            const oldIds = new Set(getStoredGroupIds());
+            const newIds = myGroups.map(g => g.groupId);
+            const addedIds = newIds.filter(id => !oldIds.has(id));
 
+            // 关键：只要出现新 groupId，就说明“被拉进群了”
+            if (addedIds.length > 0) {
+                for (const gid of addedIds) {
+                    const g = myGroups.find(x => x.groupId === gid);
+                    if (g) {
+                        YT.toast(`🔔 你已被拉入群聊：${g.groupName}！`);
+                    } else {
+                        YT.toast('🔔 你已被拉入新的群聊！');
+                    }
+                }
+            }
+
+            // 保存最新群列表
+            setStoredGroupIds(newIds);
             setMyGroups(myGroups);
             renderMyGroups();
+
+            // 如果当前没打开群聊，并且刚刚加入了新群，直接打开第一条新群
+            if (addedIds.length > 0 && !currentGroup) {
+                const firstNew = myGroups.find(g => addedIds.includes(g.groupId));
+                if (firstNew) {
+                    openGroupChat(firstNew.groupId, firstNew.groupName);
+                }
+            }
+
         } catch (e) {
             console.error("同步群列表失败", e);
         }
     }
+
+
+
+    /**
+     * Copilot给我的写法如下
+     *
+     *
+     *
+     *
+     *
+     *
+     *
+     *
+     *
+     *
+     *
+     *
+     *
+     * **/
+
+
+        // 在 message.js 里新增
+    const groupIdKey = 'yt_group_ids_' + me.userId;
+
+    function getStoredGroupIds() {
+        try {
+            return JSON.parse(localStorage.getItem(groupIdKey) || '[]');
+        } catch {
+            return [];
+        }
+    }
+
+    function setStoredGroupIds(ids) {
+        localStorage.setItem(groupIdKey, JSON.stringify(ids));
+    }
+
+
+    //通知加载
+    async function loadGroupInvites() {
+        try {
+            const r = await YT.api.get('/api/video/notify', { owner: me.userId });
+            const rows = Array.isArray(r.data) ? r.data : [];
+            const invites = rows.filter(n => String(n.type) === 'group_invite' || String(n.notifyType) === 'group_invite');
+
+            if (invites.length) {
+                for (const n of invites) {
+                    const groupId = YT.pick(n, 'refId', 'ref_id', 'groupId', 'group_id');
+                    const content = YT.pick(n, 'contents', 'content') || '你收到一条群邀请';
+                    YT.toast(`📩 ${content}`);
+                    console.log('群邀请', groupId, content);
+                }
+            }
+        } catch (e) {
+            console.error('加载群邀请通知失败', e);
+        }
+    }
+
+
 
     async function refreshUnread() {
         if (!sideHead) return;
@@ -911,7 +989,12 @@
         };
     }
     (async () => {
-        await Promise.all([loadInbox(), refreshUnread(), syncMyGroups()]);
+        await Promise.all([
+            loadInbox(),
+            refreshUnread(),
+            syncMyGroups(),
+            loadGroupInvites()
+        ]);
         schedulePoll();
     })();
     // ==========================================

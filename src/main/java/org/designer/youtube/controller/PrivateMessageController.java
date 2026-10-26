@@ -128,8 +128,8 @@ public class PrivateMessageController {
 
     //拉人
     @PostMapping("/add/member")
-    public Result<Map<String, Object>> addGroupMember(@RequestParam String groupId, @RequestParam String userId) {
-        return privateMessageService.addGroupMember(groupId, userId);
+    public Result<Map<String, Object>> addGroupMember(@RequestParam String groupId, @RequestParam String userId,@RequestParam String fromUser) {
+        return privateMessageService.addGroupMember(groupId, userId,fromUser);
     }
 
     //群主踢人
