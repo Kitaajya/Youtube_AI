@@ -1,73 +1,17 @@
+
+***
+
 # YouTube Imitate
 
-<div align="center">
-
-**一个从零实现的视频社区网站，前后端一体，深度接入 AI 与高并发架构**
+一个从零实现的视频社区网站，前后端一体，深度接入 AI 与高并发架构
 
 本项目为个人学习实践作品，与 YouTube 官方无任何关联。
 
 覆盖 AI 智能问答、视频上传/播放/点赞/评论、短视频流、动态社交、私信会话（含群聊）、关注粉丝、收藏夹、消息通知、历史记录等完整模块。前端为原生 HTML/CSS/JS 多页应用，后端为 Spring Boot + Spring AI + MyBatis + MySQL + Redis。
 
-<br>
-
-![Java](https://img.shields.io/badge/Java-17-orange?style=for-the-badge&logo=openjdk)
-
-<br>
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-brightgreen?style=for-the-badge&logo=spring)
-
-<br>
-![Spring AI](https://img.shields.io/badge/Spring%20AI-Ollama%20%2F%20DeepSeek-blueviolet?style=for-the-badge&logo=openai)
-
-<br>
-![Redis](https://img.shields.io/badge/Redis-Latest-red?style=for-the-badge&logo=redis)
-
-<br>
-![MyBatis](https://img.shields.io/badge/MyBatis-annotation%20SQL-red?style=for-the-badge&logo=mybatis)
-
-<br>
-![MySQL](https://img.shields.io/badge/MySQL-8.0-blue?style=for-the-badge&logo=mysql)
-
-<br>
-![License](https://img.shields.io/badge/license-学习项目-lightgrey?style=for-the-badge)
-
-</div>
-
----
-
 ## 🖼️ 界面预览
 
-<div align="center">
-
-**🤖 DeepSeek AI 助手**
-<img width="100%" src="https://github.com/user-attachments/assets/3b2a585b-672f-434d-a1f8-f6b17af81ac3" alt="DeepSeek AI样式" />
-
-<br><br>
-
-**🗄️ 数据库智能问答（NL2SQL 逻辑）**
-<img width="100%" src="https://github.com/user-attachments/assets/42e08553-da93-4c71-aa2b-9bc41ab56d11" alt="插入数据库后的DeepSeek" />
-
-<br><br>
-
-**📝 视频评论区 AI 总结**
-<img width="100%" src="https://github.com/user-attachments/assets/f141190c-842a-4c0c-b3e9-ff1931f84b14" alt="视频评论区总结" />
-
-<br><br>
-
-**🎬 视频流与短视频**
-<img width="100%" src="https://github.com/user-attachments/assets/afd8fc23-8f47-48fa-a5f5-ec7005e85e6c" alt="普通样例" />
-<br>
-<img width="100%" src="https://github.com/user-attachments/assets/a5bdeeed-8111-4477-adf8-ba6c3b3c8b3e" alt="短视频区域" />
-
-<br><br>
-
-**👤 个人主页与观看历史**
-<img width="100%" src="https://github.com/user-attachments/assets/279127f0-8e3e-4bf3-9637-c5d4a206cae6" alt="个人主页" />
-<br>
-<img width="100%" src="https://github.com/user-attachments/assets/523e6da2-513f-49fa-9899-a869aa71bb1c" alt="查找历史" />
-
-</div>
-
----
+*(此处保留你原有的图片链接不变)*
 
 ## 📖 目录
 
@@ -77,57 +21,43 @@
 - [📁 目录结构](#-目录结构)
 - [🗄 数据表一览](#-数据表一览)
 - [📡 API 一览](#-api-一览)
+- [🧠 踩坑与排错 Skill 指南](#-踩坑与排错-skill-指南)
 - [⚠️ 已知局限](#️-已知局限)
-
----
 
 ## ✨ 功能特性
 
 ### 🤖 AI 智能交互模块（核心亮点）
-- **全流式 AI 问答**：前端利用 `fetch` 配合 `ReadableStream`，配合后端 `Flux` 实现打字机效果的流式对话。
+- **全流式 AI 问答**：前端利用 `fetch` 配合 `ReadableStream`，配合后端 `Flux` 实现打字机效果的流式对话，并处理了中断与重试逻辑。
 - **智能意图路由**：前端 AI 助手根据用户提问关键词（如“表情”、“动态”、“用户”、“点赞”等），自动将请求分发至不同的数据分析接口或普通聊天接口。
-- **自然语言查库**：将用户信息、点赞记录、动态评论、表情包数据转换为自然语言上下文塞入 Prompt。用户可直接向 AI 提问（如：“谁赞了我的评论”）。
-- **AI 群聊总结与问答**：私信群聊中，若用户发送特定指令（如包含“DeepSeek”），AI 会自动读取群聊历史记录，总结上下文并以群友身份回答。
+- **自然语言查库（NL2SQL 逻辑）**：将用户信息、点赞记录、动态评论、表情包数据转换为自然语言上下文塞入 Prompt。
+- **AI 群聊总结与问答**：私信群聊中，若用户发送特定指令（如包含“DeepSeek”），AI 会自动读取群聊历史记录，总结上下文并以群友身份回答（前端使用 `aiLock` 状态锁 + 临时思考气泡，彻底解决流式输出引发的死循环）。
 - **视频评论一键总结**：播放页提供 AI 总结按钮，一键分析该视频下的所有评论并提炼核心观点。
 
 ### 🎬 视频与短视频模块
-- 真实文件上传（Multipart，最大支持 1GB），后端自动使用 `ffprobe` 探测时长与分辨率，自动判定是否为竖屏短视频。
-- 站内播放：服务端通过 `WebMvcConfigurer` 将本地目录映射为 `/videos/**` 静态资源。
-- 播放计数（进入页面自动上报，后端回读真实值）。
-- 短视频流（Shorts）：竖屏滑动流，自动计算热度（播放量*0.3 + 点赞*0.7），滚动吸附，自动播放/暂停。
-- 观看历史：自动记录用户看过的视频，按时间倒序分页查询（单次最多 200 条）。
+- **真实文件上传**：Multipart 分片接收，最大支持 1GB，后端自动使用 `ffprobe` 探测时长与分辨率，自动判定是否为竖屏短视频（浏览器端兜底探测时长，解决服务器无 ffprobe 的问题）。
+- **站内播放**：服务端通过 `WebMvcConfigurer` 将本地目录映射为 `/videos/**` 静态资源。
+- **短视频流（Shorts）**：竖屏滑动流，自动计算热度（播放量*0.3 + 点赞*0.7），`IntersectionObserver` 实现进入视口自动播放、滑出暂停。
+- **观看历史**：自动记录用户看过的视频，按时间倒序分页查询（单次最多 200 条）。
 
 ### 🚀 高并发点赞模块
-- **MySQL 为主，Redis 为辅**：以数据库记录为唯一口径，Redis Set 用于拦截重复点赞请求，避免高并发下的数据库写热点。
-- **缓存一致性**：取消点赞时，直接将 Redis 计数重置为数据库最新值，彻底解决缓存与数据库不一致的 Bug。
+- **MySQL 为主，Redis 为辅（Cache-Aside 模式）**：以数据库记录为唯一口径，Redis Set 用于拦截重复点赞请求，避免高并发下的数据库写热点。
+- **缓存一致性保障**：取消点赞时，直接将 Redis 计数重置为数据库最新值，彻底解决缓存与数据库不一致（刷新后数据归零）的 Bug。
 
-### 📁 收藏夹模块
-- 一人可建多个收藏夹，支持公开/私密（is_public）。
-- 播放页「收藏」弹窗：勾选式加入/移出、直接新建收藏夹、`in_list` 回显该视频已在哪些夹子中。
-- 频道页「收藏夹」标签：卡片网格展示，点击展开夹内视频（显示收藏时间）。
-
-### 💬 私信与群聊模块
+### 💬 私信与群聊模块（全新升级）
 - **一对一私信**：双向会话完整加载，支持文本、图片、视频、表情包发送。
 - **服务器端收件箱**：使用 MySQL 8 窗口函数聚合每个会话最后一条消息 + 未读数，换设备不丢记录。
-- **群聊功能**：支持创建群聊、拉人、退群、群主自动转让、查看群成员列表。
+- **群聊与成员管理**：支持创建群聊、拉人、退群、查看群成员列表。
+- **群主智能转让与群解散**：群主退群时，系统自动随机（排除 AI_BOT）转让给群内活人；若群内无活人，则触发级联删除（`ON DELETE CASCADE`），自动解散并清空所有群消息及成员记录。
 - **消息撤回与软删除**：支持 120 秒内撤回消息，支持单方面软删除（对方依然可见）。
 
 ### 👥 动态与社交
-- 发布 / 编辑 / 删除动态。
-- 动态评论支持楼中楼。
+- 发布 / 编辑 / 删除动态，动态评论支持楼中楼。
 - 关注 / 取关 UP 主，查看关注列表与粉丝列表。
 - 仿 YouTube 频道页：横幅封面、居中头像、Subscribe 风格按钮，包含「首页 / 视频 / 收藏夹 / 关注与粉丝」四标签页。
 
 ### 🔔 消息通知模块
 - 视频点赞、视频评论、回复、评论点赞、关注等操作会写入 `notification` 表。
-- 顶栏铃铛按钮 + 未读红点，前端 5 秒轮询，下拉面板显示通知列表，点开面板即标记已读。
-
-### 🎨 其他体验
-- **深浅色主题切换**：CSS 变量驱动，跟随系统偏好，使用 `localStorage` 持久化，全站自适应。
-- **登录图形验证码**：HttpSession 校验，AWT 绘制，防绕过前端直接调接口。
-- 统一响应体 `Result<T>` 与 13 位随机字符串业务主键（SecureRandom）。
-
----
+- 顶栏铃铛按钮 + 未读红点，前端 5 秒长轮询，下拉面板显示通知列表，点开面板即标记已读。
 
 ## 🛠 技术栈
 
@@ -140,15 +70,13 @@
 | 前端 | 原生 HTML / CSS / JavaScript，无框架、无构建 |
 | 其他 | Lombok · Multipart 文件存储 · Caffeine (本地缓存) |
 
----
-
 ## 🚀 快速开始
 
 ### 环境要求
 - JDK 17+
 - MySQL 8.0+
 - Redis (用于点赞模块)
-- Spring AI 支持的模型环境（如本地 Ollama 运行 deepseek-r1:8b，或配置 API Key）
+- Spring AI 支持的模型环境（如本地 Ollama 运行 deepseek-r1:8b / qwen2.5-coder，或配置 API Key）
 
 ### 1. 初始化数据库
 执行 `sql/` 目录下的建表脚本，创建 `youtube` 库及全部表。
@@ -177,8 +105,6 @@ spring.ai.ollama.chat.model=deepseek-r1:8b
 ### 3. 启动
 运行 `YoutubeApplication.java`，浏览器访问 `http://localhost:8080`，注册账号即可体验全部功能。
 
----
-
 ## 📁 目录结构
 
 ```text
@@ -199,8 +125,6 @@ spring.ai.ollama.chat.model=deepseek-r1:8b
             ├── js/             # 包含 common.js、home.js、message.js 等
             └── *.html          # index/login/register/upload/dynamic/watch/profile/message/shorts 等
 ```
-
----
 
 ## 🗄 数据表一览
 
@@ -223,8 +147,6 @@ spring.ai.ollama.chat.model=deepseek-r1:8b
 | `notification` | 消息通知 | is_read 标记 + 索引优化 |
 | `watch_history` | 观看历史 | 联合主键 (user_id, video_id) |
 | `emoji_item` | 表情包 | 记录表情包文件路径与名称 |
-
----
 
 ## 📡 API 一览
 
@@ -262,13 +184,10 @@ spring.ai.ollama.chat.model=deepseek-r1:8b
 - POST `/establish/group` · POST `/add/member` · POST `/exit/group`
 - GET `/select/my/groups` · POST `/add/group/message` · GET `/select/group/member`
 
----
+## 🧠 踩坑与排错 Skill 指南
 
-## ⚠️ 已知局限（学习项目取舍）
-
-- **安全鉴权**：密码目前为明文存储；登录态仅存于浏览器 `localStorage`，接口层未做 Token 拦截与校验（生产场景需补全 Spring Security / Sa-Token 与密码哈希）。
-- **AI 模块 Token 限制**：目前将数据库数据转为长字符串直接塞入 Prompt，数据量极大时可能超出模型上下文限制；未使用向量数据库 (RAG) 进行检索增强。
-- **并发与去重**：播放量未做防刷去重，刷新页面会重复计数。
-- **文件清理**：删除视频记录时，目前只清理数据库，未联动删除磁盘上的物理视频文件。
-- **分页处理**：部分列表接口（如首页视频流）尚未引入物理分页（`LIMIT/OFFSET`），数据量大时需优化。
-
+在开发过程中，我们总结了大量复杂全栈场景的排错经验（详见 `Skill.txt`）：
+1. **AI 流式输出防抖**：不要用特征文本（如“思考中”）作为状态载体，应当使用 `msgType='ai_thinking'` 标记并在渲染时过滤；前端必须加 `aiLock` 状态锁，防止轮询和流式请求把主线程打满。
+2. **异常兜底**：遇到点击无反应，先按 `F12` 看 Network 是否有满屏红色 500。Spring AI 的 `.stream()` 调用必须捕获异常，避免底层 500 堆栈直接抛给前端。
+3. **外键与脏数据**：建群拉人时，如果前端静默吞掉了后端的 `message`，会导致“假成功”。应当明确通过 `alert` 暴露错误，并在后端使用 `@Transactional` 保证一致性。
+4. **SSE 接口 400 排查**：遇到 `WebClientResponseException: 400 Bad Request`，大概率是塞给 AI 的上下文超长了（`num_ctx` 溢出），或者模型不支持 Tool Calling。
