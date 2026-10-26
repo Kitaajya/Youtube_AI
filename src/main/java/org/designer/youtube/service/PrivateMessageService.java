@@ -192,17 +192,24 @@ public class PrivateMessageService {
     }
     //在原有的群里拉人
     public Result<Map<String,Object>> addGroupMember(String groupId, String userId, String fromUser){
+        if (groupId == null || groupId.isBlank()) return Result.fail("群号不能为空！");
         if (userId == null || userId.isBlank()) return Result.fail("用户不得为空！");
-        if (privateMessageMapper.countUser(userId) == 0) return Result.fail("用户不存在！");
+        if (fromUser == null || fromUser.isBlank()) return Result.fail("邀请人不能为空！");
+        //拉人前要确认用户真实存在
+        if (privateMessageMapper.countUser(userId) == 0) return Result.fail("用户不存在，无法拉入群聊！");
         int k = privateMessageMapper.addGroupMember(groupId, userId);
         if (k == 0) return Result.fail("拉人失败！重新拉人！");
-
+        //发送群邀请通知给被拉用户
         String groupName = privateMessageMapper.selectGroupName(groupId);
+        if (groupName == null || groupName.isBlank()) groupName = "新群聊";
         String notifyId = new RandomlyCreateID().createId();
-        privateMessageMapper.insertGroupInviteNotify(
-                notifyId, userId, fromUser, groupId, "你已被加入群聊：" + groupName
-        );
+        privateMessageMapper.insertGroupInviteNotify(notifyId, userId, fromUser, groupId, "你已被加入群聊：" + groupName);
         return Result.success("成功！", Map.of("userId", userId));
+    }
+
+    // 兼容旧调用
+    public Result<Map<String,Object>> addGroupMember(String groupId, String userId){
+        return addGroupMember(groupId, userId, "system");
     }
     //查找群主
     public String selectGroupOwner(String groupId){
