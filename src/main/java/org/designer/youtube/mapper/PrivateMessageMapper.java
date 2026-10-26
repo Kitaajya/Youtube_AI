@@ -229,4 +229,44 @@ public interface PrivateMessageMapper {
     DELETE FROM group_member WHERE group_id = #{groupId} AND user_id = #{userId}
     """)
     int exitMyGroup(@Param("groupId") String groupId, @Param("userId") String userId);
+
+    /**寻找新的群主候选人（排除当前要退出的群主，并且绝对排除 AI_BOT）**/
+    @Select("""
+    SELECT user_id FROM group_member 
+    WHERE group_id = #{groupId} 
+      AND user_id != #{excludeUserId} 
+      AND user_id != 'AI_BOT'
+    """)
+    List<String> findNewOwnerCandidates(@Param("groupId") String groupId, @Param("excludeUserId") String excludeUserId);
+
+    /**转让群主**/
+    @Update("""
+    UPDATE chat_group SET owner_id = #{newOwnerId} WHERE group_id = #{groupId}
+    """)
+    int transferGroupOwner(@Param("groupId") String groupId, @Param("newOwnerId") String newOwnerId);
+    /**查看群聊里还有多少人，算上DeepSeek**/
+    @Select("SELECT COUNT(*) FROM group_member WHERE group_id = #{groupId}")
+    int countGroupMembers(@Param("groupId") String groupId);
+    /**删除群的主信息 */
+    @Delete("""
+    DELETE FROM chat_group WHERE group_id = #{groupId}
+    """)
+    int deleteChatGroup(@Param("groupId") String groupId);
+    /**
+     * 删除群里的message
+     * **/
+    @Delete("""
+    DELETE FROM group_message WHERE group_id=#{groupId}
+    """)
+    int deleteGroupMessage(@Param("groupId")String groupId);
+    /**把所有人踢出群**/
+    @Delete("""
+    DELETE FROM group_member WHERE group_id=#{groupId}
+    """)
+    int deleteAllMember(@Param("groupId")String groupId);
+    /**查看当前群里的成员信息，像微信那样**/
+    @Select("""
+    SELECT * FROM group_member WHERE group_id=#{groupId}
+    """)
+    List<Map<String,Object>> selectMemberInformation(@Param("groupId")String groupId);
 }

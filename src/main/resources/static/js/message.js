@@ -244,24 +244,34 @@
     }
 
     function renderHead() {
+        const titleSpan = document.getElementById('pm-chat-title');
+        const exitBtn = document.getElementById('btn-exit-group');
+        const viewBtn = document.getElementById('btn-view-members'); // 新增按钮
+
         if (currentGroup) {
-            head.innerHTML = `
-                <span class="avatar" style="background:var(--link);color:#fff;border-radius:8px;">群</span>
+            titleSpan.innerHTML = `
+                <span class="avatar" style="background:var(--link);color:#fff;border-radius:8px;margin-right:8px;">群</span>
                 <b>${YT.esc(currentGroup.groupName)}</b>
                 <span class="w-stats">群号: ${YT.esc(currentGroup.groupId)}</span>`;
+            exitBtn.style.display = 'block';
+            viewBtn.style.display = 'block'; // 显示成员按钮
             return;
         }
+
         if (!current) {
-            head.textContent = '选择左侧会话开始聊天';
+            titleSpan.textContent = '选择左侧会话开始聊天';
+            exitBtn.style.display = 'none';
+            viewBtn.style.display = 'none';
             return;
         }
-        head.innerHTML = `
-            <span class="avatar">${YT.esc((current.name || current.userId).slice(0, 1).toUpperCase())}</span>
+
+        titleSpan.innerHTML = `
+            <span class="avatar" style="margin-right:8px;">${YT.esc((current.name || current.userId).slice(0, 1).toUpperCase())}</span>
             <b>${YT.esc(current.name || '对方')}</b>
             <span class="w-stats">ID: ${YT.esc(current.userId)}</span>`;
-    }
-
-    function previewOf(m) {
+        exitBtn.style.display = 'none';
+        viewBtn.style.display = 'none'; // 私信时隐藏成员按钮
+    }    function previewOf(m) {
         if (Number(m.isWithdrawn || 0) === 1) return '[已撤回]';
         const t = String(m.msgType || 'text').toLowerCase();
         if (t === 'image') return '[图片]';
@@ -1123,6 +1133,39 @@
                     userId: me.userId
                 });
 
+                if (r.success) {
+                    YT.toast(r.message || '已退出群聊');
+
+                    // 1. 清理本地缓存中的群信息
+                    const newGroups = getMyGroups().filter(g => g.groupId !== currentGroup.groupId);
+                    setMyGroups(newGroups);
+
+                    // 2. 清理已读/未读记录
+                    localStorage.removeItem('yt_group_read_' + me.userId + '_' + currentGroup.groupId);
+                    localStorage.removeItem('yt_group_unread_' + me.userId + '_' + currentGroup.groupId);
+
+                    // 3. 重置当前聊天状态
+                    currentGroup = null;
+                    renderHead();
+                    renderMyGroups();
+                    renderPeers();
+
+                    // 4. 清空右侧聊天框
+                    msgs.innerHTML = '<div class="empty">你已退出该群聊</div>';
+                    sendBtn.disabled = true;
+                    ta.disabled = true;
+                    ta.placeholder = '已退出群聊';
+                } else {
+                    YT.toast(r.message || '退群失败');
+                }
+            } catch (e) {
+                YT.toast('网络错误：' + e.message);
+            } finally {
+                btnExitGroup.disabled = false;
+                btnExitGroup.textContent = '退出群聊';
+            }
+        };
+    }
     // ---------- 建群逻辑 ----------
     const btnCreateGroup = document.getElementById('btn-create-group');
     if (btnCreateGroup) {

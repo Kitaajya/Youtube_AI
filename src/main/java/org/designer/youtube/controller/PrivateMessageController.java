@@ -47,19 +47,19 @@ public class PrivateMessageController {
     private final VideoFileService videoFileService;
     private final RandomlyCreateID createGroupId;
     private final ChatClient client;
-    // 展示我和某人的完整对话，双向，按时间正序
+    /**展示我和某人的完整对话，双向，按时间正序**/
     @GetMapping("/select/message")
     public Result<List<PrivateMessage>> selectOurMessage(@RequestParam String a, @RequestParam String b) {
         return Result.success(privateMessageService.selectOurMessage(a, b));
     }
 
-    // 我的收件箱：会话列表（每个对话最后一句 + 未读数 + 对方昵称）
+    /**我的收件箱：会话列表（每个对话最后一句 + 未读数 + 对方昵称）**/
     @GetMapping("/select/inbox")
     public Result<List<Map<String, Object>>> selectInbox(@RequestParam String me) {
         return Result.success(privateMessageService.selectInbox(me));
     }
 
-    // 别人发给我的未读总数
+    /**别人发给我的未读总数**/
     @GetMapping("/count/unread")
     public Result<Map<String, Object>> countUnread(@RequestParam String me) {
         return Result.success(Map.of("count", privateMessageService.countUnread(me)));
