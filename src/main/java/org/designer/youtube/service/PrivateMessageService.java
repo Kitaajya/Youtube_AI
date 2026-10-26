@@ -192,33 +192,10 @@ public class PrivateMessageService {
     }
     //在原有的群里拉人
     public Result<Map<String,Object>> addGroupMember(String groupId,String userId){
-        if(userId==null||userId.trim().isEmpty()) return Result.fail("用户不得为空！");
-        //先校验被拉用户真实存在，杜绝把不存在的 user_id 静默写进 group_member 形成脏数据
-        if(privateMessageMapper.countUser(userId)==0) return Result.fail("用户不存在："+userId);
+        if(userId==null) return Result.fail("用户不得为空！");
         int k=privateMessageMapper.addGroupMember(groupId, userId);
         if(k==0) return Result.fail("拉人失败！重新拉人！");
-        //拉人成功后给被拉者发一条全站通知（铃铛红点），解决“被拉进群自己却不知道”
-        sendGroupInviteNotify(groupId, userId);
         return Result.success("成功！",Map.of("userId",userId));
-    }
-
-    /**
-     * 发“XX邀请你加入群聊《群名》”的全站通知。
-     * from_user 取群主（当前拉人语义即群主拉人）；群主把自己拉进群时 to==from，自动跳过。
-     * ref_id 存 groupId，前端点击通知可精确跳到对应群。通知失败不阻断拉人主流程。
-     */
-    private void sendGroupInviteNotify(String groupId,String toUser){
-        try{
-            String owner=privateMessageMapper.selectGroupOwner(groupId);
-            if(owner==null||owner.equals(toUser)) return;   //群主拉自己，不发
-            String groupName=privateMessageMapper.selectGroupName(groupId);
-            String contents="邀请你加入群聊「"+(groupName==null?groupId:groupName)+"」";
-            if(contents.length()>200) contents=contents.substring(0,200);
-            RandomlyCreateID id=new RandomlyCreateID();
-            privateMessageMapper.insertGroupInviteNotify(id.createId(),toUser,owner,groupId,contents);
-        }catch(Exception e){
-            //通知写入失败（如 notification 表缺 ref_id 列或外键约束）不应影响拉人本身
-        }
     }
     //查找群主
     public String selectGroupOwner(String groupId){
