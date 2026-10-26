@@ -269,4 +269,13 @@ public interface PrivateMessageMapper {
     SELECT * FROM group_member WHERE group_id=#{groupId}
     """)
     List<Map<String,Object>> selectMemberInformation(@Param("groupId")String groupId);
+    /**
+     * 判断用户发送的消息中是否包含违禁词
+     * 查出来大于 0 就说明有违禁词
+     */
+    @Select("""
+    SELECT COUNT(*) FROM prohibit_words 
+    WHERE #{content} LIKE CONCAT('%', message, '%')
+    """)
+    int findProhibitedWords(@Param("content") String content);
 }

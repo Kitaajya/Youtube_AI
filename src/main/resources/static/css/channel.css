@@ -208,3 +208,16 @@
     .ch-actions { justify-content: center; }
     .feature { grid-template-columns: 1fr; }
 }
+#ch-pm {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 20px; /* 药丸形状 */
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    transition: background 0.15s ease;
+}
+#ch-pm:hover {
+    background: var(--surface-3);
+}

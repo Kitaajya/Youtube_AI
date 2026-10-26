@@ -385,7 +385,7 @@
     }
 
     async function openChat(userId, name) {
-        if (!userId || userId.length !== 13) { YT.toast('用户ID应为13位'); return; }
+        //if (!userId || userId.length !== 13) { YT.toast('用户ID应为13位'); return; }
         if (userId === me.userId) { YT.toast('不能和自己聊天'); return; }
 
         currentGroup = null;
@@ -1288,8 +1288,24 @@
     renderPeers();
     renderMyGroups();
 
+    renderPeers();
+    renderMyGroups();
+
     (async () => {
         await Promise.all([loadInbox(), refreshUnread(), syncMyGroups()]);
+
+        //新增：检查 URL 里是否带有 peer 参数（从主页或播放页跳转过来）
+        const qs = new URLSearchParams(location.search);
+        const peerId = qs.get('peer');
+        const peerName = qs.get('name');
+
+        if (peerId) {
+            // 清空 URL 参数，防止刷新一直弹
+            window.history.replaceState({}, '', 'message.html');
+            // 自动打开与对方的聊天窗口
+            openChat(peerId, peerName || '');
+        }
+
         schedulePoll();
     })();
 })();

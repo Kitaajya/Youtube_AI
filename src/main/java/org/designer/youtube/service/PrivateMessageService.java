@@ -374,4 +374,20 @@ public class PrivateMessageService {
     public Result<List<Map<String,Object>>> selectMemberInformation(String groupId){
         return Result.success(privateMessageMapper.selectMemberInformation(groupId));
     }
+    /**
+     * message敏感词查询
+     *
+     *
+     *      List<Map<String, Object>> findProhibitedWords(@Param("groupId") String groupId);
+     *
+     *
+     *           SELECT message FROM prohibit_words;
+     *
+     **/
+
+
+    public boolean isContainsProhibitedWord(String willSendMessage){
+        int justify=privateMessageMapper.findProhibitedWords(willSendMessage);
+        return justify > 0;
+    }
 }
