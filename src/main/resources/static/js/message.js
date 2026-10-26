@@ -1037,6 +1037,72 @@
             if (row) openGroupChat(row.dataset.group, row.dataset.gname);
         });
     }
+    // ---------- 查看群成员逻辑 ----------
+    const btnViewMembers = document.getElementById('btn-view-members');
+    const membersModal = document.getElementById('members-modal');
+    const membersListBox = document.getElementById('members-list-box');
+    const btnCloseMembers = document.getElementById('close-members-modal');
+
+    if (btnCloseMembers) {
+        btnCloseMembers.onclick = () => membersModal.style.display = 'none';
+    }
+    // 点击遮罩层也可以关闭
+    if (membersModal) {
+        membersModal.onclick = (e) => {
+            if (e.target === membersModal) membersModal.style.display = 'none';
+        };
+    }
+
+    if (btnViewMembers) {
+        btnViewMembers.onclick = async function () {
+            if (!currentGroup) return;
+
+            membersModal.style.display = 'flex';
+            membersListBox.innerHTML = '<div class="empty" style="padding:10px;">加载中…</div>';
+
+            try {
+                // 调用你刚刚写好的后端接口
+                const r = await YT.api.get('/api/private_message/select/group/member', {
+                    groupId: currentGroup.groupId
+                });
+
+                if (r.success && Array.isArray(r.data)) {
+                    const members = r.data;
+                    if (!members.length) {
+                        membersListBox.innerHTML = '<div class="empty" style="padding:10px;">群里空无一人</div>';
+                        return;
+                    }
+
+                    // 渲染列表（这里用复用的 user-card 样式）
+                    membersListBox.innerHTML = members.map(m => {
+                        const uid = String(YT.pick(m, 'userId', 'user_id'));
+                        const name = String(YT.pick(m, 'nickname', 'nick_name') || uid);
+                        const avatar = String(YT.pick(m, 'avatar') || '');
+                        const isAI = uid === 'AI_BOT';
+
+                        // AI_BOT 给它一个特殊颜色
+                        const avatarStyle = isAI ? 'background:#3ea6ff; color:#fff;' : '';
+                        const aiTag = isAI ? ' <span style="font-size:10px; background:var(--link); color:#fff; padding:1px 4px; border-radius:4px; margin-left:4px;">AI</span>' : '';
+
+                        return `
+                        <div class="user-card" style="cursor:default;">
+                            <span class="avatar" style="${avatarStyle}">
+                                ${avatar ? `<img src="${YT.mediaUrl(avatar)}" alt="">` : YT.esc(name.slice(0, 1).toUpperCase())}
+                            </span>
+                            <div class="uc-txt">
+                                <div class="uc-name">${YT.esc(name)}${aiTag}</div>
+                                <div class="w-stats">ID: ${YT.esc(uid)}</div>
+                            </div>
+                        </div>`;
+                    }).join('');
+                } else {
+                    membersListBox.innerHTML = '<div class="empty" style="padding:10px;">获取成员失败</div>';
+                }
+            } catch (e) {
+                membersListBox.innerHTML = `<div class="empty" style="padding:10px;">网络错误：${YT.esc(e.message)}</div>`;
+            }
+        };
+    }
     // ---------- 退出群聊逻辑 ----------
     const btnExitGroup = document.getElementById('btn-exit-group');
     if (btnExitGroup) {
