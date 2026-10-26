@@ -220,8 +220,11 @@ public interface PrivateMessageMapper {
     ORDER BY g.create_time DESC
     """)
     List<Map<String, Object>> selectMyGroups(@Param("me") String me);
-    //退出自己所在的群聊
-    //退出自己所在的群聊（从成员表中删除该用户）
+
+    /**
+     * 关于退群与群主转让
+     * **/
+    //退出群聊（删除成员记录）
     @Delete("""
     DELETE FROM group_member WHERE group_id = #{groupId} AND user_id = #{userId}
     """)
