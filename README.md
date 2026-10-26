@@ -11,7 +11,22 @@
 
 ## 🖼️ 界面预览
 
-*(此处保留你原有的图片链接不变)*
+**🤖 DeepSeek AI 助手**
+<img width="100%" src="https://github.com/user-attachments/assets/3b2a585b-672f-434d-a1f8-f6b17af81ac3" alt="DeepSeek AI样式" />
+
+**🗄️ 数据库智能问答（NL2SQL 逻辑）**
+<img width="100%" src="https://github.com/user-attachments/assets/42e08553-da93-4c71-aa2b-9bc41ab56d11" alt="插入数据库后的DeepSeek" />
+
+**📝 视频评论区 AI 总结**
+<img width="100%" src="https://github.com/user-attachments/assets/f141190c-842a-4c0c-b3e9-ff1931f84b14" alt="视频评论区总结" />
+
+**🎬 视频流与短视频**
+<img width="100%" src="https://github.com/user-attachments/assets/afd8fc23-8f47-48fa-a5f5-ec7005e85e6c" alt="普通样例" />
+<img width="100%" src="https://github.com/user-attachments/assets/a5bdeeed-8111-4477-adf8-ba6c3b3c8b3e" alt="短视频区域" />
+
+**👤 个人主页与观看历史**
+<img width="100%" src="https://github.com/user-attachments/assets/279127f0-8e3e-4bf3-9637-c5d4a206cae6" alt="个人主页" />
+<img width="100%" src="https://github.com/user-attachments/assets/523e6da2-513f-49fa-9899-a869aa71bb1c" alt="查找历史" />
 
 ## 📖 目录
 
