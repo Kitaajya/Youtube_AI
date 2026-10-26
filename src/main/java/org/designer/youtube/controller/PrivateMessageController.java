@@ -167,5 +167,9 @@ public class PrivateMessageController {
     public Flux<String> selectGroupMessageForDeepSeek(@RequestParam String question,@RequestParam String groupId){
         return privateMessageService.selectGroupMessageForDeepSeek(this.client,groupId,question);
     }
-
+    /**关于退群与群主转让**/
+    @PostMapping("/exit/group")
+    public Result<Map<String,Object>> exitMyGroup(@RequestParam String groupId, @RequestParam String userId){
+        return privateMessageService.exitMyGroup(groupId, userId);
+    }
 }
