@@ -25,7 +25,18 @@
     $('#ch-av').textContent = String(name || userId).slice(0, 1).toUpperCase();
     document.title = (name || '频道') + ' - YouTube';
     if (isMine) $('#ch-upload').style.display = '';
-
+    // 如果不是自己，显示私信按钮
+    if (!isMine) {
+        const pmBtn = $('#ch-pm');
+        if (pmBtn) {
+            pmBtn.style.display = '';
+            pmBtn.onclick = (e) => {
+                e.preventDefault();
+                // 跳转到私信页，并带上对方的 userId 和昵称
+                location.href = 'message.html?peer=' + encodeURIComponent(userId) + '&name=' + encodeURIComponent(name);
+            };
+        }
+    }
     // ---------- 标签栏：首页 / 视频 / 收藏夹 / 关注与粉丝 ----------
     const panels = { home: $('#panel-home'), videos: $('#panel-videos'), plays: $('#panel-plays'), social: $('#panel-social') };
     let activeTab = 'home';
