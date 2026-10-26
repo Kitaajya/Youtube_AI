@@ -245,7 +245,10 @@ public class PrivateMessageService {
     public List<Map<String,Object>> selectGroupMessage(String groupId){
         return privateMessageMapper.selectGroupMessage(groupId);
     }
-    //向群聊中发消息
+    /**
+     * 向群中发消息
+     * 附带敏感词查询，prohibit_words是敏感词表
+     * **/
     public Result<Map<String,Object>> sendMessageToGroup(String msgId,String groupId,
                                                          String fromUser,String contents,String msgType,String mediaPath){
         if(msgId==null||groupId==null||fromUser==null) return Result.fail("出bug了！");
