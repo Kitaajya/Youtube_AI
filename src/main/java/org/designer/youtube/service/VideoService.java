@@ -430,7 +430,7 @@ public class VideoService {
                 sendCommentLikeNotify(commentId, me);
             } catch (Exception e) {
                 //把错误打印出来！并把错误返回给前端！
-                e.printStackTrace(); // 在 IDEA 控制台打印红字
+                e.printStackTrace();
                 log.error("评论点赞失败: ", e);
                 return Result.fail("点赞写入数据库失败: " + e.getMessage());
             }

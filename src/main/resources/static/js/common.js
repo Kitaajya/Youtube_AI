@@ -15,7 +15,13 @@ const YT = (() => {
 
     async function request(method, path, params) {
         let url = path, opts = { method };
-        if (method === 'GET' || method === 'DELETE') {
+
+        // 🟢 新增：如果是 FormData（文件上传），直接透传，不要用 URLSearchParams 糟蹋它
+        if (params instanceof FormData) {
+            opts.body = params;
+            // 注意：千万不要手动设置 Content-Type，浏览器会自动加上带 boundary 的 multipart/form-data
+        }
+        else if (method === 'GET' || method === 'DELETE') {
             if (params) {
                 const q = new URLSearchParams();
                 for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null) q.append(k, v);
@@ -27,11 +33,11 @@ const YT = (() => {
             opts.headers = { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' };
             opts.body = q.toString();
         }
+
         const res = await fetch(url, opts);
         if (!res.ok && res.status === 404) throw new Error('接口不存在(404)：' + url);
         return res.json();
     }
-
     const api = {
         get: (p, params) => request('GET', p, params),
         post: (p, params) => request('POST', p, params),

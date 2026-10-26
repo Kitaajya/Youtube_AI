@@ -498,19 +498,38 @@
             const form = new FormData();
             form.append('file', file);
 
-            const r = await YT.api.post('/api/private_message/upload/media', form, true);
+            // 🟢 修改这里：直接传 form，不要加第三个参数
+            const r = await YT.api.post('/api/private_message/upload/media', form);
+
             if (!r || !r.success || !r.data || !r.data.mediaPath) {
                 YT.toast(r && r.message ? r.message : '上传失败');
                 return;
             }
 
             const mediaPath = r.data.mediaPath;
-            const target = currentGroup ? { groupId: currentGroup.groupId, fromUser: me.userId, contents: '', msgType: 'image', mediaPath } : { fromUser: me.userId, toUser: current.userId, msgType: 'image', mediaPath };
 
-            const res = await YT.api.post(
-                currentGroup ? '/api/private_message/add/group/message' : '/api/private_message/send/picture/video',
-                currentGroup ? target : { ...target, contents: '' }
-            );
+            // 判断是图片还是视频（根据文件扩展名）
+            const ext = file.name.split('.').pop().toLowerCase();
+            const isVideo = ['mp4', 'webm', 'mov', 'm4v'].includes(ext);
+            const msgType = isVideo ? 'video' : 'image';
+
+            // 这里发送入库的请求，也可以用 FormData 直接发给后端 @ModelAttribute
+            const targetForm = new FormData();
+            targetForm.append('fromUser', me.userId);
+            if (currentGroup) {
+                targetForm.append('groupId', currentGroup.groupId);
+                targetForm.append('contents', '');
+                targetForm.append('msgType', msgType);
+                targetForm.append('mediaPath', mediaPath);
+            } else {
+                targetForm.append('toUser', current.userId);
+                targetForm.append('mediaPath', mediaPath);
+            }
+
+            // 🟢 入库接口：群聊用 add/group/message，私聊用 send/picture/video
+            const res = currentGroup
+                ? await YT.api.post('/api/private_message/add/group/message', targetForm)
+                : await YT.api.post('/api/private_message/send/picture/video', targetForm);
 
             if (!res.success) {
                 YT.toast(res.message || '发送失败');
@@ -522,7 +541,7 @@
                 fromUser: me.userId,
                 toUser: currentGroup ? currentGroup.groupId : current.userId,
                 contents: '',
-                msgType: 'image',
+                msgType: msgType,
                 mediaPath,
                 createTime: localNow(),
                 senderName: me.nickname || me.userId
@@ -546,7 +565,6 @@
             ta.focus();
         }
     }
-
     async function doSendEmoji(fileName) {
         if (!current && !currentGroup) { YT.toast('请先选择聊天对象或群聊'); return; }
         if (loading) return;
