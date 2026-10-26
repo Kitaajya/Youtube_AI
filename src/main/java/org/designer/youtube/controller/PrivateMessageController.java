@@ -172,4 +172,9 @@ public class PrivateMessageController {
     public Result<Map<String,Object>> exitMyGroup(@RequestParam String groupId, @RequestParam String userId){
         return privateMessageService.exitMyGroup(groupId, userId);
     }
+    /**查看当前群聊的成员信息**/
+    @GetMapping("/select/group/member")
+    public Result<List<Map<String, Object>>>selectMemberInformation(@RequestParam String groupId){
+        return privateMessageService.selectMemberInformation(groupId);
+    }
 }
