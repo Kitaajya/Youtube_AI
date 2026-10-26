@@ -1,4 +1,3 @@
-```text
 # YouTube Imitate
 
 <div align="center">
@@ -260,4 +259,4 @@ spring.ai.ollama.chat.model=deepseek-r1:8b
 - **并发与去重**：播放量未做防刷去重，刷新页面会重复计数。
 - **文件清理**：删除视频记录时，目前只清理数据库，未联动删除磁盘上的物理视频文件。
 - **分页处理**：部分列表接口（如首页视频流）尚未引入物理分页（`LIMIT/OFFSET`），数据量大时需优化。
-```
+
