@@ -71,7 +71,7 @@ public class DeepSeekController {
      * 2023/10/27/10:21
      */
     @GetMapping("/analyze/private/message/member")
-    public Flux<String> selectGroupMemberInformation(@RequestParam String groupId,@RequestParam String question){
+    public Flux<String> selectGroupMemberInformationForDeepSeek(@RequestParam String groupId,@RequestParam String question){
         return privateMessageService.selectGroupMemberForDeepSeek(this.client,groupId,question);
     }
 }
