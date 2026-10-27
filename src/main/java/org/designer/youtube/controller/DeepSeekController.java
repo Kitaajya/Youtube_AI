@@ -66,4 +66,12 @@ public class DeepSeekController {
     public Flux<String> selectSpecialVideoCommentsForDeepSeek(@RequestParam long vid,@RequestParam String question){
         return videoService.selectSpecialVideoCommentsForDeepSeek(this.client,vid,question);
     }
+    /**
+     * 把成员信息塞给DeepSeek
+     * 2023/10/27/10:21
+     */
+    @GetMapping("/analyze/private/message/member")
+    public Flux<String> selectGroupMemberInformation(@RequestParam String groupId,@RequestParam String question){
+        return privateMessageService.selectGroupMemberForDeepSeek(this.client,groupId,question);
+    }
 }
