@@ -266,7 +266,10 @@ public interface PrivateMessageMapper {
     int deleteAllMember(@Param("groupId")String groupId);
     /**查看当前群里的成员信息，像微信那样**/
     @Select("""
-    SELECT * FROM group_member WHERE group_id=#{groupId}
+    SELECT gm.user_id AS user_id, gm.join_time AS join_time, u.nickname AS nickname
+    FROM group_member gm
+    LEFT JOIN user_information u ON gm.user_id = u.user_id
+    WHERE gm.group_id = #{groupId}
     """)
     List<Map<String,Object>> selectMemberInformation(@Param("groupId")String groupId);
     /**
