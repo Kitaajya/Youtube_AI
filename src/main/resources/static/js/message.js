@@ -837,6 +837,17 @@
             if (ghost) ghost.remove();
         }
     }
+    // ---------- AI 查询群成员 ----------
+    async function triggerGroupMemberAi(triggerMsg, thinkingMsgId) {
+        aiLock = true;
+        const question = `${triggerMsg.senderName} 说：“${triggerMsg.contents}”。请回答。`;
+        let bubble = document.getElementById('typing-ai-bubble-content');
+        let fullText = '';
+
+        try {
+            // 注意这里请求的是你新写的接口
+            const response = await fetch(`/api/private_message/analyze/private/message/member?groupId=${currentGroup.groupId}&question=${encodeURIComponent(question)}`);
+            if (!response.ok) throw new Error('网络请求失败');
 
     // ---------- 轮询 ----------
     async function pollOnce() {
