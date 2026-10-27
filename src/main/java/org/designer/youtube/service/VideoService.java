@@ -548,9 +548,28 @@ public class VideoService {
         });
     }
     /**
-    * 关于视频审核，禁止色情、暴力、敏感内容
+    * 关于视频审核，禁止色情、暴力、敏感内容，每上传一个视频就审核，调用int uploadVideo(@Param("userId") String userId,
+     *  @Param("title") String title,
+     *  @Param("videoPath") String videoPath,
+     *  @Param("isShort") int isShort,
+     *  @Param("durationSec") int durationSec,
+     *  @Param("isVertical") int isVertical)接口
     * */
-    public void checkTitle(){
-
+    public boolean checkTitle(long videoId){
+        List<String> list=vm.findHitWordsByVideoId(videoId);
+        if(list.isEmpty()) {
+            log.info("视频审核通过！");
+            return true;//没有违规
+        }
+        else{
+            log.error("视频审核不通过！");
+            try{
+                int k=vm.deleteProhibitedVideo(videoId);
+                if (k != 0) log.info("视频已经删除！");
+            } catch (Exception e) {
+                log.error("删除违规视频出bug{}了！",videoId,e);
+            }
+            return false;
+        }
     }
 }

@@ -46,12 +46,12 @@ public interface VideoMapper {
     INSERT INTO video(user_id,title,video_path,is_short,duration_sec,is_vertical)
     VALUES(#{userId},#{title},#{videoPath},#{isShort},#{durationSec},#{isVertical})
     """)
-    int uploadVideo(@Param("userId") String userId,
-                    @Param("title") String title,
-                    @Param("videoPath") String videoPath,
-                    @Param("isShort") int isShort,
-                    @Param("durationSec") int durationSec,
-                    @Param("isVertical") int isVertical);
+    int uploadVideo(@Param("userId")        String userId,
+                    @Param("title")         String title,
+                    @Param("videoPath")     String videoPath,
+                    @Param("isShort")       int isShort,
+                    @Param("durationSec")   int durationSec,
+                    @Param("isVertical")    int isVertical      );
 
     //取刚上传视频的自增ID：必须与 uploadVideo 在同一事务中调用（Service 方法上加 @Transactional）
     @Select("SELECT LAST_INSERT_ID()")
@@ -644,4 +644,34 @@ public interface VideoMapper {
     SELECT * FROM video_comment WHERE video_id=#{vid}
     """)
     List<Map<String,Object>> selectSpecialVideoCommentsForDeepSeek(@Param("vid") long vid);
+    /**
+     * 关于视频审核，禁止色情、暴力、敏感内容|
+     *
+     * 检查视频标题是否合法
+     * **/
+    @Select("""
+    SELECT pw.message
+    FROM video v
+    JOIN prohibit_words pw
+        ON v.title LIKE CONCAT('%', pw.message, '%')
+    WHERE v.id = #{videoId}
+    """)
+    List<String> findHitWordsByVideoId(@Param("videoId") long videoId);
+    /**
+     * 如果视频标题不合法，退回视频
+     * **/
+    @Delete("""
+    DELETE FROM video where id=#{prohibitedVideoId}
+    """)
+    int deleteProhibitedVideo(@Param("prohibitedVideoId") long prohibitedVideoId);
+
+    /**
+     * 上传前校验：查一段文本（标题）是否包含违禁词
+     * 返回命中的违禁词列表，为空则表示安全
+     */
+    @Select("""
+    SELECT message FROM prohibit_words 
+    WHERE #{content} LIKE CONCAT('%', message, '%')
+    """)
+    List<String> findHitWordsByContent(@Param("content") String content);
 }

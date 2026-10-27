@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -103,6 +104,14 @@ public class VideoFileService {
                                                   int clientDurationSec, int clientVertical) {
         if (file == null || file.isEmpty()) return Result.fail("没有收到视频文件");
         if (title == null || title.trim().isEmpty()) return Result.fail("标题不能为空");
+
+        // ================= 新增：B站式标题自动审核 =================
+        List<String> hitWords=vm.findHitWordsByContent(title.trim());
+        if (!hitWords.isEmpty()) {
+            // 如果有违禁词，直接返回失败，并告诉用户命中了什么词（像B站那样）
+            return Result.fail("上传失败：您的标题包含违禁词【" + String.join("、", hitWords) + "】，请修改后重试。");
+        }
+        //============================================================
 
         String ext = extensionOf(file.getOriginalFilename());
         if (!isPlayable(ext)) {
