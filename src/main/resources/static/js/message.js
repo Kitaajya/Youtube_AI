@@ -785,7 +785,14 @@
                     isFirstChunk = false;
                 }
                 fullText += chunk;
-                if (bubble) bubble.innerText = fullText;
+                if (bubble) {
+                    // 使用 innerHTML 把内容塞进去（注意要转义 HTML 防止 XSS）
+                    bubble.innerHTML = YT.esc(fullText).replace(/\n/g, '<br>');
+                    // 通知 MathJax 重新渲染这块区域
+                    if (window.MathJax) {
+                        MathJax.typesetPromise([bubble]).catch(err => console.log(err));
+                    }
+                }
                 msgs.scrollTop = msgs.scrollHeight;
             }
 
