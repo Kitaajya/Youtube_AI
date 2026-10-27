@@ -403,11 +403,14 @@ public class PrivateMessageService {
         for(Map<String,Object> map:list){
             Object userId=map.get("user_id");//用户id
             Object joinTime =map.get("join_time");//用户入群时间
-            sb.append("用户id为").append(userId).append("；用户入群时间为:").append(joinTime);
-        }
-        String prompt= """
-                你是一个查询本群成员信息的高手，现在如果成员问你本群的成员信息，你就查询数据库回答。
-                如果问的与本群成员信息无关，你就如实回答。
+            sb.append("- 昵称: ")
+                    .append(", ID: ").append(userId)
+                    .append(", 入群时间: ").append(joinTime).append("\n");        }
+        String systemPrompt = """
+                你是一个智能群聊助手。
+                下面我为你提供了当前这个群的成员名单信息，请仔细阅读。
+                如果用户询问“群里都有谁”、“群主是谁”等关于成员的问题，请严格根据名单进行回答。
+                如果用户问的是其他无关问题，请利用你自己的知识正常回答。
                 """;
         String finalQuestion= "本次提示词"+prompt+"；用户问题："+question;
         return chatClient.prompt().system(prompt).user(finalQuestion).stream().content();
