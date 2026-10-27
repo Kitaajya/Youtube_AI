@@ -390,4 +390,26 @@ public class PrivateMessageService {
         int justify=privateMessageMapper.findProhibitedWords(willSendMessage);
         return justify > 0;
     }
+    /**
+     * 把成员信息塞给DeepSeek 2023/10/27/10:21
+     *
+     *
+     *
+     * List<Map<String,Object>> selectMemberInformation
+     */
+    public Flux<String> selectGroupMemberForDeepSeek(String groupId,String question){
+        List<Map<String,Object>> list=privateMessageMapper.selectMemberInformation(groupId);
+        StringBuilder sb=new StringBuilder();
+        for(Map<String,Object> map:list){
+            Object userId=map.get("user_id");//用户id
+            Object joinTime =map.get("join_time");//用户入群时间
+            sb.append("用户id为").append(userId).append("；用户入群时间为:").append(joinTime);
+        }
+        String prompt= """
+                你是一个查询本群成员信息的高手，现在如果成员问你本群的成员信息，你就查询数据库回答。
+                如果问的与本群成员信息无关，你就如实回答。
+                """;
+        String finalQuestion= "本次提示词"+prompt+"；用户问题："+question;
+        return chatClient.prompt().system(prompt).user(finalQuestion).stream().content();
+    }
 }
