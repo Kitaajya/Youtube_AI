@@ -664,7 +664,9 @@
                 renderMyGroups();
 
                 if (content.includes('问问DeepSeek') || content.includes('问问AI') ||
-                    content.includes('问问人工智能') || content.includes('DeepSeek') || content.includes('deepseek')) {
+                    content.includes('问问人工智能') || content.includes('DeepSeek') || content.includes('deepseek')
+                    ||content.includes('群里都有谁')||content.includes('群成员')
+                ) {
                     if (!document.getElementById('typing-ai-bubble')) {
                         aiLock = true;
                         const thinkingMsgId = YT.randId();
