@@ -9,15 +9,32 @@
     <link rel="stylesheet" href="css/dark.css">
     <link rel="stylesheet" href="css/style.css?v=3">
     <link rel="stylesheet" href="css/pm.css?v=8">
+
+    <!-- 👇 新增：引入 Markdown 解析器 (Marked) 和数学公式渲染器 (MathJax) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }, // 支持 $ 和 \( 包裹的公式
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <!-- 👆 新增结束 -->
+ //  <script>
+ //      // 扩展 Marked，让它可以解析 \[ ... \] 和 $$ ... $$ 之间的内容
+ //      const renderer = new marked.Renderer();
+ //      const originalParagraph = renderer.paragraph;
+ //      renderer.paragraph = function(text) {
+ //          // 如果遇到包含 \[ 或 \] 或 $$ 的段落，不把它包装成 <p> 标签，而是直接输出
+ //          if (text.includes('\\[') || text.includes('\\]') || text.includes('$$')) {
+ //              return text;
+ //          }
+ //          return originalParagraph.call(this, text);
+ //      };
+ //      marked.setOptions({ renderer: renderer });
+ //  </script>
+
 </head>
-<!-- 引入 MathJax 渲染数学公式 -->
-<script>
-    MathJax = {
-        tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }, // 支持 $ 和 \( 包裹的行内公式
-        svg: { fontCache: 'global' }
-    };
-</script>
-<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 <body>
 <div id="app-header"></div>
 
@@ -30,10 +47,8 @@
             <button class="btn sm primary" id="btn-create-group" style="height: 24px; padding: 0 8px; font-size: 12px;">➕ 建群</button>
         </div>
 
-        <!-- 👇 新增：群聊列表容器（之前缺失的） -->
         <div class="pm-groups" id="pm-groups" style="border-bottom: 1px solid var(--divider); padding-bottom: 6px; margin-bottom: 6px;"></div>
 
-        <!-- 私信列表容器 -->
         <div class="pm-peers" id="pm-peers"></div>
     </aside>
 
@@ -42,7 +57,7 @@
         <div class="pm-chat-head" id="pm-chat-head" style="display:flex; justify-content:space-between;">
             <span id="pm-chat-title">选择左侧会话开始聊天</span>
             <div style="display:flex; gap:8px;">
-                <!-- 新增：查看成员按钮 -->
+                <!-- 查看成员按钮 -->
                 <button class="btn sm" id="btn-view-members" style="display:none;">👥 成员列表</button>
                 <button class="btn sm" id="btn-exit-group" style="display:none; background:var(--danger); color:#fff;">退出群聊</button>
             </div>
@@ -84,7 +99,8 @@
         </div>
     </div>
 </div>
- <!-- 成员列表弹窗 -->
+
+<!-- 成员列表弹窗 -->
 <div id="members-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center;">
     <div style="background:var(--surface); padding:20px; border-radius:12px; width:320px; max-height:80vh; display:flex; flex-direction:column;">
         <h3 style="margin-bottom:15px; font-size:16px;">群成员列表</h3>
@@ -96,8 +112,10 @@
         </div>
     </div>
 </div>
+
 <script src="js/theme.js?v=1"></script>
 <script src="js/common.js?v=12"></script>
 <script src="js/message.js?v=9"></script>
+
 </body>
 </html>

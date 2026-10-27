@@ -172,7 +172,11 @@
         } else if (mtype === 'video' && mediaFile) {
             bodyHtml = `<div class="bubble media"><video controls preload="metadata" playsinline src="${YT.mediaUrl(mediaFile)}"></video></div>`;
         } else {
-            bodyHtml = `<div class="bubble">${YT.esc(String(m.contents || ''))}</div>`;
+            // bodyHtml = `<div class="bubble">${YT.esc(String(m.contents || ''))}</div>`;
+            const rawText = String(m.contents || '');
+            // 把文本用 marked 解析成 HTML
+            const parsedHtml = window.marked ? window.marked.parse(rawText) : YT.esc(rawText);
+            bodyHtml = `<div class="bubble markdown-body">${parsedHtml}</div>`;
         }
 
         let ops = '';
@@ -231,8 +235,12 @@
         msgs.innerHTML = html;
         msgs.scrollTop = msgs.scrollHeight;
         if (!isGroup) scheduleWithdrawRefresh(list);
-    }
 
+        // 加上这 3 行
+        if (window.MathJax && window.MathJax.typesetPromise) {
+            MathJax.typesetPromise([msgs]).catch(err => console.log('MathJax渲染失败', err));
+        }
+    }
     function appendMsgs(newMsgs, isGroup = false) {
         if (!newMsgs || !newMsgs.length) return;
         let html = '';
@@ -241,6 +249,11 @@
         }
         msgs.insertAdjacentHTML('beforeend', html);
         msgs.scrollTop = msgs.scrollHeight;
+
+        //核心新增：通知 MathJax 渲染新插入的消息（比如历史记录、最终落定在屏幕上的 AI 回复）
+        if (window.MathJax && window.MathJax.typesetPromise) {
+            MathJax.typesetPromise([msgs]).catch(err => console.log('MathJax渲染失败', err));
+        }
     }
 
     function renderHead() {
@@ -663,24 +676,30 @@
                 setGroupReadTime(currentGroup.groupId);
                 renderMyGroups();
 
-                if (content.includes('问问DeepSeek') || content.includes('问问AI') ||
-                    content.includes('问问人工智能') || content.includes('DeepSeek') || content.includes('deepseek')
-                    ||content.includes('群里都有谁')||content.includes('群成员')
-                ) {
+                // =========================================================
+                // 核心修改：判断是否触发 AI，并根据关键词进行接口分流
+                // =========================================================
+                const isAiTrigger = content.includes('问问DeepSeek') || content.includes('问问AI') ||
+                    content.includes('问问人工智能') || content.includes('DeepSeek') || content.includes('deepseek') ||
+                    content.includes('群里都有谁') || content.includes('群成员') || content.includes('所有人');
+
+                if (isAiTrigger) {
                     if (!document.getElementById('typing-ai-bubble')) {
                         aiLock = true;
                         const thinkingMsgId = YT.randId();
 
+                        // 插入 UI 思考气泡
                         msgs.insertAdjacentHTML('beforeend', `
                         <div class="pm-group-msg-wrap" id="typing-ai-bubble">
                             <div class="pm-group-avatar"><span class="avatar" style="background:#3ea6ff; color:#fff;">AI</span></div>
                             <div class="pm-group-msg-body">
                                 <span class="pm-group-name">DeepSeek 助手</span>
-                                <div class="pm-msg"><div class="bubble" style="background:var(--surface-2); border: 1px dashed var(--link); color:var(--text-primary);" id="typing-ai-bubble-content">正在阅读群聊并思考...</div></div>
+                                <div class="pm-msg"><div class="bubble" style="background:var(--surface-2); border: 1px dashed var(--link); color:var(--text-primary);" id="typing-ai-bubble-content">正在思考...</div></div>
                             </div>
                         </div>`);
                         msgs.scrollTop = msgs.scrollHeight;
 
+                        // 将思考状态写入数据库
                         YT.api.post('/api/private_message/add/group/message', {
                             msgId: thinkingMsgId,
                             groupId: currentGroup.groupId,
@@ -688,14 +707,26 @@
                             contents: '正在阅读群聊并思考...',
                             msgType: 'text'
                         }).then(() => {
-                            triggerGroupAi(nowMsg, thinkingMsgId);
+                            // 👇 在这里进行路由分流
+                            if (content.includes('群里都有谁') || content.includes('群成员') || content.includes('所有人')) {
+                                // 如果问成员，走成员查询接口
+                                triggerGroupMemberAi(nowMsg, thinkingMsgId);
+                            } else {
+                                // 否则，走普通的聊天总结接口
+                                triggerGroupAi(nowMsg, thinkingMsgId);
+                            }
                         });
                     }
                 }
-            } catch (e) { YT.toast('发送失败：' + e.message); } finally { loading = false; sendBtn.disabled = false; ta.focus(); }
+            } catch (e) {
+                YT.toast('发送失败：' + e.message);
+            } finally {
+                loading = false; sendBtn.disabled = false; ta.focus();
+            }
             return;
         }
 
+        // ---------------- 以下是私信（非群聊）的发送逻辑 ----------------
         if (!current) { YT.toast('请先选择聊天对象'); return; }
         const content = ta.value.trim();
         if (!content) { YT.toast('消息不能为空'); return; }
@@ -712,9 +743,12 @@
             appendMsgs([nowMsg], false);
             touchPeer(current.userId, current.name, content.slice(0, 30), nowMsg.createTime);
             loadInbox();
-        } catch (e) { YT.toast('发送失败：' + e.message); } finally { loading = false; sendBtn.disabled = false; ta.focus(); }
+        } catch (e) {
+            YT.toast('发送失败：' + e.message);
+        } finally {
+            loading = false; sendBtn.disabled = false; ta.focus();
+        }
     }
-
     // ---------- 撤回 / 删除 ----------
     async function doWithdraw(msgId, node) {
         try {
@@ -759,6 +793,7 @@
     // ---------- AI 自动回复 ----------
     const processedAiMsgIds = new Set();
 
+    // ---------- AI 自动回复（普通聊天总结） ----------
     async function triggerGroupAi(triggerMsg, thinkingMsgId) {
         if (processedAiMsgIds.has(triggerMsg.msgId)) return;
         processedAiMsgIds.add(triggerMsg.msgId);
@@ -779,18 +814,26 @@
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
+
                 const chunk = decoder.decode(value, { stream: true });
+
                 if (isFirstChunk) {
-                    if (bubble) bubble.innerText = '';
+                    if (bubble) bubble.innerHTML = ''; // 清空“思考中”
                     isFirstChunk = false;
                 }
+
                 fullText += chunk;
+
                 if (bubble) {
-                    // 使用 innerHTML 把内容塞进去（注意要转义 HTML 防止 XSS）
-                    bubble.innerHTML = YT.esc(fullText).replace(/\n/g, '<br>');
-                    // 通知 MathJax 重新渲染这块区域
-                    if (window.MathJax) {
-                        MathJax.typesetPromise([bubble]).catch(err => console.log(err));
+                    // 流式输出时用 Marked 解析 Markdown，用 MathJax 渲染公式
+                    if (window.marked) {
+                        bubble.innerHTML = window.marked.parse(fullText);
+                    } else {
+                        bubble.innerHTML = YT.esc(fullText).replace(/\n/g, '<br>');
+                    }
+
+                    if (window.MathJax && window.MathJax.typesetPromise) {
+                        MathJax.typesetPromise([bubble]).catch(err => console.log('MathJax渲染失败', err));
                     }
                 }
                 msgs.scrollTop = msgs.scrollHeight;
@@ -843,7 +886,7 @@
             const ghost = document.getElementById('typing-ai-bubble');
             if (ghost) ghost.remove();
         }
-    }
+    }    // ---------- AI 查询群成员 ----------
     // ---------- AI 查询群成员 ----------
     async function triggerGroupMemberAi(triggerMsg, thinkingMsgId) {
         aiLock = true;
@@ -852,11 +895,87 @@
         let fullText = '';
 
         try {
-            // 注意这里请求的是你新写的接口
             const response = await fetch(`/api/private_message/analyze/private/message/member?groupId=${currentGroup.groupId}&question=${encodeURIComponent(question)}`);
             if (!response.ok) throw new Error('网络请求失败');
 
-    // ---------- 轮询 ----------
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let isFirstChunk = true;
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value, { stream: true });
+
+                if (isFirstChunk) {
+                    if (bubble) bubble.innerHTML = ''; // 清空“思考中”
+                    isFirstChunk = false;
+                }
+
+                fullText += chunk;
+
+                if (bubble) {
+                    // 流式输出时用 Marked 解析 Markdown，用 MathJax 渲染公式
+                    if (window.marked) {
+                        bubble.innerHTML = window.marked.parse(fullText);
+                    } else {
+                        bubble.innerHTML = YT.esc(fullText).replace(/\n/g, '<br>');
+                    }
+
+                    if (window.MathJax && window.MathJax.typesetPromise) {
+                        MathJax.typesetPromise([bubble]).catch(err => console.log('MathJax渲染失败', err));
+                    }
+                }
+                msgs.scrollTop = msgs.scrollHeight;
+            }
+
+            if (fullText.trim()) {
+                const aiReplyMsgId = YT.randId();
+
+                const r = await YT.api.post('/api/private_message/add/group/message', {
+                    msgId: aiReplyMsgId,
+                    groupId: currentGroup.groupId,
+                    fromUser: 'AI_BOT',
+                    contents: fullText.trim(),
+                    msgType: 'text'
+                });
+
+                if (r.success) {
+                    const tempNode = document.getElementById('typing-ai-bubble');
+                    if (tempNode) tempNode.remove();
+
+                    if (thinkingMsgId) {
+                        YT.api.post('/api/private_message/delete/private/message', { msgId: thinkingMsgId, userId: me.userId }).catch(() => {});
+                    }
+
+                    const aiMsg = {
+                        msgId: aiReplyMsgId,
+                        fromUser: 'AI_BOT',
+                        toUser: currentGroup.groupId,
+                        contents: fullText.trim(),
+                        msgType: 'text',
+                        createTime: localNow(),
+                        senderName: 'DeepSeek 助手'
+                    };
+
+                    curList = curList.filter(m => m.msgId !== thinkingMsgId);
+                    curList = curList.filter(m => m.msgId !== aiReplyMsgId);
+                    curList.push(aiMsg);
+
+                    appendMsgs([aiMsg], true);
+                    lastGroupChatSig = chatSig(curList);
+                }
+            }
+        } catch (e) {
+            console.error('AI 查询群成员出错', e);
+            if (bubble) bubble.innerText = 'AI 出错了：' + e.message;
+        } finally {
+            aiLock = false;
+            const ghost = document.getElementById('typing-ai-bubble');
+            if (ghost) ghost.remove();
+        }
+    }    // ---------- 轮询 ----------
     async function pollOnce() {
         if (loading || aiLock) return;
 

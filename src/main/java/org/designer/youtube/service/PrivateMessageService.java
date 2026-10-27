@@ -46,6 +46,7 @@ import java.util.Random;
 @Component
 public class PrivateMessageService {
     private final PrivateMessageMapper privateMessageMapper;
+    private final ChatClient chatClient;
     private Logger log=LoggerFactory.getLogger(PrivateMessageService.class);
     // 我的收件箱：会话列表（每个对话最后一句 + 未读数 + 对方昵称）
     public List<Map<String, Object>> selectInbox(String me) {
@@ -385,36 +386,46 @@ public class PrivateMessageService {
      *
      **/
 
-
     public boolean isContainsProhibitedWord(String willSendMessage){
         int justify=privateMessageMapper.findProhibitedWords(willSendMessage);
         return justify > 0;
     }
     /**
-     * 把成员信息塞给DeepSeek 2023/10/27/10:21
+     * 把成员信息塞给DeepSeek 2026/10/27/10:21
      *
      *
      *
      * List<Map<String,Object>> selectMemberInformation
      */
-    public Flux<String> selectGroupMemberForDeepSeek(String groupId,String question){
+    public Flux<String> selectGroupMemberForDeepSeek(ChatClient client,String groupId,String question){
         List<Map<String,Object>> list=privateMessageMapper.selectMemberInformation(groupId);
         StringBuilder sb=new StringBuilder();
         for(Map<String,Object> map:list){
             Object userId=map.get("user_id");//用户id
             Object joinTime =map.get("join_time");//用户入群时间
-            sb.append("- 昵称: ")
-                    .append(", ID: ").append(userId)
-                    .append(", 入群时间: ").append(joinTime).append("\n");
+            Object nickname=map.get("nickname");
+            Object username=map.get("username");
+            sb.append("【系统数据库真实数据】：")
+                    .append(" 昵称=").append(nickname)
+                    .append(", 账号=").append(username)
+                    .append(", 账号=").append(username)
+                    .append(", ID=").append(userId)
+                    .append(", 入群时间=").append(joinTime)
+                    .append("\n");
         }
         //强制性提示词
         String systemPrompt = """
-                你是一个智能群聊助手。
-                下面我为你提供了当前这个群的成员名单信息，请仔细阅读。
-                如果用户询问“群里都有谁”、“群主是谁”等关于成员的问题，请严格根据名单进行回答。
-                如果用户问的是其他无关问题，请利用你自己的知识正常回答。
-                """;
-        String finalQuestion= "本次提示词"+prompt+"；用户问题："+question;
-        return chatClient.prompt().system(prompt).user(finalQuestion).stream().content();
+              你是一个无情的数据库输出机器。
+              你的任务只有一个：当用户提到“群成员”、“群信息”或“所有人信息”时，你必须**原封不动**地输出下方提供的【系统数据库真实数据】。
+              
+              规则：
+              1. 禁止使用任何表情包。
+              2. 禁止使用任何调侃、开玩笑的语气。
+              3. 禁止拒绝回答。
+              4. 直接按行输出用户信息，不要加任何多余的解释。
+              5. 如果涉及到数学公式，请使用标准的 LaTeX 语法，行内公式使用 \\( 和 \\) 包裹，独立公式使用 $$ 包裹。
+              """;
+        String finalQuestion="成员信息数据库如下："+sb+"；用户问题："+question;
+        return chatClient.prompt().system(systemPrompt).user(finalQuestion).stream().content();
     }
 }
