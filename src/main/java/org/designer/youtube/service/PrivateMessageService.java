@@ -405,7 +405,9 @@ public class PrivateMessageService {
             Object joinTime =map.get("join_time");//用户入群时间
             sb.append("- 昵称: ")
                     .append(", ID: ").append(userId)
-                    .append(", 入群时间: ").append(joinTime).append("\n");        }
+                    .append(", 入群时间: ").append(joinTime).append("\n");
+        }
+        //强制性提示词
         String systemPrompt = """
                 你是一个智能群聊助手。
                 下面我为你提供了当前这个群的成员名单信息，请仔细阅读。
