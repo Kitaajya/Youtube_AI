@@ -547,4 +547,10 @@ public class VideoService {
                     .content();
         });
     }
+    /**
+    * 关于视频审核，禁止色情、暴力、敏感内容
+    * */
+    public void checkTitle(){
+
+    }
 }
