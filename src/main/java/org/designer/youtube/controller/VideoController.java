@@ -328,4 +328,11 @@ public class VideoController {
     public Result<Map<String,Object>> toggleCommentLike(@RequestParam String me,@RequestParam String commentId){
         return vs.toggleCommentLike(me, commentId);
     }
+    /**关于审查视频标题**/
+    @PostMapping("/check/video/title")
+    public Result<Map<String,Object>> checkTitle(@RequestParam long videoId){
+        boolean isPass=vs.checkTitle(videoId);
+        if(isPass) return Result.success("视频标题通过审核！",Map.of("video_id",videoId));
+        return Result.fail("视频标题不通过！");
+    }
 }
