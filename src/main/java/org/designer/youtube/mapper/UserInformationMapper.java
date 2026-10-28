@@ -90,4 +90,15 @@ public interface UserInformationMapper {
     SELECT * FROM user_information
     """)
     List<Map<String,Object>> getUserInformationForDeepSeek();
+
+    /**
+     * 校验昵称是否包含违禁词，返回命中的违禁词数量
+     * 返回 0 表示通过，> 0 表示命中，应拒绝注册
+     */
+    @Select("""
+    SELECT COUNT(*)
+    FROM prohibit_words p
+    WHERE #{nickname} LIKE CONCAT('%', p.message, '%')
+    """)
+    int countProhibitedWords(@Param("nickname") String nickname);
 }
