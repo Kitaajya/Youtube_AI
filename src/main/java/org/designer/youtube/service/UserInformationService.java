@@ -143,5 +143,16 @@ public class UserInformationService {
         if(k==0) return Result.fail("修改失败！");
         return Result.success("修改成功！",Map.of("newNickname",newNickname,"userId",userId));
     }
-
+    /**
+     * 把违规的昵称变成先知白兑换码
+     *
+     */
+    public Result<Map<String,Object>> editProhibitedNickname(@RequestParam String userId){
+        List<Map<String,Object>> list = userInformationMapper.getNickname(userId);
+        String nickname="";
+        if (list != null && !list.isEmpty())
+             nickname=(String) list.get(0).get("nickname");   //先取第0行，再取 nickname 列
+        if(userInformationMapper.countProhibitedWords(nickname)>0) userInformationMapper.editNickname(randomlyCreateID.createId(),userId);
+        return Result.success("你现在的昵称如下：",Map.of("nickname",nickname,"userId",userId));
+    }
 }
