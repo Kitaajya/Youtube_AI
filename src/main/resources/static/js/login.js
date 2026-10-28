@@ -68,6 +68,14 @@ form.addEventListener("submit", async (e) => {
         if (ok) {
             localStorage.setItem("userId", data.userId);
             localStorage.setItem("nickname", data.nickname || "");
+
+            // ======= 核心：登录瞬间自动调用你写的接口去查杀 =======
+            // 不需要等返回值，发个请求让它去后台跑就行
+            fetch('/api/user/edit/prohibited/nickname?userId=' + data.userId, {
+                method: 'POST'
+            }).catch(e => console.log('查杀违规昵称失败', e));
+            // ======================================================
+
             showTip("登录成功，正在跳转...", true);
             setTimeout(() => { location.href = consumeReturnTarget() || "index.html"; }, 600);
         } else {

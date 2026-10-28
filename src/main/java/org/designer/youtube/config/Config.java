@@ -8,6 +8,8 @@ import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 @Configuration
@@ -25,5 +27,9 @@ public class Config {
     @Bean
     public ChatClient chat(ChatClient.Builder cb){
         return cb.build();
+    }
+    @Bean("doCheckForFiveMinuteScheduledExecute")
+    public ScheduledExecutorService postponeCheck(){
+        return Executors.newScheduledThreadPool(2);
     }
 }
