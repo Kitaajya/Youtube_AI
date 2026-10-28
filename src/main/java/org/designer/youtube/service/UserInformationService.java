@@ -148,11 +148,9 @@ public class UserInformationService {
      *
      */
     public Result<Map<String,Object>> editProhibitedNickname(@RequestParam String userId){
-        List<Map<String,Object>> list = userInformationMapper.getNickname(userId);
-        String nickname="";
-        if (list != null && !list.isEmpty())
-             nickname=(String) list.get(0).get("nickname");   //先取第0行，再取 nickname 列
-        if(userInformationMapper.countProhibitedWords(nickname)>0) userInformationMapper.editNickname(randomlyCreateID.createId(),userId);
-        return Result.success("你现在的昵称如下：",Map.of("nickname",nickname,"userId",userId));
+        String listName = userInformationMapper.getNickname(userId);
+        if(userInformationMapper.countProhibitedWords(listName)>0)
+            userInformationMapper.editNickname(randomlyCreateID.createId(),userId);
+        return Result.success("你现在的昵称如下：",Map.of("nickname",listName,"userId",userId));
     }
 }
