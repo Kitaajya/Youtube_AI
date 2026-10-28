@@ -572,4 +572,32 @@ public class VideoService {
             return false;
         }
     }
+    /**
+     * 让DeepSeek自动实现删除违规评论的功能
+     *
+     *  //查找包含违禁词的评论ID（利用你现有的 prohibit_words 表）
+     *  @Select("""
+     *  SELECT vc.comment_id
+     *  FROM video_comment vc
+     *  JOIN prohibit_words pw ON vc.contents LIKE CONCAT('%', pw.message, '%')
+     *  """)
+     *  List<String> findViolationCommentIds();
+     * */
+    /**
+     * 查出违规评论
+     * **/
+    public List<String> findViolationCommentIds(){
+        return vm.findViolationCommentIds();
+    }
+    /**删除违规评论**/
+    public Result<Map<Object, Object>> deleteCommentByDeepSeek(String commentId){
+        try {
+            int k=vm.deleteCommentByDeepSeek(commentId);
+            if(k!=0) return Result.success("删除成功！",Map.of("commentId",commentId));
+        }catch (DuplicateKeyException esq){
+            return Result.success("你已经删除过一次了！",Map.of("commentId",commentId));
+        }
+        return Result.fail("删除失败！");
+    }
+
 }

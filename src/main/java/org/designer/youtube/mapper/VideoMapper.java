@@ -674,4 +674,32 @@ public interface VideoMapper {
     WHERE #{content} LIKE CONCAT('%', message, '%')
     """)
     List<String> findHitWordsByContent(@Param("content") String content);
+    /**
+     * 2026/10/28/22:58
+     *
+     * 添加AI自动删除违规评论的功能，封装亮点
+     *
+     *在controller层调用DeepSeek删除
+     *
+     *
+     *
+     *
+     *
+     *
+     *
+     *
+     * **/
+    //查找包含违禁词的评论ID（利用现有的 prohibit_words 表）
+    @Select("""
+    SELECT vc.comment_id 
+    FROM video_comment vc
+    JOIN prohibit_words pw ON vc.contents LIKE CONCAT('%', pw.message, '%')
+    """)
+    List<String> findViolationCommentIds();
+
+    //真正删除操作（这就是上面想写的 @Delete）
+    @Delete("""
+    DELETE FROM video_comment WHERE comment_id = #{commentId}
+    """)
+    int deleteCommentByDeepSeek(@Param("commentId") String commentId);
 }
