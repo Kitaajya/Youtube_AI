@@ -1,4 +1,5 @@
 
+
 ***
 
 # YouTube Imitate
@@ -47,6 +48,11 @@
 - **自然语言查库（NL2SQL 逻辑）**：将用户信息、点赞记录、动态评论、表情包数据转换为自然语言上下文塞入 Prompt。
 - **AI 群聊总结与问答**：私信群聊中，若用户发送特定指令（如包含“DeepSeek”），AI 会自动读取群聊历史记录，总结上下文并以群友身份回答（前端使用 `aiLock` 状态锁 + 临时思考气泡，彻底解决流式输出引发的死循环）。
 - **视频评论一键总结**：播放页提供 AI 总结按钮，一键分析该视频下的所有评论并提炼核心观点。
+
+### 🛡️ 昵称内容审核与自动清洗（安全模块）
+- **准入查杀拦截**：采用“先放行、后清洗”的异步机制。新用户注册时，系统后台会利用 `ScheduledExecutorService` 开启定时任务，若检测到昵称包含 `prohibit_words` 表中的违禁词，则自动将原昵称重置为 13 位随机字符串（乱码），从源头避免违规昵称污染线上环境。
+- **一键全量清洗**：后台提供 `/api/user/clean/all/prohibited` 接口，支持一键遍历扫描全库已注册用户，精准定位违规昵称并强制重置为随机 ID。
+- **黑名单模式匹配**：底层基于 MySQL 的 `LIKE CONCAT('%', message, '%')` 进行多模式匹配，安全隔离含有色情、暴力等敏感字段的违规内容。
 
 ### 🎬 视频与短视频模块
 - **真实文件上传**：Multipart 分片接收，最大支持 1GB，后端自动使用 `ffprobe` 探测时长与分辨率，自动判定是否为竖屏短视频（浏览器端兜底探测时长，解决服务器无 ffprobe 的问题）。
@@ -146,6 +152,7 @@ spring.ai.ollama.chat.model=deepseek-r1:8b
 | 表 | 用途 | 关键设计 |
 |---|---|---|
 | `user_information` | 用户 | user_id 13位随机主键，username 唯一 |
+| `prohibit_words` | 违禁词表 | 存储色情、暴力等违规词汇，供昵称/消息拦截 |
 | `video` | 视频 | 自增主键，含 `is_short`、`duration_sec`、`cover_path` |
 | `video_like` | 视频点赞 | 联合主键 (video_id, user_id) |
 | `video_comment` | 视频评论 | parent_id 自引用实现楼中楼 |
@@ -179,6 +186,10 @@ spring.ai.ollama.chat.model=deepseek-r1:8b
 - POST `/create/user/account` · POST `/login`（验证码校验）
 - GET `/select/me/follow` · GET `/select/me/fans`
 - POST `/follow` · POST `/unfollow`
+- GET `/check/nickname` (注册前预检昵称合规性)
+- POST `/edit/nickname` (用户主动修改昵称)
+- POST `/edit/prohibited/nickname` (针对特定违规用户重置)
+- GET `/clean/all/prohibited` (管理端触发：全库扫描清理违规昵称)
 
 **🎬 视频 `/api/video`**
 - POST `/upload/file` (真实文件) · POST `/upload` (仅登记路径)
@@ -206,3 +217,4 @@ spring.ai.ollama.chat.model=deepseek-r1:8b
 2. **异常兜底**：遇到点击无反应，先按 `F12` 看 Network 是否有满屏红色 500。Spring AI 的 `.stream()` 调用必须捕获异常，避免底层 500 堆栈直接抛给前端。
 3. **外键与脏数据**：建群拉人时，如果前端静默吞掉了后端的 `message`，会导致“假成功”。应当明确通过 `alert` 暴露错误，并在后端使用 `@Transactional` 保证一致性。
 4. **SSE 接口 400 排查**：遇到 `WebClientResponseException: 400 Bad Request`，大概率是塞给 AI 的上下文超长了（`num_ctx` 溢出），或者模型不支持 Tool Calling。
+5. **字符串匹配与空值陷阱**：在编写违规词全库清洗逻辑时，务必防范 `nickname` 为空导致的 `Map.of()` 空指针异常。同时，清洗接口的 `Controller` 需对 `Service` 返回的 message 字符串进行精确匹配（如包含“已重置”），否则会出现“数据库已修改，但页面统计仍为 0”的假象。
