@@ -54,5 +54,13 @@ public class UserInformationController {
     public Result<Map<String,Object>> unfollow(@RequestParam String me,@RequestParam String upId){
         return userInformationService.unfollow(me, upId);
     }
-
+    /**
+     * 添加nickname审核功能-> int countProhibitedWords(@Param("nickname") String nickname);
+     * **/
+    @GetMapping("/check/nickname")
+    public Result<Map<String,Object>>countProhibitedWords(@RequestParam String nickname){
+        if(nickname.isEmpty()) return Result.fail("昵称不应为空！");
+        if(userInformationService.countProhibitedWords(nickname)>0) return Result.fail("你的昵称包含违禁字！");
+        return Result.success("昵称可用！",Map.of("nickname",nickname));
+    }
 }
