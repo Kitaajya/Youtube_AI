@@ -127,4 +127,11 @@ public class UserInformationService {
         String getK="主要信息如下："+k+"用户提问的内容是："+question;
         return client.prompt().system(systemPrompt).user(getK).stream().content();
     }
+    /**
+     * 添加nickname审核功能->    int countProhibitedWords(@Param("nickname") String nickname);
+     * **/
+    int countProhibitedWords(String nickname){
+        int k=userInformationMapper.countProhibitedWords(nickname);
+        return Math.max(k, 0);
+    }
 }
