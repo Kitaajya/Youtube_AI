@@ -2,6 +2,8 @@ package org.designer.youtube.controller;
 
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.designer.youtube.RandomlyCreateID;
 import org.designer.youtube.common.Result;
 import org.designer.youtube.service.UserInformationService;
 import org.springframework.web.bind.annotation.*;
@@ -9,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/user")
 @RequiredArgsConstructor
@@ -19,7 +22,13 @@ public class UserInformationController {
     @PostMapping("/create/user/account")
     public Result<Map<String,Object>> createNewAccount(@RequestParam String username,@RequestParam String password,
                                                        @RequestParam String nickname,@RequestParam String email,
-                                                       @RequestParam String phone){
+                                                       @RequestParam String phone) {
+        RandomlyCreateID randomlyCreateID=new RandomlyCreateID();
+        if(userInformationService.countProhibitedWords(nickname)>0){
+            //Thread.sleep(20000);
+            log.info("恭喜你，领取先知白兑换码！");
+            return Result.success(userInformationService.createNewAccount(username,password,randomlyCreateID.createId(),email,phone));
+        }
         return Result.success(userInformationService.createNewAccount(username,password,nickname,email,phone));
     }
 

@@ -130,7 +130,7 @@ public class UserInformationService {
     /**
      * 添加nickname审核功能->    int countProhibitedWords(@Param("nickname") String nickname);
      * **/
-    int countProhibitedWords(String nickname){
+    public int countProhibitedWords(String nickname){
         int k=userInformationMapper.countProhibitedWords(nickname);
         return Math.max(k, 0);
     }

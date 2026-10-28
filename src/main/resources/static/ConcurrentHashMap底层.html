@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConcurrentHashMap 底层实现 · JDK 1.7 vs 1.8</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: #f5f7fa;
+            color: #2c3e50;
+            margin: 0;
+            padding: 24px;
+            line-height: 1.6;
+        }
+        h1 {
+            font-size: 22px;
+            color: #1a3a5c;
+            margin: 0 0 4px;
+            font-weight: 700;
+        }
+        .subtitle {
+            color: #7a8a9a;
+            font-size: 13px;
+            margin-bottom: 22px;
+        }
+        .version-switch {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .version-switch button {
+            padding: 9px 22px;
+            border-radius: 8px;
+            border: 2px solid #dce3ea;
+            background: #fff;
+            color: #5b7ea0;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .version-switch button.active {
+            border-color: #2563eb;
+            background: #2563eb;
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(37,99,235,0.3);
+        }
+        .version-switch button:hover:not(.active) {
+            border-color: #93c5fd;
+            background: #eff6ff;
+        }
+
+        .view { display: none; }
+        .view.active { display: block; }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 22px;
+            max-width: 1200px;
+        }
+        @media (max-width: 900px) {
+            .layout { grid-template-columns: 1fr; }
+        }
+        .panel {
+            background: #fff;
+            border: 1px solid #dce3ea;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .panel h2 {
+            font-size: 15px;
+            margin: 0 0 14px;
+            color: #1a3a5c;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .panel h2 .tag {
+            font-size: 11px;
+            background: #eef2f6;
+            color: #7a8a9a;
+            padding: 2px 9px;
+            border-radius: 10px;
+            font-weight: 400;
+        }
+
+        /* ===== 通用图示元素 ===== */
+        .diagram {
+            padding: 10px 0;
+            overflow-x: auto;
+        }
+        .row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0;
+            margin-bottom: 6px;
+        }
+        .label-text {
+            font-size: 12px;
+            color: #64748b;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        /* 盒子 */
+        .box {
+            border: 2px solid #5b7ea0;
+            background: #eaf1f8;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #1a3a5c;
+            text-align: center;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+        .box.segment {
+            border-color: #d97706;
+            background: #fef3c7;
+            color: #92400e;
+            min-width: 120px;
+        }
+        .box.segment-lock {
+            border-color: #dc2626;
+            background: #fee2e2;
+            color: #991b1b;
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 6px;
+        }
+        .box.bin {
+            border-color: #059669;
+            background: #d1fae5;
+            color: #065f46;
+            min-width: 90px;
+        }
+        .box.bin-lock {
+            border-color: #7c3aed;
+            background: #ede9fe;
+            color: #5b21b6;
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 6px;
+        }
+        .box.cas {
+            border-color: #2563eb;
+            background: #dbeafe;
+            color: #1e40af;
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 6px;
+        }
+        .box.node {
+            border-color: #64748b;
+            background: #f1f5f9;
+            color: #334155;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            min-width: 44px;
+        }
+        .box.tree {
+            border-color: #7c3aed;
+            background: #ede9fe;
+            color: #5b21b6;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            min-width: 44px;
+        }
+        .box.fwd {
+            border-color: #dc2626;
+            background: #fee2e2;
+            color: #991b1b;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 11px;
+        }
+
+        /* 箭头 */
+        .arrow {
+            width: 32px;
+            height: 2px;
+            background: #94a3b8;
+            position: relative;
+            margin: 0 3px;
+            flex-shrink: 0;
+        }
+        .arrow::after {
+            content: '';
+            position: absolute;
+            right: -1px;
+            top: -4px;
+            border-left: 7px solid #94a3b8;
+            border-top: 5px solid transparent;
+            border-bottom: 5px solid transparent;
+        }
+        .arrow.vertical {
+            width: 2px;
+            height: 22px;
+            margin: 2px auto;
+        }
+        .arrow.vertical::after {
+            right: auto;
+            top: auto;
+            bottom: -1px;
+            left: -4px;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 7px solid #94a3b8;
+            border-bottom: none;
+        }
+        .arrow.vertical.down {
+            background: #94a3b8;
+        }
+
+        .null-mark {
+            color: #9aaab8;
+            font-size: 12px;
+            font-family: 'Consolas', monospace;
+            padding: 0 4px;
+            font-style: italic;
+        }
+
+        /* Segment 布局 */
+        .segment-array {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .segment-row {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            padding: 6px 0;
+            border-bottom: 1px dashed #e2e8f0;
+        }
+        .segment-row:last-child { border-bottom: none; }
+        .segment-row .seg-name {
+            font-size: 12px;
+            font-weight: 700;
+            color: #92400e;
+            min-width: 90px;
+        }
+        .segment-row .bins {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            flex-wrap: wrap;
+        }
+        .mini-node {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid #64748b;
+            background: #f1f5f9;
+            color: #334155;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .mini-node.tree {
+            border-color: #7c3aed;
+            background: #ede9fe;
+            color: #5b21b6;
+        }
+        .mini-node.fwd {
+            border-color: #dc2626;
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .mini-node.lock {
+            border-color: #dc2626;
+            box-shadow: 0 0 0 2px rgba(220,38,38,0.25);
+        }
+
+        /* 桶数组视图 */
+        .bin-array {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .bin-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 0;
+        }
+        .bin-index {
+            font-size: 11px;
+            color: #94a3b8;
+            font-family: 'Consolas', monospace;
+            min-width: 50px;
+        }
+
+        /* 要点列表 */
+        .key-points {
+            margin-top: 16px;
+        }
+        .key-points h3 {
+            font-size: 13.5px;
+            color: #1a3a5c;
+            margin: 0 0 10px;
+            font-weight: 700;
+        }
+        .key-points ul {
+            margin: 0;
+            padding-left: 20px;
+            font-size: 13px;
+            color: #475569;
+        }
+        .key-points li {
+            margin-bottom: 7px;
+            line-height: 1.6;
+        }
+        .key-points code {
+            background: #f1f5f9;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            color: #b45309;
+            font-size: 12px;
+        }
+
+        /* 对比表 */
+        .compare-table {
+            max-width: 1200px;
+            margin-top: 22px;
+            background: #fff;
+            border: 1px solid #dce3ea;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .compare-table table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .compare-table th {
+            background: #1a3a5c;
+            color: #fff;
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        .compare-table td {
+            padding: 11px 16px;
+            border-bottom: 1px solid #eef2f6;
+            color: #334155;
+        }
+        .compare-table tr:last-child td { border-bottom: none; }
+        .compare-table tr:nth-child(even) { background: #f8fafc; }
+        .compare-table td:first-child {
+            font-weight: 600;
+            color: #1a3a5c;
+            width: 140px;
+        }
+
+        /* 图例 */
+        .legend {
+            margin-top: 14px;
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            font-size: 12px;
+            color: #64748b;
+        }
+        .legend span { display: flex; align-items: center; gap: 6px; }
+        .legend .swatch {
+            width: 14px; height: 14px; border-radius: 4px; border: 2px solid;
+        }
+
+        .summary {
+            max-width: 1200px;
+            margin-top: 22px;
+            padding: 16px 20px;
+            background: #fff;
+            border: 1px solid #dce3ea;
+            border-radius: 12px;
+            font-size: 13.5px;
+            color: #334155;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .summary h3 { margin: 0 0 10px; font-size: 14.5px; color: #1a3a5c; }
+        .summary code {
+            background: #f1f5f9;
+            padding: 1px 7px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            color: #b45309;
+            font-size: 12.5px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>ConcurrentHashMap 底层实现</h1>
+<div class="subtitle">JDK 1.7 分段锁 vs JDK 1.8 CAS + synchronized 锁桶 + 红黑树</div>
+
+<div class="version-switch">
+    <button id="btn17" class="active" onclick="switchVersion('jdk17')">JDK 1.7 · 分段锁</button>
+    <button id="btn18" onclick="switchVersion('jdk18')">JDK 1.8 · CAS + synchronized</button>
+</div>
+
+<!-- ==================== JDK 1.7 ==================== -->
+<div class="view active" id="view-jdk17">
+    <div class="layout">
+
+        <div class="panel">
+            <h2>整体结构 <span class="tag">Segment 数组 + HashEntry 数组 + 链表</span></h2>
+
+            <div class="diagram">
+                <div class="label-text">ConcurrentHashMap（默认 16 个 Segment，并发度 16）</div>
+
+                <div class="segment-array">
+                    <!-- Segment 0 -->
+                    <div class="segment-row">
+                        <div class="seg-name">Segment[0]</div>
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <span class="box segment-lock">🔒 独立 ReentrantLock</span>
+                            <div class="arrow"></div>
+                            <div class="bins">
+                                <div class="mini-node lock">A</div>
+                                <div class="arrow" style="width:22px;"></div>
+                                <div class="mini-node">B</div>
+                                <div class="arrow" style="width:22px;"></div>
+                                <div class="null-mark">null</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Segment 1 -->
+                    <div class="segment-row">
+                        <div class="seg-name">Segment[1]</div>
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <span class="box segment-lock">🔒 独立 ReentrantLock</span>
+                            <div class="arrow"></div>
+                            <div class="bins">
+                                <div class="mini-node lock">C</div>
+                                <div class="arrow" style="width:22px;"></div>
+                                <div class="mini-node">D</div>
+                                <div class="arrow" style="width:22px;"></div>
+                                <div class="mini-node">E</div>
+                                <div class="arrow" style="width:22px;"></div>
+                                <div class="null-mark">null</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Segment 2 -->
+                    <div class="segment-row">
+                        <div class="seg-name">Segment[2]</div>
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <span class="box segment-lock">🔒 独立 ReentrantLock</span>
+                            <div class="arrow"></div>
+                            <div class="bins">
+                                <div class="mini-node lock">F</div>
+                                <div class="arrow" style="width:22px;"></div>
+                                <div class="null-mark">null</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 省略 -->
+                    <div class="segment-row">
+                        <div class="seg-name" style="color:#94a3b8;">…</div>
+                        <div style="font-size:12px;color:#94a3b8;">（共 16 个 Segment，每个 Segment 自带独立锁）</div>
+                    </div>
+                </div>
+
+                <div class="legend">
+                    <span><span class="swatch" style="border-color:#d97706;background:#fef3c7;"></span>Segment</span>
+                    <span><span class="swatch" style="border-color:#dc2626;background:#fee2e2;"></span>锁住的桶头</span>
+                    <span><span class="swatch" style="border-color:#64748b;background:#f1f5f9;"></span>HashEntry 链表节点</span>
+                </div>
+            </div>
+
+            <div class="key-points">
+                <h3>结构要点</h3>
+                <ul>
+                    <li>整体是 <code>Segment[]</code> 数组，每个 <code>Segment</code> 内部又维护一个 <code>HashEntry[]</code> 数组 + 链表。</li>
+                    <li>每个 <code>Segment</code> 继承 <code>ReentrantLock</code>，写操作只锁当前 Segment，<strong>不同 Segment 完全并行</strong>。</li>
+                    <li>默认并发度 16（16 个 Segment），意味着最多 16 个线程同时写不同 Segment。</li>
+                    <li>读操作<strong>完全无锁</strong>，靠 <code>HashEntry</code> 的 <code>value</code> 与 <code>next</code> 用 <code>volatile</code> 修饰保证可见性。</li>
+                    <li>扩容是<strong>单个 Segment 内部独立进行</strong>，粒度小，不涉及多线程协助。</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>单个 Segment 内部视图 <span class="tag">HashEntry 数组</span></h2>
+
+            <div class="diagram">
+                <div class="label-text">Segment 内部（一个 HashEntry 数组，每个槽位挂链表）</div>
+
+                <div class="bin-array">
+                    <div class="bin-row">
+                        <div class="bin-index">[0]</div>
+                        <div class="mini-node lock">A</div>
+                        <div class="arrow" style="width:22px;"></div>
+                        <div class="mini-node">B</div>
+                        <div class="arrow" style="width:22px;"></div>
+                        <div class="null-mark">null</div>
+                    </div>
+                    <div class="bin-row">
+                        <div class="bin-index">[1]</div>
+                        <div class="mini-node lock">C</div>
+                        <div class="arrow" style="width:22px;"></div>
+                        <div class="null-mark">null</div>
+                    </div>
+                    <div class="bin-row">
+                        <div class="bin-index">[2]</div>
+                        <div class="mini-node lock">D</div>
+                        <div class="arrow" style="width:22px;"></div>
+                        <div class="mini-node">E</div>
+                        <div class="arrow" style="width:22px;"></div>
+                        <div class="mini-node">F</div>
+                        <div class="arrow" style="width:22px;"></div>
+                        <div class="null-mark">null</div>
+                    </div>
+                    <div class="bin-row">
+                        <div class="bin-index">…</div>
+                        <div class="null-mark" style="font-size:12px;">（其余槽位）</div>
+                    </div>
+                </div>
+
+                <div style="margin-top:16px;font-size:12px;color:#64748b;">
+                    <strong>写操作：</strong>对当前 Segment 加锁 → 操作 HashEntry 链表 → 解锁。<br>
+                    <strong>读操作：</strong>无锁，直接沿 <code>next</code> 遍历。
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ==================== JDK 1.8 ==================== -->
+<div class="view" id="view-jdk18">
+    <div class="layout">
+
+        <div class="panel">
+            <h2>整体结构 <span class="tag">Node 数组 + 链表 / 红黑树</span></h2>
+
+            <div class="diagram">
+                <div class="label-text">ConcurrentHashMap（一个 Node[] table，每个桶独立加锁）</div>
+
+                <div class="bin-array">
+                    <div class="bin-row">
+                        <div class="bin-index">table[0]</div>
+                        <div class="mini-node lock">A</div>
+                        <div class="arrow" style="width:22px;"></div>
+                        <div class="mini-node">B</div>
+                        <div class="arrow" style="width:22px;"></div>
+                        <div class="mini-node">C</div>
+                        <div class="arrow" style="width:22px;"></div>
+                        <div class="null-mark">null</div>
+                        <span style="font-size:11px;color:#059669;margin-left:8px;">链表（≤ 8）</span>
+                    </div>
+
+                    <div class="bin-row">
+                        <div class="bin-index">table[1]</div>
+                        <div class="mini-node tree">🌲</div>
+                        <div class="arrow" style="width:22px;"></div>
+                        <div class="null-mark">null</div>
+                        <span style="font-size:11px;color:#7c3aed;margin-left:8px;">红黑树 TreeBin（链表 ≥ 8 且表长 ≥ 64）</span>
+                    </div>
+
+                    <div class="bin-row">
+                        <div class="bin-index">table[2]</div>
+                        <div class="mini-node fwd">FWD</div>
+                        <span style="font-size:11px;color:#dc2626;margin-left:8px;">ForwardingNode（扩容中，hash = -1）</span>
+                    </div>
+
+                    <div class="bin-row">
+                        <div class="bin-index">table[3]</div>
+                        <div class="null-mark">null</div>
+                        <span style="font-size:11px;color:#2563eb;margin-left:8px;">空桶 → CAS 直接写入，不加锁</span>
+                    </div>
+
+                    <div class="bin-row">
+                        <div class="bin-index">…</div>
+                        <div class="null-mark" style="font-size:12px;">（其余桶位）</div>
+                    </div>
+                </div>
+
+                <div class="legend">
+                    <span><span class="swatch" style="border-color:#64748b;background:#f1f5f9;border-radius:50%;"></span>链表节点</span>
+                    <span><span class="swatch" style="border-color:#7c3aed;background:#ede9fe;border-radius:50%;"></span>红黑树</span>
+                    <span><span class="swatch" style="border-color:#dc2626;background:#fee2e2;"></span>ForwardingNode</span>
+                    <span><span class="swatch" style="border-color:#059669;background:#d1fae5;"></span>锁住的桶头</span>
+                </div>
+            </div>
+
+            <div class="key-points">
+                <h3>结构要点</h3>
+                <ul>
+                    <li>只有一个 <code>Node[] table</code>，<strong>没有 Segment 了</strong>，锁粒度降到单个桶。</li>
+                    <li><strong>空桶写入</strong>：用 <code>CAS</code> 直接放入新节点，<strong>不加锁</strong>。</li>
+                    <li><strong>非空桶写入</strong>：只 <code>synchronized</code> 锁住该桶的<strong>头节点</strong>，其他桶不受影响。</li>
+                    <li><strong>读操作完全无锁</strong>：<code>Node.val</code> 和 <code>Node.next</code> 用 <code>volatile</code> 修饰。</li>
+                    <li><strong>链表转红黑树</strong>：链表长度 ≥ 8 且 table 长度 ≥ 64 时，转为红黑树，查找 O(log n)。</li>
+                    <li><strong>多线程协助扩容</strong>：迁移过的桶放 <code>ForwardingNode</code>（hash = -1）标记，其他线程可加入协助迁移。</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>单桶写入流程 <span class="tag">put() 关键路径</span></h2>
+
+            <div class="diagram">
+
+                <div style="font-size:12px;font-weight:700;color:#1a3a5c;margin-bottom:10px;">① 桶为空 → CAS 无锁写入</div>
+                <div class="row" style="margin-bottom:16px;">
+                    <span class="box cas">CAS 写入新节点</span>
+                    <div class="arrow"></div>
+                    <div class="mini-node" style="border-color:#2563eb;background:#dbeafe;color:#1e40af;">新</div>
+                </div>
+
+                <div style="font-size:12px;font-weight:700;color:#1a3a5c;margin-bottom:10px;">② 桶非空 → synchronized 锁头节点</div>
+                <div class="row" style="margin-bottom:16px;">
+                    <span class="box bin-lock">🔒 synchronized (头节点)</span>
+                    <div class="arrow"></div>
+                    <div class="mini-node lock">A</div>
+                    <div class="arrow" style="width:22px;"></div>
+                    <div class="mini-node">B</div>
+                    <div class="arrow" style="width:22px;"></div>
+                    <div class="mini-node">C</div>
+                    <div class="arrow" style="width:22px;"></div>
+                    <div class="null-mark">null</div>
+                </div>
+
+                <div style="font-size:12px;font-weight:700;color:#1a3a5c;margin-bottom:10px;">③ 链表过长 → 转红黑树</div>
+                <div class="row" style="margin-bottom:16px;">
+                    <div class="mini-node">A</div>
+                    <div class="arrow" style="width:18px;"></div>
+                    <div class="mini-node">B</div>
+                    <div class="arrow" style="width:18px;"></div>
+                    <div class="mini-node">C</div>
+                    <div class="arrow" style="width:18px;"></div>
+                    <div class="mini-node">D</div>
+                    <div class="arrow" style="width:18px;"></div>
+                    <div class="mini-node">E</div>
+                    <div style="font-size:16px;color:#7c3aed;margin:0 8px;">→</div>
+                    <div class="mini-node tree">🌲</div>
+                    <span style="font-size:11px;color:#7c3aed;margin-left:6px;">链表 ≥ 8 且表长 ≥ 64</span>
+                </div>
+
+                <div style="font-size:12px;font-weight:700;color:#1a3a5c;margin-bottom:10px;">④ 扩容中 → ForwardingNode 引导协助迁移</div>
+                <div class="row">
+                    <span class="mini-node fwd">FWD</span>
+                    <div class="arrow"></div>
+                    <div style="font-size:12px;color:#dc2626;">其他线程遇到 FWD 可加入协助扩容</div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ==================== 对比表 ==================== -->
+<div class="compare-table">
+    <table>
+        <thead>
+        <tr>
+            <th>维度</th>
+            <th>JDK 1.7</th>
+            <th>JDK 1.8</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>锁粒度</td>
+            <td>Segment 级别（默认 16 段）</td>
+            <td>桶级别（单个桶的头节点）</td>
+        </tr>
+        <tr>
+            <td>写锁实现</td>
+            <td><code>ReentrantLock</code></td>
+            <td><code>synchronized</code> + CAS</td>
+        </tr>
+        <tr>
+            <td>读操作</td>
+            <td>无锁（volatile）</td>
+            <td>无锁（volatile）</td>
+        </tr>
+        <tr>
+            <td>数据结构</td>
+            <td>Segment[] + HashEntry[] + 链表</td>
+            <td>Node[] + 链表 + 红黑树</td>
+        </tr>
+        <tr>
+            <td>扩容</td>
+            <td>单线程、Segment 内独立扩容</td>
+            <td>多线程协助扩容（ForwardingNode）</td>
+        </tr>
+        <tr>
+            <td>并发度</td>
+            <td>固定为 Segment 数量（默认 16）</td>
+            <td>随桶数量动态扩展，远高于 16</td>
+        </tr>
+        <tr>
+            <td>最坏查询</td>
+            <td>O(n)（链表）</td>
+            <td>O(log n)（红黑树）</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="summary">
+    <h3>一句话总结</h3>
+    <p style="margin:0;">
+        JDK 1.8 的 ConcurrentHashMap 本质上是“<strong>一个被拆成很多小锁的 HashMap</strong>”：
+        空桶 <code>CAS</code> 无锁写入，非空桶 <code>synchronized</code> 锁头节点，读永远不加锁，
+        长链表转红黑树，扩容时大家一起搬。
+        这也是它比 <code>Hashtable</code>（全表一把锁）和 <code>Collections.synchronizedMap</code>（全表一把锁）并发性能高得多的原因。
+    </p>
+</div>
+
+<script>
+    function switchVersion(version) {
+        document.getElementById('view-jdk17').classList.toggle('active', version === 'jdk17');
+        document.getElementById('view-jdk18').classList.toggle('active', version === 'jdk18');
+        document.getElementById('btn17').classList.toggle('active', version === 'jdk17');
+        document.getElementById('btn18').classList.toggle('active', version === 'jdk18');
+    }
+</script>
+
+</body>
+</html>

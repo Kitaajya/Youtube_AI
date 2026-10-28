@@ -17,9 +17,7 @@ import java.util.Map;
 public class DynamicService {
     public final DynamicMapper dynamicMapper;
     //查-写-删-修
-    public List<Map<String,Object>> selectDynamic(String id,
-                                           String content,
-                                           LocalDateTime createTime){
+    public List<Map<String,Object>> selectDynamic(String id,String content,LocalDateTime createTime){
         return dynamicMapper.selectDynamic(id, content, createTime);
     }
     public Map<String,Object> writeDynamic(String content,String id,String userId){
