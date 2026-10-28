@@ -134,4 +134,14 @@ public class UserInformationService {
         int k=userInformationMapper.countProhibitedWords(nickname);
         return Math.max(k, 0);
     }
+    /**
+     * 修改nickname，
+     *     int editNickname(@Param("newNickname") String newNickname,@Param("userId")String userId);
+     * **/
+    public Result<Map<String,Object>> editNickname(String newNickname,String userId){
+        int k=userInformationMapper.editNickname(newNickname,userId);
+        if(k==0) return Result.fail("修改失败！");
+        return Result.success("修改成功！",Map.of("newNickname",newNickname,"userId",userId));
+    }
+
 }
