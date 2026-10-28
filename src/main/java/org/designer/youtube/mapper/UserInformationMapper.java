@@ -101,4 +101,11 @@ public interface UserInformationMapper {
     WHERE #{nickname} LIKE CONCAT('%', p.message, '%')
     """)
     int countProhibitedWords(@Param("nickname") String nickname);
+    /**
+     * 改nickname
+     * **/
+    @Update("""
+    UPDATE user_information SET nickname=#{newNickname} WHERE user_id={userId}
+    """)
+    int editNickname(@Param("newNickname") String newNickname,@Param("userId")String userId);
 }
