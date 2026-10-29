@@ -1,9 +1,6 @@
 package org.designer.youtube.mapper;
 
-import org.apache.ibatis.annotations.Delete;
-import org.apache.ibatis.annotations.Insert;
-import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.*;
 import org.designer.youtube.entity.UserInformation;
 
 import java.util.List;
@@ -105,7 +102,16 @@ public interface UserInformationMapper {
      * 改nickname
      * **/
     @Update("""
-    UPDATE user_information SET nickname=#{newNickname} WHERE user_id={userId}
+    UPDATE user_information SET nickname=#{newNickname} WHERE user_id=#{userId}
     """)
     int editNickname(@Param("newNickname") String newNickname,@Param("userId")String userId);
+     /**
+      * 获取昵称
+      * **/
+     @Select("""
+     SELECT nickname FROM user_information WHERE user_id=#{userId}
+     """)
+     String getNickname(@Param("userId") String userId);
+    // @Select("SELECT user_id FROM user_information WHERE nickname IS NOT NULL")
+    // List<String> getAllUserIds();
 }

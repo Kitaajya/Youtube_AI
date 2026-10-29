@@ -11,6 +11,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.cors.CorsConfigurationSource;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -27,6 +28,9 @@ public class VideoService {
     private final VideoMapper vm;
     @Autowired
     private final StringRedisTemplate redisTemplate;
+    @Autowired
+    private CorsConfigurationSource corsConfigurationSource;
+
     /**
      *
      * 设置新消息通知功能
@@ -589,15 +593,46 @@ public class VideoService {
     public List<String> findViolationCommentIds(){
         return vm.findViolationCommentIds();
     }
-    /**删除违规评论**/
-    public Result<Map<Object, Object>> deleteCommentByDeepSeek(String commentId){
-        try {
-            int k=vm.deleteCommentByDeepSeek(commentId);
-            if(k!=0) return Result.success("删除成功！",Map.of("commentId",commentId));
-        }catch (DuplicateKeyException esq){
-            return Result.success("你已经删除过一次了！",Map.of("commentId",commentId));
-        }
-        return Result.fail("删除失败！");
-    }
+    /**自动检测并删除违规评论**/
+    public Result<String> auditAndDeleteComments(ChatClient client, long videoId) {
+        //查出该视频所有评论
+        List<Map<String, Object>> comments = vm.selectCommentsById(videoId);
+        if (comments == null || comments.isEmpty())
+            return Result.fail("该视频下没有评论");
+        int deletedCount = 0;
+        //逐条发送给DeepSeek审核（或者批量打包成 JSON 发给 AI）
+        for (Map<String, Object> comment : comments) {
+            String commentId = String.valueOf(comment.get("comment_id"));
+            String contents = String.valueOf(comment.get("contents"));
 
+            // 构造 Prompt：让 AI 只回答 YES 或 NO
+            String systemPrompt = """
+            你是一个严格的内容审核员。
+            请判断以下评论是否包含：色情、辱骂、暴恐、政治敏感或广告。
+            如果违规，请只回复 "YES"。
+            如果正常，请只回复 "NO"。
+            不要输出任何其他解释。
+            """;
+
+            try {
+                //这里用 call() 同步调用，因为要等结果做判断
+                String aiResponse = client.prompt()
+                        .system(systemPrompt)
+                        .user("评论内容：" + contents)
+                        .call()
+                        .content();
+
+                //如果AI判定违规，Java执行删除
+                if (aiResponse != null && aiResponse.toUpperCase().contains("YES")) {
+                    vm.deleteCommentById(commentId);
+                    deletedCount++;
+                    log.info("DeepSeek 判定违规，已删除评论：{}, 内容：{}", commentId, contents);
+                }
+            } catch (Exception e) {
+                log.error("AI 审核评论失败, commentId={}", commentId, e);
+            }
+        }
+        return Result.success("AI 审查完毕，共删除了 " + deletedCount + " 条违规评论");
+    }
+//B D A
 }

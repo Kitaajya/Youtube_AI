@@ -9,6 +9,7 @@ import org.designer.youtube.mapper.UserInformationMapper;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestParam;
 import reactor.core.publisher.Flux;
 
 import java.util.HashMap;

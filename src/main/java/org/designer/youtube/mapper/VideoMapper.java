@@ -701,5 +701,22 @@ public interface VideoMapper {
     @Delete("""
     DELETE FROM video_comment WHERE comment_id = #{commentId}
     """)
-    int deleteCommentByDeepSeek(@Param("commentId") String commentId);
+    int deleteComment(@Param("commentId") String commentId);
+    /**
+     * 获取违规词表
+     * **/
+    @Select("""
+    SELECT * FROM prohibit_words
+    """)
+    List<Map<String,Object>> getProhibitedWords();
+    /**获得视频下方的评论，无userId，接口名重载**/
+    @Select(""" 
+    SELECT contents from video_comment WHERE video_id=#{videoId};
+    """)
+    List<Map<String,Object>> selectCommentsById(@Param("videoId") long videoId);
+    /**
+     * 删除违规评论
+     * **/
+    @Delete("DELETE FROM video_comment WHERE comment_id = #{commentId}")
+    int deleteCommentById(@Param("commentId") String commentId);
 }

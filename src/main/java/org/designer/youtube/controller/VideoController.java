@@ -40,8 +40,10 @@ import org.designer.youtube.service.VideoFileService;
 import org.designer.youtube.service.VideoService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import reactor.core.publisher.Flux;
 
 import java.util.HashMap;
 import java.util.List;
@@ -53,6 +55,7 @@ import java.util.Map;
 public class VideoController {
     private final VideoService vs;
     private final VideoFileService vfs;
+    private ChatClient client;
     private final Logger log= LoggerFactory.getLogger(VideoController.class);
 
     //上传视频文件（文件本体真正传到服务器并落盘，返回可直接播放的 URL）
@@ -334,5 +337,14 @@ public class VideoController {
         boolean isPass=vs.checkTitle(videoId);
         if(isPass) return Result.success("视频标题通过审核！",Map.of("video_id",videoId));
         return Result.fail("视频标题不通过！");
+    }
+    /**
+     *
+     * 自动检测并删除违规评论**/
+    @PostMapping("/delete/atuo/prohibited/comment")
+    public Flux<String> deleteCommentByDeepSeek(@RequestParam long videoId,
+                                                //@RequestParam String commentId,
+                                                @RequestParam String userId){
+        return vs.deleteCommentByDeepSeek(this.client,videoId,vs.findViolationCommentIds().get(0),userId);
     }
 }
