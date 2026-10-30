@@ -588,7 +588,7 @@ public class VideoService {
      *  List<String> findViolationCommentIds();
      * */
     /**
-     * 查出违规评论
+     * DeepSeek查出违规评论，实现自动化删评
      * **/
     public List<String> findViolationCommentIds(){
         return vm.findViolationCommentIds();
