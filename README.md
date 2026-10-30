@@ -15,6 +15,16 @@
 **🐳 DeepSeek AI 助手**
 <img width="100%" src="https://github.com/user-attachments/assets/3b2a585b-672f-434d-a1f8-f6b17af81ac3" alt="DeepSeek AI样式" />
 
+**🐳 DeepSeek网络评论警察自动筛选违规评论并删除**
+<h1>展示违规评论</h1>
+<img width="1295" height="522" alt="image" src="https://github.com/user-attachments/assets/8a6fccfd-bdc5-4af5-b488-131c839e80f1" />
+<h1>DeepSeek审查评论</h1>
+<img width="2349" height="727" alt="image" src="https://github.com/user-attachments/assets/97f4f932-6717-4b46-90b9-b5eff7dd58be" />
+<h1>DeepSeek删除评论</h1>
+<img width="1302" height="389" alt="image" src="https://github.com/user-attachments/assets/72a73766-f3f3-451e-8f82-0f94708fa70f" />
+
+
+
 **🗄️ 数据库智能问答（NL2SQL 逻辑）**
 <img width="100%" src="https://github.com/user-attachments/assets/42e08553-da93-4c71-aa2b-9bc41ab56d11" alt="插入数据库后的DeepSeek" />
 
