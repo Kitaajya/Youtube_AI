@@ -182,44 +182,163 @@ spring.ai.ollama.chat.model=deepseek-r1:8b
 
 ## 📡 API 一览
 
-统一返回 `Result{code, success, message, data}`；参数均为 `@RequestParam`。
+> **全局约定：**
+> 1. 统一返回体为 `Result{code, success, message, data}`。
+> 2. 除特别注明外，所有接口的参数均通过 `@RequestParam` 接收，前端直接使用 **Query String**（GET/DELETE）或 **application/x-www-form-urlencoded**（POST）提交。
+> 3. 文件上传接口使用 `multipart/form-data`。
+> 4. 标注为 **(流式)** 的接口，返回类型为 `Flux<String>`，前端需使用 `ReadableStream` 处理流式输出。
 
-**🤖 AI 对话 `/api/deepseek`**
-- GET `/stream` (流式问答)
-- GET `/analyze/likes` (分析点赞库)
-- GET `/analyze/user` (分析用户库)
-- GET `/analyze/dynamic/comments` (分析动态评论)
-- GET `/analyze/private/message/emoji` (分析表情包)
-- GET `/analyze/video/comments` (分析特定视频评论)
+---
 
-**👤 用户 `/api/user`**
-- POST `/create/user/account` · POST `/login`（验证码校验）
-- GET `/select/me/follow` · GET `/select/me/fans`
-- POST `/follow` · POST `/unfollow`
-- GET `/check/nickname` (注册前预检昵称合规性)
-- POST `/edit/nickname` (用户主动修改昵称)
-- POST `/edit/prohibited/nickname` (针对特定违规用户重置)
-- GET `/clean/all/prohibited` (管理端触发：全库扫描清理违规昵称)
+### 🤖 AI 对话与智能分析 `/api/deepseek`
+*深度接入 Spring AI，把数据库内容转化为上下文喂给大模型（NL2SQL 逻辑）。*
 
-**🎬 视频 `/api/video`**
-- POST `/upload/file` (真实文件) · POST `/upload` (仅登记路径)
-- GET `/select/videos/upinfor` · GET `/select/video/single/infor` · GET `/select/like` (搜索)
-- POST `/edit/title` · DELETE `/delete/videos` · POST `/add/view`
-- GET `/select/short` (短视频流) · GET `/select/history` · POST `/insert/history`
-- **点赞**：POST `/add/like` · POST `/cancel/like` · GET `/select/like/count`
-- **评论**：GET `/get/all/comments` · POST `/add/my/comments` · POST `/add/comment/like`
-- **通知**：GET `/notify` · POST `/notify/read/all`
+| 方法 | 路径 | 参数 | 说明 |
+| :--- | :--- | :--- | :--- |
+| GET | `/stream` | `question` | 普通 AI 流式问答（打字机效果）**(流式)** |
+| GET | `/ask/deepseek` | `question` | 普通 AI 阻塞式问答 |
+| GET | `/analyze/likes` | `question` | 把全站点赞记录喂给 AI，进行总结或查询 **(流式)** |
+| GET | `/analyze/user` | `question` | 把全站用户信息喂给 AI，支持条件检索 **(流式)** |
+| GET | `/analyze/dynamic/comments` | `question` | 把动态评论数据喂给 AI 进行分析 **(流式)** |
+| GET | `/analyze/private/message/emoji` | `question` | 把表情包数据库喂给 AI 进行查询 **(流式)** |
+| GET | `/analyze/video/comments` | `vid`, `question` | 提取某视频下的所有评论，让 AI 一键总结 **(流式)** |
+| GET | `/analyze/private/message/member` | `groupId`, `question` | 把群成员信息喂给 AI 进行查询 **(流式)** |
 
-**📁 收藏夹 `/api/video`**
-- POST `/create/like/format` · POST `/add/to/like` · DELETE `/remove/from/like`
-- GET `/select/like/format` · POST `/edit/like/format/public`
+---
 
-**💬 私信与群聊 `/api/private_message`**
-- POST `/send` · GET `/select/message` · GET `/select/inbox` · POST `/read`
-- POST `/withdraw/private/message` (撤回) · POST `/upload/media`
-- POST `/establish/group` · POST `/add/member` · POST `/exit/group`
-- GET `/select/my/groups` · POST `/add/group/message` · GET `/select/group/member`
+### 👤 用户模块 `/api/user`
 
+| 方法 | 路径 | 参数 | 说明 |
+| :--- | :--- | :--- | :--- |
+| POST | `/create/user/account` | `username`, `password`, `nickname`, `email`, `phone` | 注册账号（自动生成 13 位 userId） |
+| POST | `/login` | `username`, `password`, `captcha` | 登录（强制校验 Session 中的验证码） |
+| GET | `/select/me/follow` | `me` | 查询我关注了谁（返回列表） |
+| GET | `/select/me/fans` | `me` | 查询谁关注了我（返回列表） |
+| POST | `/follow` | `me`, `upId` | 关注某人（自动拦截重复关注） |
+| POST | `/unfollow` | `me`, `upId` | 取关某人（返回 0 行视为本来就没关注，非报错） |
+| GET | `/check/nickname` | `nickname`, `userId` | 注册/修改前预检昵称是否包含违禁词 |
+| POST | `/edit/nickname` | `newNickname`, `userId` | 用户主动修改昵称 |
+| POST | `/edit/prohibited/nickname`| `userId` | 强制清洗某个违规用户的昵称（重置为随机 ID） |
+| GET | `/clean/all/prohibited` | 无 | **[管理端]** 全库扫描并重置违规昵称 |
+
+---
+
+### 🎬 视频与点赞模块 `/api/video`
+
+#### 视频上传与查询
+| 方法 | 路径 | 参数 | 说明 |
+| :--- | :--- | :--- | :--- |
+| POST | `/upload/file` | `userId`, `title`, `file`(Multipart), `clientDurationSec`, `clientVertical` | **首选**：真实文件上传落盘（支持前端时长兜底探测） |
+| POST | `/upload` | `userId`, `title`, `videoPath` | 备用：仅登记服务器上的视频路径字符串 |
+| GET | `/select/videos/upinfor` | 无 | 查全站视频（联表带出 UP 主昵称、头像、点赞数） |
+| GET | `/select/video/single/infor`| `id` | 根据视频 ID 查单条详情 |
+| GET | `/select/like` | `keyword` | 模糊搜索视频标题（内置了 Sleep 防刷机制） |
+| POST | `/edit/title` | `newTitle`, `id`, `userId` | 修改自己视频的标题 |
+| DELETE | `/delete/videos` | `id`, `userId` | 删除自己的视频 |
+| POST | `/upload/cover` | `videoId`, `userId`, `file`(Multipart) | 上传/更换视频封面 |
+| POST | `/check/video/title` | `videoId` | 单独触发视频标题的违禁词审核 |
+
+#### 播放与点赞
+| 方法 | 路径 | 参数 | 说明 |
+| :--- | :--- | :--- | :--- |
+| POST | `/add/view` | `id` | 视频播放量 +1（回读真实播放量返回） |
+| GET | `/select/like/count` | `id`, `userId` | 查视频点赞数及当前用户是否点过赞 |
+| POST | `/add/like` | `id`, `userId` | 点赞（MySQL 为准，Redis 拦截高并发重复点击） |
+| POST | `/cancel/like` | `id`, `userId` | 取消点赞（直接重置 Redis 计数为 MySQL 最新值） |
+
+#### 评论与楼中楼
+| 方法 | 路径 | 参数 | 说明 |
+| :--- | :--- | :--- | :--- |
+| GET | `/get/all/comments` | `videoId`, `userId`(可选) | 查视频的所有评论（带点赞数及当前用户是否赞过） |
+| POST | `/add/my/comments` | `commentId`, `videoId`, `userId`, `content`, `parentId`(可选) | 发布评论（`parentId` 有值则是楼中楼回复） |
+| POST | `/add/comment/like` | `me`, `commentId` | 给评论点赞/取消点赞（Toggle 逻辑） |
+| DELETE | `/delete/my/comments` | `myUserId`, `videoId`, `commentId` | 删除自己的评论 |
+| POST | `/edit/my/comments` | `newContent`, `commentId`, `myUserId` | 修改自己的评论 |
+
+#### 其他（历史、短视频、AI审核）
+| 方法 | 路径 | 参数 | 说明 |
+| :--- | :--- | :--- | :--- |
+| GET | `/select/short` | `size`, `offset` | 获取短视频流（按热度 `播放*0.3+点赞*0.7` 排序） |
+| GET | `/select/history` | `userId` | 查观看历史（限 200 条） |
+| POST | `/insert/history` | `userId`, `videoId` | 写入观看历史（`ON DUPLICATE KEY UPDATE` 刷新时间） |
+| POST | `/delete/auto/prohibited/comment` | `videoId` | 触发 DeepSeek 静默审查并自动删除违规评论 |
+
+---
+
+### 📁 收藏夹与通知 `/api/video`
+
+| 方法 | 路径 | 参数 | 说明 |
+| :--- | :--- | :--- | :--- |
+| POST | `/create/like/format` | `pList`, `userId`, `name`, `description`, `isPublic` | 创建新收藏夹 |
+| POST | `/add/to/like` | `pList`, `videoId` | 把视频加入收藏夹 |
+| GET | `/select/like/format` | `owner`, `viewer`, `videoId` | 查某人的收藏夹列表（带视频数及视频是否在里面） |
+| GET | `/select/like/format/videos`| `pList` | 查某收藏夹内的所有视频 |
+| POST | `/edit/like/format/public` | `pList`, `userId`, `isPublic` | 修改收藏夹公开/私密状态 |
+| DELETE | `/remove/from/like` | `pList`, `videoId` | 从收藏夹中移出单个视频 |
+| DELETE | `/delete/like` | `pList`, `userId` | 删除整个收藏夹 |
+| GET | `/notify` | `me`, `size`, `offset` | 拉取通知列表（点赞、评论、关注等） |
+| POST | `/notify/read/all` | `me` | 把发给我的所有未读通知标记为已读 |
+
+---
+
+### 💬 私信与群聊 `/api/private_message`
+
+#### 私信基础
+| 方法 | 路径 | 参数 | 说明 |
+| :--- | :--- | :--- | :--- |
+| GET | `/select/message` | `a`, `b` | 加载两人之间的双向完整聊天记录 |
+| GET | `/select/inbox` | `me` | 加载收件箱（会话最后一条消息 + 未读数，窗口函数实现）|
+| GET | `/count/unread` | `me` | 查别人发给我的未读消息总数 |
+| POST | `/send` | `PrivateMessage` 实体 | 发送文本私信（`fromUser`, `toUser`, `contents`） |
+| POST | `/upload/media` | `file`(Multipart) | 私信图片/视频上传落盘，返回 `mediaPath` |
+| POST | `/send/picture/video` | `PrivateMessage` 实体 | 发送图片/视频私信（携带上一步的 `mediaPath`） |
+| POST | `/send/emoji` | `PrivateMessage` 实体 | 发送表情包（携带 `mediaPath`） |
+| GET | `/emoji/list` | 无 | 获取可用表情包列表 |
+| POST | `/withdraw/private/message` | `msgId`, `userId`, `timeWithdraw` | 撤回私信（通常前端传 120 秒内） |
+| POST | `/delete/private/message` | `msgId`, `userId` | 单方面软删除私信（不影响对方查看） |
+
+#### 群聊与 AI 助手
+| 方法 | 路径 | 参数 | 说明 |
+| :--- | :--- | :--- | :--- |
+| POST | `/establish/group` | `groupName`, `ownerId` | 创建群聊（后端自动生成 `groupId`） |
+| POST | `/add/member` | `groupId`, `userId`, `fromUser` | 拉人进群（自动发送通知给被拉者） |
+| POST | `/remove/member` | `groupId`, `userId`, `groupOwner` | 群主踢人 |
+| GET | `/select/my/groups` | `me` | 查我加入的群聊列表 |
+| GET | `/select/group/message` | `groupId` | 查群聊的聊天记录 |
+| POST | `/add/group/message` | `msgId`(可选), `groupId`, `fromUser`, `contents`, `msgType`, `mediaPath` | 发送群消息（文本/图片/表情） |
+| POST | `/exit/group` | `groupId`, `userId` | 退群（群主退群触发随机转让或自动解散） |
+| GET | `/select/group/member` | `groupId` | 查群成员列表 |
+| GET | `/select/group/message/deepseek` | `question`, `groupId` | **核心 AI**：DeepSeek 读取群聊上下文并流式回答 **(流式)** |
+
+---
+
+### 🧩 其他辅助接口
+
+| 方法 | 路径 | 参数 | 说明 |
+| :--- | :--- | :--- | :--- |
+| GET | `/api/dynamic/dynamic/select/all` | `id`, `content`, `createTime` | 精确匹配查询动态 |
+| POST | `/api/dynamic/dynamic/write` | `content`, `id`, `userId` | 发布动态 |
+| DELETE | `/api/dynamic/dynamic/delete` | `id`, `createTime` | 删除动态 |
+| GET | `/captcha` | 无 | 生成 4 位图片验证码（存入 Session） |
+| GET | `/checkCaptcha` | `inputCode` | 校验验证码是否正确 |
+| GET | `/api/redis/get` | 无 | Redis 连通性测试 |
+
+---
+
+### 💡 核心响应示例
+
+**1. 视频点赞成功 (POST `/api/video/add/like`)**
+```json
+{
+  "code": 200,
+  "success": true,
+  "message": "点赞成功",
+  "data": {
+    "like_count": 128,
+    "liked": true
+  }
+}
+```
 ## 🧠 踩坑与排错 Skill 指南
 
 在开发过程中，我们总结了大量复杂全栈场景的排错经验（详见 `Skill.txt`）：
