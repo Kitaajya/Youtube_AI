@@ -16,8 +16,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -594,45 +593,169 @@ public class VideoService {
         return vm.findViolationCommentIds();
     }
     /**自动检测并删除违规评论**/
-    public Result<String> auditAndDeleteComments(ChatClient client, long videoId) {
-        //查出该视频所有评论
-        List<Map<String, Object>> comments = vm.selectCommentsById(videoId);
-        if (comments == null || comments.isEmpty())
-            return Result.fail("该视频下没有评论");
-        int deletedCount = 0;
-        //逐条发送给DeepSeek审核（或者批量打包成 JSON 发给 AI）
-        for (Map<String, Object> comment : comments) {
-            String commentId = String.valueOf(comment.get("comment_id"));
-            String contents = String.valueOf(comment.get("contents"));
+    @Transactional
+    public Result<String> auditAndDeleteComments(ChatClient client,long videoId) {
+        if (vm.countVideo(videoId) == 0)
+            return Result.fail("视频不存在或已被删除");
+        if (client == null) {
+            log.error("ChatClient 未注入，无法执行 AI 审核");
+            return Result.fail("AI 审核服务未就绪");
+        }
 
-            // 构造 Prompt：让 AI 只回答 YES 或 NO
-            String systemPrompt = """
-            你是一个严格的内容审核员。
-            请判断以下评论是否包含：色情、辱骂、暴恐、政治敏感或广告。
-            如果违规，请只回复 "YES"。
-            如果正常，请只回复 "NO"。
-            不要输出任何其他解释。
-            """;
+        // ---------- 查该视频全部评论（双参版，有 comment_id） ----------
+        List<Map<String, Object>> allComments = vm.selectCommentsById(videoId, "");
+        if (allComments == null || allComments.isEmpty()) {
+            return Result.success("该视频下没有评论，无需审核");
+        }
+        int total = allComments.size();
 
-            try {
-                //这里用 call() 同步调用，因为要等结果做判断
-                String aiResponse = client.prompt()
-                        .system(systemPrompt)
-                        .user("评论内容：" + contents)
-                        .call()
-                        .content();
+        // ---------- 用违禁词表做 SQL 粗筛，只留可疑评论 ----------
+        // 注意：原来 findViolationCommentIds() 不带 video 条件，会把全站评论拉出来，
+        // 不能直接用；这里若没有按 video 过滤的版本，就在 Java 里用 allComments 做匹配。
+        List<Map<String, Object>> suspicious = filterSuspiciousByProhibitedWords(videoId, allComments);
+        if (suspicious.isEmpty()) {
+            log.info("AI 审核 videoId={}：共 {} 条评论，未命中违禁词，跳过 AI 调用", videoId, total);
+            return Result.success("审查完毕，共 " + total + " 条评论，未发现违规");
+        }
+        log.info("AI 审核 videoId={}：共 {} 条评论，粗筛出 {} 条可疑评论送 AI 复核",
+                videoId, total, suspicious.size());
 
-                //如果AI判定违规，Java执行删除
-                if (aiResponse != null && aiResponse.toUpperCase().contains("YES")) {
-                    vm.deleteCommentById(commentId);
-                    deletedCount++;
-                    log.info("DeepSeek 判定违规，已删除评论：{}, 内容：{}", commentId, contents);
-                }
-            } catch (Exception e) {
-                log.error("AI 审核评论失败, commentId={}", commentId, e);
+        // ---------- 一次性批量送 AI ----------
+        StringBuilder sb = new StringBuilder("[\n");
+        for (int i = 0; i < suspicious.size(); i++) {
+            Map<String, Object> c = suspicious.get(i);
+            String id = String.valueOf(c.get("comment_id"));
+            String content = String.valueOf(c.get("contents"));
+            content = content.replace("\\", "\\\\")
+                    .replace("\"", "\\\"")
+                    .replace("\n", "\\n")
+                    .replace("\r", "");
+            if (content.length() > 300) content = content.substring(0, 300) + "...";
+            sb.append("  {\"comment_id\":\"").append(id)
+                    .append("\",\"contents\":\"").append(content).append("\"}");
+            if (i < suspicious.size() - 1) sb.append(",");
+            sb.append("\n");
+        }
+        sb.append("]");
+
+        String systemPrompt = """
+        你是严格的内容审核员。
+        判断给定评论中哪些包含：色情、辱骂、暴恐、政治敏感、广告引流。
+        输入是一个 JSON 数组，每条含 comment_id 和 contents。
+        你必须只返回一个 JSON 数组，元素为违规评论的 comment_id 字符串，
+        形如 ["id1","id2"]；如果没有任何违规，返回 []。
+        不要输出任何解释、markdown 代码块或多余文字。
+        """;
+        String userPrompt = "请审核以下评论：\n" + sb;
+
+        // ---------- 调用 AI（批量一次） ----------
+        String aiResponse;
+        try {
+            aiResponse = client.prompt()
+                    .system(systemPrompt)
+                    .user(userPrompt)
+                    .call()
+                    .content();
+        } catch (Exception e) {
+            log.error("AI 审核调用失败 videoId={}", videoId, e);
+            return Result.fail("AI 审核服务调用失败：" + e.getMessage());
+        }
+
+        // ---------- 解析 AI 返回，取交集防幻觉 ----------
+        List<String> violationIds = parseViolationIds(aiResponse);
+        if (violationIds.isEmpty()) {
+            log.info("AI 审核 videoId={}：可疑 {} 条，AI 判定均未违规", videoId, suspicious.size());
+            return Result.success("审查完毕，共 " + total + " 条评论，未发现违规");
+        }
+        Set<String> suspiciousIdSet = new HashSet<>();
+        for (Map<String, Object> c : suspicious) {
+            suspiciousIdSet.add(String.valueOf(c.get("comment_id")));
+        }
+        List<String> finalIds = new ArrayList<>();
+        for (String id : violationIds) {
+            if (suspiciousIdSet.contains(id) && !finalIds.contains(id)) {
+                finalIds.add(id);
             }
         }
-        return Result.success("AI 审查完毕，共删除了 " + deletedCount + " 条违规评论");
+        if (finalIds.isEmpty()) {
+            return Result.success("审查完毕，共 " + total + " 条评论，未发现违规");
+        }
+
+        // ---------- 6. 删除（连带楼中楼回复） ----------
+        int deleted = 0;
+        for (String id : finalIds) {
+            try {
+                // 先删子回复，再删父评论（parent_id 无外键级联）
+                deleted += vm.deleteRepliesByParent(id);
+                deleted += vm.deleteCommentById(id);
+            } catch (Exception e) {
+                log.error("删除违规评论失败 commentId={}", id, e);
+            }
+        }
+        log.info("AI 审核 videoId={}：判定违规 {} 条，实际删除 {} 行（含回复）",
+                videoId, finalIds.size(), deleted);
+
+        return Result.success(
+                "审查完毕：共 " + total + " 条评论，粗筛 " + suspicious.size()
+                        + " 条可疑，AI 判定违规 " + finalIds.size()
+                        + " 条，已删除（含回复）共 " + deleted + " 行");
     }
-//B D A
+    /**
+     * 用 prohibit_words 表在 Java 侧对"该视频的评论"做粗筛。
+     * 之所以不放 SQL：现有的 findViolationCommentIds() 没带 video 条件，
+     * 直接加 SQL 又要动 Mapper；这里用现成的 getProhibitedWords() 在内存匹配即可。
+     */
+    private List<Map<String, Object>> filterSuspiciousByProhibitedWords(
+            long videoId, List<Map<String, Object>> allComments) {
+        List<Map<String, Object>> words = vm.getProhibitedWords();
+        if (words == null || words.isEmpty()) return List.of();
+        List<String> badWords = new ArrayList<>();
+        for (Map<String, Object> w : words) {
+            Object m = w.get("message");
+            if (m != null) badWords.add(String.valueOf(m));
+        }
+        if (badWords.isEmpty()) return List.of();
+
+        List<Map<String, Object>> suspicious = new ArrayList<>();
+        for (Map<String, Object> c : allComments) {
+            String content = String.valueOf(c.get("contents"));
+            if (content == null) continue;
+            for (String w : badWords) {
+                if (!w.isEmpty() && content.contains(w)) {
+                    suspicious.add(c);
+                    break;
+                }
+            }
+        }
+        return suspicious;
+    }
+
+    /**
+     * 解析 AI 返回的 comment_id 数组，容错 markdown 代码块和前后解释文字。
+     */
+    private List<String> parseViolationIds(String aiResponse) {
+        if (aiResponse == null || aiResponse.isBlank()) return List.of();
+        String s = aiResponse.trim();
+        if (s.startsWith("```")) {
+            int firstNl = s.indexOf('\n');
+            int lastFence = s.lastIndexOf("```");
+            if (firstNl > 0 && lastFence > firstNl) {
+                s = s.substring(firstNl + 1, lastFence).trim();
+            }
+        }
+        int lb = s.indexOf('[');
+        int rb = s.lastIndexOf(']');
+        if (lb < 0 || rb <= lb) {
+            log.warn("AI 返回格式无法解析：{}", aiResponse);
+            return List.of();
+        }
+        String arr = s.substring(lb + 1, rb).trim();
+        if (arr.isEmpty()) return List.of();
+        List<String> ids = new ArrayList<>();
+        for (String part : arr.split(",")) {
+            String id = part.trim().replaceAll("^\"|\"$", "");
+            if (!id.isEmpty()) ids.add(id);
+        }
+        return ids;
+    }
 }

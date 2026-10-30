@@ -42,6 +42,47 @@
         };
     }
 
+    /**
+     * deepseek自动审查评论
+     *
+     *
+     * **/
+
+        // =========================================================
+        //静默自动审查违规评论（全站触发，不区分是否本人视频）
+        // =========================================================
+        // 浏览器空闲时才发起请求，不抢视频加载的带宽和主线程资源
+    const runSilentAudit = () => {
+            console.log("【静默审查】开始检测视频ID:", id);
+            YT.api.post('/api/video/delete/auto/prohibited/comment', {
+                videoId: id,
+                //升级成不用作者本人，DeepSeek就能杀死违规评论
+               // userId: currentUserId || 'system' // 如果没登录，随便传个占位符防报错
+            }).then(r => {
+                if (r.success) {
+                    console.log("【静默审查】结果：", r.data);
+                    // 如果 AI 真的删除了评论（返回内容里包含删除了X条），才悄悄刷新评论区
+                    if (r.data && (r.data.includes("删除") && !r.data.includes("共 0 行"))) {
+                        console.log("【静默审查】发现违规并删除，刷新评论区...");
+                        loadComments();
+                    }
+                } else {
+                    // 比如权限不足，或者没有评论，不用管
+                    console.log("【静默审查】跳过：", r.message);
+                }
+            }).catch(e => console.warn("【静默审查】请求失败", e));
+        };
+
+    // 延迟 2 秒执行，确保视频和页面完全加载完毕
+    setTimeout(() => {
+        if (window.requestIdleCallback) {
+            window.requestIdleCallback(() => runSilentAudit(), { timeout: 3000 });
+        } else {
+            runSilentAudit(); // 兼容老浏览器
+        }
+    }, 2000);
+    // =========================================================
+
     // ---------- 关注模块 ----------
     const followBtn = $('#btn-follow'), fansEl = $('#w-up-fans');
     let following = false, fansCount = 0, followBusy = false;

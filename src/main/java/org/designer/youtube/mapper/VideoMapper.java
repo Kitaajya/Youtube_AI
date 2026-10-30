@@ -709,14 +709,25 @@ public interface VideoMapper {
     SELECT * FROM prohibit_words
     """)
     List<Map<String,Object>> getProhibitedWords();
-    /**获得视频下方的评论，无userId，接口名重载**/
-    @Select(""" 
-    SELECT contents from video_comment WHERE video_id=#{videoId};
-    """)
-    List<Map<String,Object>> selectCommentsById(@Param("videoId") long videoId);
+   // /**获得视频下方的评论，无userId，接口名重载**/
+   // @Select("""
+   // SELECT contents from video_comment WHERE video_id=#{videoId};
+   // """)
+   // List<Map<String,Object>> selectCommentsById(@Param("videoId") long videoId);
+    ///**
+    // * 删除违规评论
+    // * **/
+     @Delete("DELETE FROM video_comment WHERE comment_id = #{commentId}")
+     int deleteCommentById(@Param("commentId") String commentId);
     /**
-     * 删除违规评论
+     * DeepSeek自动化删除
      * **/
-    @Delete("DELETE FROM video_comment WHERE comment_id = #{commentId}")
-    int deleteCommentById(@Param("commentId") String commentId);
+    @Select("""
+    SELECT comment_id, contents
+    FROM video_comment
+    WHERE video_id = #{videoId}
+    """)
+    List<Map<String, Object>> selectCommentsForAudit(@Param("videoId") long videoId);
+    @Delete("DELETE FROM video_comment WHERE parent_id = #{parentId}")
+    int deleteRepliesByParent(@Param("parentId") String parentId);
 }
