@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import reactor.core.publisher.Flux;
 
 import java.util.HashMap;
 import java.util.List;
@@ -349,6 +350,10 @@ public class VideoController {
        //    return Result.fail("无权操作：仅视频作者可审核");
        //}
         return vs.auditAndDeleteComments(this.client,videoId);
+    }
+    @PostMapping("/select/comments/at_deepseek")
+    public Flux<String> detectCommentsIsHaveAtDeepSeek(@RequestParam long videoId){
+        return vs.detectCommentsIsHaveAtDeepSeek(this.client,videoId);
     }
 
 }

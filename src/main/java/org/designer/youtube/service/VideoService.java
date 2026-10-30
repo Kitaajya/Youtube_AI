@@ -162,7 +162,7 @@ public class VideoService {
         if(k==0) return Result.fail("修改失败");
         return Result.success();
     }
-    //对video_id为videoId的视频增添我的评论（parentId 传 null 表示一级评论）
+    /**对video_id为videoId的视频增添我的评论（parentId 传 null 表示一级评论）**/
     public Result<Map<String,Object>> addComment(String commentId,long videoId,String userId,String content,String parentId){
         int k=vm.addComment(commentId, videoId, userId, content, parentId);
         if(k==0) return Result.fail("评论失败");
@@ -253,6 +253,10 @@ public class VideoService {
      *     }
      *
      * **/
+    /**
+     * 点赞
+     *
+     * **/
     public Result<Map<String,Object>> addLike(long id, String userId){
         if(vm.countVideo(id) == 0) return Result.fail("视频不存在！");
 
@@ -280,7 +284,7 @@ public class VideoService {
                 Map.of("like_count", finalCount, "liked", true));
     }
 
-    // 取消点赞
+    /**取消点赞**/
     public Result<Map<String,Object>> cancelLike(long id, String userId){
         if (vm.countVideo(id) == 0) return Result.fail("视频不存在！");
 
@@ -361,11 +365,11 @@ public class VideoService {
         }
         return Result.fail("清空失败，重新清空");
     }
-    //我的通知列表：最新在前，带触发人昵称头像、摘要、未读标记
+    /**我的通知列表：最新在前，带触发人昵称头像、摘要、未读标记**/
     public List<Map<String,Object>> selectMyNotifications(String me,int size,int offset){
         return vm.selectMyNotifications(me, size, offset);
     }
-    //写入一条通知
+    /**写入一条通知**/
     public Result<Map<String,Object>>insertNotify(String notifyId, String toUser, String fromUser, String type,
                                                   Long videoId, String commentId, String contents){
         try {
@@ -758,4 +762,83 @@ public class VideoService {
         }
         return ids;
     }
+    /**
+     * DeepSeek扫描评论表，查看是否存在某条评论存在“@DeepSeek”字段，如果存在，则意味着发表评论的人在呼叫DeepSeek需要回答问题。
+     *   用到接口List<Map<String, Object>> allComments = vm.selectCommentsByIdOnlyOneArgument(videoId);
+     *   DeepSeek评论入库:Result<Map<String,Object>> addComment(String commentId,long videoId,String userId,String content,String parentId)，
+     *   DeepSeek 虚拟用户 ID，对应 console.sql 里 INSERT 的 AI_BOT
+     * **/
+    private static final String DEEPSEEK_USER_ID = "AI_BOT";
+
+    public Flux<String> detectCommentsIsHaveAtDeepSeek(ChatClient client, long videoId) {
+        List<Map<String, Object>> comments = vm.selectCommentsByIdOnlyOneArgument(videoId);
+        Optional<Map<String, Object>> targetComment = comments.stream()
+                .filter(m -> {
+                    Object c = m.get("contents");
+                    return c != null && String.valueOf(c).contains("@DeepSeek");
+                })
+                .reduce((first, second) -> second);
+
+        if (targetComment.isEmpty())
+            return Flux.just("目前没有人@DeepSeek哦~");
+
+        Map<String, Object> comment = targetComment.get();
+        String rawContents = String.valueOf(comment.get("contents"));
+        String questionContent = rawContents.replace("@DeepSeek", "").trim();
+        String askUserId  = String.valueOf(comment.get("user_id"));
+        String parentId   = String.valueOf(comment.get("comment_id"));  // 回复挂在这条评论下
+
+        //防御同一个parentId下AI已经回复过，不再重复入库（防前端重连/刷新重复触发）
+        Integer exist = vm.countReplyByUser(parentId, DEEPSEEK_USER_ID);
+        if (exist != null && exist > 0) {
+            log.info("parentId={} 下已有 AI_BOT 回复，跳过重复入库", parentId);
+            // 仍然把已有的回复流式返回给前端（或直接返回提示）
+            return Flux.just("DeepSeek 已经回答过这个问题了~");
+        }
+
+        String systemPrompt = """
+        你是一个智能视频评论助手。
+        现在有用户在评论区向你提问，请根据他的问题给出回答。
+        回答时不要暴露你是 AI 模型，可以直接以友好的语气回复。
+        """;
+        String finalUserPrompt = "用户（ID：" + askUserId + "）向你提问：\n" + questionContent;
+
+        //结束时一次性入库
+        StringBuilder answerBuf = new StringBuilder();
+        return client.prompt()
+                .system(systemPrompt)
+                .user(finalUserPrompt)
+                .stream()
+                .content()
+                .doOnNext(chunk -> {
+                    if (chunk != null) answerBuf.append(chunk);
+                })
+                .doOnComplete(() -> {
+                    String answer = answerBuf.toString().trim();
+                    if (answer.isEmpty()) {
+                        log.warn("DeepSeek 返回空内容，跳过入库 videoId={} parentId={}", videoId, parentId);
+                        return;
+                    }
+                    try {
+                        String newCommentId = new RandomlyCreateID().createId();
+                        //入库video_comment（user_id=AI_BOT，parent_id=被@的评论）
+                        int k = vm.addComment(newCommentId, videoId, DEEPSEEK_USER_ID,
+                                answer, parentId);
+                        if (k > 0) {
+                            log.info("DeepSeek 回复已入库 commentId={} videoId={} parentId={}",
+                                    newCommentId, videoId, parentId);
+                            //通知提问者（sendCommentNotify 内部会查 parentId 的 commentOwner）
+                            sendCommentNotify(newCommentId, videoId,
+                                    DEEPSEEK_USER_ID, answer, parentId);
+                        } else {
+                            log.warn("DeepSeek 回复入库返回 0 行 videoId={}", videoId);
+                        }
+                    } catch (Exception e) {
+                        log.error("DeepSeek 回复入库异常 videoId={} parentId={}",
+                                videoId, parentId, e);
+                    }
+                })
+                .doOnError(e -> log.error("DeepSeek 流式回答异常 videoId={}", videoId, e));
+    }
+
 }

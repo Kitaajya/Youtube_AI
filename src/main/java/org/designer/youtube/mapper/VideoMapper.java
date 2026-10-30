@@ -709,14 +709,18 @@ public interface VideoMapper {
     SELECT * FROM prohibit_words
     """)
     List<Map<String,Object>> getProhibitedWords();
-   // /**获得视频下方的评论，无userId，接口名重载**/
-   // @Select("""
-   // SELECT contents from video_comment WHERE video_id=#{videoId};
-   // """)
-   // List<Map<String,Object>> selectCommentsById(@Param("videoId") long videoId);
-    ///**
-    // * 删除违规评论
-    // * **/
+    /**获得视频下方的评论，无userId，单参，绝对不要同名重载！**/
+    /**获得视频下方的评论，无userId，单参，绝对不要同名重载！**/
+    @Select("""
+    SELECT comment_id, user_id, contents, create_time 
+    FROM video_comment 
+    WHERE video_id=#{videoId}
+    ORDER BY create_time ASC
+    """)
+    List<Map<String,Object>> selectCommentsByIdOnlyOneArgument(@Param("videoId") long videoId);
+    /**
+     * 删除违规评论
+     * **/
      @Delete("DELETE FROM video_comment WHERE comment_id = #{commentId}")
      int deleteCommentById(@Param("commentId") String commentId);
     /**
@@ -730,4 +734,11 @@ public interface VideoMapper {
     List<Map<String, Object>> selectCommentsForAudit(@Param("videoId") long videoId);
     @Delete("DELETE FROM video_comment WHERE parent_id = #{parentId}")
     int deleteRepliesByParent(@Param("parentId") String parentId);
+    /**
+     * DeepSeek扫描评论表，查看是否存在某条评论存在“@DeepSeek”字段，如果存在，则意味着发表评论的人在呼叫DeepSeek需要回答问题。
+     *   用到接口List<Map<String, Object>> allComments = vm.selectCommentsById(videoId,xxx);
+     * **/
+    @Select("SELECT COUNT(*) FROM video_comment WHERE parent_id = #{parentId} AND user_id = #{userId}")
+    Integer countReplyByUser(@Param("parentId") String parentId,
+                             @Param("userId") String userId);
 }

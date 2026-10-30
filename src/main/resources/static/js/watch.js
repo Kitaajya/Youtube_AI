@@ -506,8 +506,64 @@
             commentId: YT.randId(), videoId: id, userId: currentUserId, content, parentId: null
         });
         if (r.success) { $('#root-content').value = ''; YT.toast('评论成功'); loadComments(); }
+        //判断用户是否 @ 了 DeepSeek
+        if (content.includes('@DeepSeek')) triggerDeepSeekAnswer(id);
         else YT.toast(r.message || '评论失败');
     };
+    // ================= 新增：触发 AI 回答并流式展示 =================
+    async function triggerDeepSeekAnswer(videoId) {
+        // 在评论区顶部插入一个临时的 AI 气泡
+        let aiBox = document.getElementById('ai-reply-box');
+        if (!aiBox) {
+            aiBox = document.createElement('div');
+            aiBox.id = 'ai-reply-box';
+            aiBox.style.cssText = 'padding:12px; background:var(--surface-2); border:1px solid var(--link); border-radius:8px; margin-bottom:16px; font-size:14px; line-height:1.6;';
+            aiBox.innerHTML = '<b style="color:var(--link);">DeepSeek 助手：</b><br><span id="ai-reply-text">正在思考...</span>';
+
+            const form = document.querySelector('.comment-form');
+            form.parentNode.insertBefore(aiBox, form.nextSibling);
+        } else {
+            document.getElementById('ai-reply-text').innerText = '正在思考...';
+        }
+
+        const textEl = document.getElementById('ai-reply-text');
+        let fullText = '';
+
+        try {
+            //改这里：地址改对 + 改成 POST
+            const response = await fetch(`/api/video/select/comments/at_deepseek?videoId=${videoId}`, {
+                method: 'POST',
+                headers: { 'Accept': 'text/event-stream' }
+            });
+            if (!response.ok) throw new Error('网络请求失败');
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let isFirstChunk = true;
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value, { stream: true });
+                if (isFirstChunk) {
+                    textEl.innerHTML = '';
+                    isFirstChunk = false;
+                }
+
+                fullText += chunk;
+                textEl.innerText = fullText;
+            }
+
+            // 流结束 → 后端已入库 → 刷新评论区
+            YT.toast('DeepSeek 已回复！');
+            loadComments();
+            if (aiBox) aiBox.remove();
+
+        } catch (error) {
+            textEl.innerText = '哎呀，出错了：' + error.message;
+        }
+    }    // =========================================================
 
     // =========================================================
     // 终极防弹版：直接监听整个文档的点击事件
@@ -599,7 +655,15 @@
             const r = await YT.api.post('/api/video/add/my/comments', {
                 commentId: YT.randId(), videoId: id, userId: currentUserId, content, parentId: cid.sendReply
             });
-            if (r.success) { ta.value = ''; form.classList.remove('open'); YT.toast('回复成功'); loadComments(); }
+            if (r.success) { ta.value = '';
+                form.classList.remove('open');
+                YT.toast('回复成功');
+                loadComments();
+                //如果回复里包含 @DeepSeek，触发 AI 流式回答
+                if (content.includes('@DeepSeek')) {
+                    triggerDeepSeekAnswer(id);
+                }
+            }
             else YT.toast(r.message || '回复失败');
             return;
         }
