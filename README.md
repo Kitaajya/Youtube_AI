@@ -139,22 +139,73 @@ spring.ai.ollama.chat.model=deepseek-r1:8b
 ## 📁 目录结构
 
 ```text
-├── sql/                        # 建表与修复脚本
-└── src/main/
-    ├── java/org/designer/youtube/
-    │   ├── common/             # 统一响应体 Result
-    │   ├── config/             # 静态资源映射、Caffeine 缓存等配置
-    │   ├── controller/         # 用户/视频/动态/私信/验证码/DeepSeek/Redis
-    │   ├── entity/             # 实体类
-    │   ├── mapper/             # MyBatis 注解 SQL
-    │   ├── service/            # 业务层 (含 DeepSeek 流式处理、私信、点赞逻辑)
-    │   └── RandomlyCreateID.java   # 13 位随机业务主键生成器
-    └── resources/
-        ├── application.properties
-        └── static/             # 前端多页应用
-            ├── css/            # 主题变量、深色模式、模块化样式
-            ├── js/             # 包含 common.js、home.js、message.js 等
-            └── *.html          # index/login/register/upload/dynamic/watch/profile/message/shorts 等
+├── sql/                        # 数据库建表与修复脚本
+├── LICENSE                     # 开源协议
+├── README.md                   # 项目说明
+└── src/
+    └── main/
+        ├── java/org/designer/youtube/
+        │   ├── YoutubeApplication.java   # 启动类
+        │   ├── RandomlyCreateID.java     # 13 位随机业务主键生成器
+        │   ├── common/                   # 统一响应体 Result
+        │   ├── config/                   # 静态资源映射(WebMvc)、Caffeine 缓存配置
+        │   ├── controller/               # Web 控制层 (按业务拆分)
+        │   │   ├── UserInformationController.java  # 用户与粉丝关注
+        │   │   ├── VideoController.java            # 视频、点赞、评论、收藏夹、通知
+        │   │   ├── DynamicController.java          # 动态 CRUD
+        │   │   ├── PrivateMessageController.java   # 私信、群聊、表情包
+        │   │   ├── DeepSeekController.java         # AI 对话与数据分析路由
+        │   │   ├── CaptchaController.java          # 图片验证码生成与校验
+        │   │   └── RedisController.java            # Redis 连通性测试
+        │   ├── entity/                   # 数据库实体类 (User, Video, PrivateMessage...)
+        │   ├── mapper/                   # MyBatis 注解 SQL 接口 (无 XML)
+        │   │   ├── UserInformationMapper.java      # 用户、关注、违禁词
+        │   │   ├── VideoMapper.java                # 视频、评论、点赞、收藏夹、通知、历史
+        │   │   ├── DynamicMapper.java              # 动态及评论
+        │   │   └── PrivateMessageMapper.java       # 私信、群聊、表情包
+        │   └── service/                  # 业务逻辑层
+        │       ├── VideoService.java               # 视频、高并发点赞、AI 审核逻辑
+        │       ├── VideoFileService.java           # 文件落盘、ffprobe 探测、封面/私信媒体
+        │       ├── UserInformationService.java     # 注册登录、违禁词清洗
+        │       ├── DynamicService.java             # 动态业务
+        │       ├── PrivateMessageService.java      # 私信/群聊流转、群主转让/解散
+        │       └── DeepSeekTest.java               # Spring AI 底层调用封装
+        └── resources/
+            ├── application.properties              # 全局配置(数据库/Redis/AI/视频路径)
+            └── static/                             # 原生前端多页应用 (无构建)
+                ├── css/                            # 样式文件
+                │   ├── vars.css                    # 亮色主题变量
+                │   ├── dark.css                    # 深色模式覆盖
+                │   ├── style.css                   # 全局公共样式(顶栏、播放器、评论区)
+                │   ├── channel.css                 # 频道页样式
+                │   ├── pm.css                      # 私信/群聊样式
+                │   ├── register.css                # 登录注册页样式
+                │   └── shorts.css                  # 短视频滑动流样式
+                ├── js/                             # 逻辑脚本
+                │   ├── common.js                   # 全局请求封装、导航栏/侧栏渲染、通知轮询
+                │   ├── theme.js                    # 深浅色主题切换记忆
+                │   ├── home.js                     # 首页视频流渲染 + 悬浮 AI 助手
+                │   ├── watch.js                    # 播放页、评论楼中楼、点赞、AI 总结
+                │   ├── shorts.js                   # 短视频滑动、IntersectionObserver 预加载
+                │   ├── message.js                  # 私信/群聊、轮询、AI 思考气泡
+                │   ├── profile.js                  # 频道页、收藏夹、关注粉丝
+                │   ├── upload.js                   # 分片上传、浏览器端时长兜底探测
+                │   ├── dynamic.js                  # 动态发布与本地镜像
+                │   ├── history.js                  # 观看历史列表
+                │   ├── login.js                    # 登录与验证码
+                │   ├── register.js                 # 注册
+                │   └── comment.js                  # 评论组件(旧)
+                └── *.html                          # 页面入口
+                    ├── index.html                  # 首页(视频流)
+                    ├── watch.html                  # 播放页
+                    ├── shorts.html                 # 短视频流
+                    ├── message.html                # 私信与群聊
+                    ├── profile.html                # 个人/他人频道页
+                    ├── dynamic.html                # 动态广场
+                    ├── upload.html                 # 视频上传
+                    ├── history.html                # 观看历史
+                    ├── login.html                  # 登录
+                    └── register.html               # 注册
 ```
 
 ## 🗄 数据表一览
