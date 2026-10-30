@@ -12,10 +12,10 @@
 
 ## 🖼️ 界面预览
 
-**🐳 DeepSeek AI 助手**
+<h1>🐳 DeepSeek AI 助手</h1>
 <img width="100%" src="https://github.com/user-attachments/assets/3b2a585b-672f-434d-a1f8-f6b17af81ac3" alt="DeepSeek AI样式" />
 
-**🐳 DeepSeek网络评论警察自动筛选违规评论并删除**
+<h1>🐳 DeepSeek网络评论警察自动筛选违规评论并删除</h1>
 <h1>展示违规评论</h1>
 <img width="1295" height="522" alt="image" src="https://github.com/user-attachments/assets/8a6fccfd-bdc5-4af5-b488-131c839e80f1" />
 <h1>DeepSeek审查评论</h1>
@@ -25,17 +25,17 @@
 
 
 
-**🗄️ 数据库智能问答（NL2SQL 逻辑）**
+<h1>🗄️ 数据库智能问答（NL2SQL 逻辑）</h1>
 <img width="100%" src="https://github.com/user-attachments/assets/42e08553-da93-4c71-aa2b-9bc41ab56d11" alt="插入数据库后的DeepSeek" />
 
-**📝 视频评论区 AI 总结**
+<h1>📝 视频评论区 AI 总结</h1>
 <img width="100%" src="https://github.com/user-attachments/assets/f141190c-842a-4c0c-b3e9-ff1931f84b14" alt="视频评论区总结" />
 
-**🎬 视频流与短视频**
+<h1>🎬 视频流与短视频</h1>
 <img width="100%" src="https://github.com/user-attachments/assets/afd8fc23-8f47-48fa-a5f5-ec7005e85e6c" alt="普通样例" />
 <img width="100%" src="https://github.com/user-attachments/assets/a5bdeeed-8111-4477-adf8-ba6c3b3c8b3e" alt="短视频区域" />
 
-**👤 个人主页与观看历史**
+<h1>👤 个人主页与观看历史</h1>
 <img width="100%" src="https://github.com/user-attachments/assets/279127f0-8e3e-4bf3-9637-c5d4a206cae6" alt="个人主页" />
 <img width="100%" src="https://github.com/user-attachments/assets/523e6da2-513f-49fa-9899-a869aa71bb1c" alt="查找历史" />
 
