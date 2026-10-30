@@ -239,9 +239,11 @@
                 if (r.success && r.data) {
                     forceRenderVideoLike(normalizeLiked(r.data.liked), Number(r.data.like_count));
                     YT.toast(normalizeLiked(r.data.liked) ? '已点赞' : '已取消');
+                } else {
+                    YT.toast(r.message || '操作失败，请重试');
                 }
             } catch (e) {
-                YT.toast('操作失败');
+                YT.toast('操作失败：' + (e.message || '网络异常'));
             } finally {
                 busy = false;
                 likeBtn.disabled = false;

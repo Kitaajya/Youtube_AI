@@ -259,29 +259,25 @@ public class VideoService {
         String likeSetKey = "video:like:" + id;
         String countKey = "video:like_count:" + id;
 
-        //先查 Redis 是否已经点过赞（拦截重复点击）
-        Boolean isDone = redisTemplate.opsForSet().isMember(likeSetKey, userId);
-        if(Boolean.TRUE.equals(isDone)){
-            String redisLikeCount = redisTemplate.opsForValue().get(countKey);
-            long count = redisLikeCount != null ? Long.parseLong(redisLikeCount) : vm.selectLikeQuantity(id);
-            return Result.success("已经点过赞了", Map.of("like_count", count, "liked", true));
-        }
-
-        //写入 MySQL 数据库
-        // INSERT IGNORE 保证如果数据库里已经有这条记录，也不会报错
+        // 以 MySQL 为准：INSERT IGNORE 重复点赞不会报错，返回 0 表示已经赞过
         int dbResult = vm.addLike(id, userId);
-        //如果数据库写入成功（>0 代表是新点赞），更新 Redis
         if (dbResult > 0) {
-            // 写入 Redis 缓存
-            redisTemplate.opsForSet().add(likeSetKey, userId);
-            redisTemplate.opsForValue().increment(countKey);
             sendLikeNotify(id, userId);
         }
 
-        //无论Redis怎么操作，最终返回给前端的点赞数，都以数据库的真实数量为准
+        // 无论 Redis 是否可用，返回给前端的点赞数都回读数据库
         long finalCount = vm.selectLikeQuantity(id);
 
-        return Result.success("点赞成功", Map.of("like_count", finalCount, "liked", true));
+        // Redis 只做缓存：连不上/超时都不能影响点赞本身
+        try {
+            redisTemplate.opsForSet().add(likeSetKey, userId);
+            redisTemplate.opsForValue().set(countKey, String.valueOf(finalCount));
+        } catch (Exception e) {
+            log.warn("Redis 点赞缓存更新失败（不影响点赞） videoId={}", id, e);
+        }
+
+        return Result.success(dbResult > 0 ? "点赞成功" : "已经点过赞了",
+                Map.of("like_count", finalCount, "liked", true));
     }
 
     // 取消点赞
@@ -291,16 +287,20 @@ public class VideoService {
         String likeSetKey = "video:like:" + id;
         String countKey = "video:like_count:" + id;
 
+        // 以 MySQL 为准删除
         int dbResult = vm.cancelLike(id, userId);
 
-        if (dbResult > 0) {
-            redisTemplate.opsForSet().remove(likeSetKey, userId);
-            //注意这里不要用decrement了，**的已经吃过一次亏了，直接把Redis里的数字重置为数据库的最新数字，防止 Redis 数据错乱
-            long latestCount = vm.selectLikeQuantity(id);
-            redisTemplate.opsForValue().set(countKey, String.valueOf(latestCount));
-        }
-        //返回给前端最新的数据库真实点赞数
+        // 返回给前端最新的数据库真实点赞数
         long finalCount = vm.selectLikeQuantity(id);
+
+        // Redis 只做缓存：连不上/超时都不能影响取消点赞本身
+        try {
+            redisTemplate.opsForSet().remove(likeSetKey, userId);
+            redisTemplate.opsForValue().set(countKey, String.valueOf(finalCount));
+        } catch (Exception e) {
+            log.warn("Redis 取消点赞缓存更新失败（不影响取消） videoId={}", id, e);
+        }
+
         return Result.success("取消点赞成功", Map.of("like_count", finalCount, "liked", false));
     }
     //建立收藏夹，不是把视频放进收藏夹里，因为收藏夹还没创建呢！
