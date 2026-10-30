@@ -2,7 +2,7 @@
 
 ***
 
-# YouTube Imitate
+# YouTube AI
 
 一个从零实现的视频社区网站，前后端一体，深度接入 AI 与高并发架构
 
