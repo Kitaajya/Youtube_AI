@@ -4,6 +4,9 @@
 
 # YouTube AI
 
+[![CI](https://github.com/Kitaajya/Youtube_AI/actions/workflows/ci.yml/badge.svg)](https://github.com/Kitaajya/Youtube_AI/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 一个从零实现的视频社区网站，前后端一体，深度接入 AI 与高并发架构
 
 本项目为个人学习实践作品，与 YouTube 官方无任何关联。
@@ -110,7 +113,12 @@
 - Spring AI 支持的模型环境（如本地 Ollama 运行 deepseek-r1:8b / qwen2.5-coder，或配置 API Key）
 
 ### 1. 初始化数据库
-执行 `sql/` 目录下的建表脚本，创建 `youtube` 库及全部表。
+按文件名顺序执行 `sql/` 目录下的脚本，创建 `youtube` 库及全部表：
+
+```bash
+mysql -u root -p < sql/01_schema.sql        # 建表
+mysql -u root -p < sql/02_fix_collation.sql # 修复排序规则
+```
 
 ### 2. 修改配置
 编辑 `src/main/resources/application.properties`：
@@ -398,3 +406,8 @@ spring.ai.ollama.chat.model=deepseek-r1:8b
 3. **外键与脏数据**：建群拉人时，如果前端静默吞掉了后端的 `message`，会导致“假成功”。应当明确通过 `alert` 暴露错误，并在后端使用 `@Transactional` 保证一致性。
 4. **SSE 接口 400 排查**：遇到 `WebClientResponseException: 400 Bad Request`，大概率是塞给 AI 的上下文超长了（`num_ctx` 溢出），或者模型不支持 Tool Calling。
 5. **字符串匹配与空值陷阱**：在编写违规词全库清洗逻辑时，务必防范 `nickname` 为空导致的 `Map.of()` 空指针异常。同时，清洗接口的 `Controller` 需对 `Service` 返回的 message 字符串进行精确匹配（如包含“已重置”），否则会出现“数据库已修改，但页面统计仍为 0”的假象。
+
+## 📄 开源协议
+
+本项目基于 [MIT License](LICENSE) 开源，可自由使用、修改与分发，请保留版权声明。
+
