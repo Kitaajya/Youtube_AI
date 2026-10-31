@@ -11,7 +11,7 @@
 
 本项目为个人学习实践作品，与 YouTube 官方无任何关联。
 
-覆盖 AI 智能问答、视频上传/播放/点赞/评论、短视频流、动态社交、私信会话（含群聊）、关注粉丝、收藏夹、消息通知、历史记录等完整模块。前端为原生 HTML/CSS/JS 多页应用，后端为 Spring Boot + Spring AI + MyBatis + MySQL + Redis。
+覆盖 AI 智能问答、视频上传/播放/点赞/评论、短视频流、动态社交、私信会话（含群聊）、关注粉丝、收藏夹、消息通知、历史记录等完整模块。前端为原生 HTML/CSS/JS 多页应用，后端为 Spring Boot + Spring AI + MyBatis + MySQL + Redis。包括DeepSeek配置！
 
 ## 🖼️ 界面预览
 
