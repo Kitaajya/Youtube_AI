@@ -8,7 +8,7 @@
     <script>(function(){try{var s=localStorage.getItem('yt-theme');var d=s==='dark'||(s!=='light'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
     <link rel="stylesheet" href="css/dark.css">
     <link rel="stylesheet" href="css/style.css?v=3">
-    <link rel="stylesheet" href="css/channel.css?v=4">
+    <link rel="stylesheet" href="css/channel.css?v=6">
 </head>
 <body>
     <div id="app-header"></div>
@@ -30,6 +30,26 @@
                     <a href="upload.html" class="btn red sm" id="ch-upload" style="display:none;">&#8679; 上传视频</a>
                 </div>
                 <div class="ch-mini" id="ch-id"></div>
+                <div class="ch-bday" id="ch-bday" style="display:none;">
+                    <svg class="bday-ic" viewBox="0 0 24 24" width="16" height="16" fill="none"
+                         stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+                         aria-hidden="true">
+                        <!-- 火苗 -->
+                        <path d="M12 2.2c1.3 1.2 1.8 2.1 1.8 2.8a1.8 1.8 0 0 1-3.6 0c0-.7.5-1.6 1.8-2.8z"
+                              fill="currentColor" stroke="none"/>
+                        <!-- 蜡烛 -->
+                        <path d="M12 6.7v4.5"/>
+                        <!-- 奶油上沿 -->
+                        <path d="M4 11.2a2 2 0 0 1 4 0 2 2 0 0 1 4 0 2 2 0 0 1 4 0 2 2 0 0 1 4 0"/>
+                        <!-- 蛋糕体 -->
+                        <path d="M4 11.2v5.6c0 1 .8 1.8 1.8 1.8h12.4c1 0 1.8-.8 1.8-1.8v-5.6"/>
+                        <!-- 盘子 -->
+                        <path d="M2.6 20.4h18.8"/>
+                    </svg>
+                    <span>生日</span>
+                    <span id="ch-bday-val" class="bday-empty">未设置</span>
+                    <button class="btn sm" id="ch-bday-edit" type="button">设置</button>
+                </div>
             </div>
         </div>
 
@@ -76,8 +96,23 @@
         </div>
     </div>
 
+    <!-- 生日设置弹窗 -->
+    <div class="bday-modal" id="bday-modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="bday-title">
+        <div class="bday-box">
+            <div class="bday-head" id="bday-title">设置生日</div>
+            <div class="bday-body">
+                <input type="date" id="bday-input" aria-label="生日">
+                <div class="bday-tip">生日只用于个人资料展示，保存后可随时修改。</div>
+            </div>
+            <div class="bday-foot">
+                <button class="btn sm" id="bday-cancel" type="button">取消</button>
+                <button class="btn primary sm" id="bday-save" type="button">保存</button>
+            </div>
+        </div>
+    </div>
+
     <script src="js/theme.js?v=1"></script>
-    <script src="js/common.js?v=12"></script>
-    <script src="js/profile.js?v=13"></script>
+    <script src="js/common.js?v=14"></script>
+    <script src="js/profile.js?v=15"></script>
 </body>
 </html>

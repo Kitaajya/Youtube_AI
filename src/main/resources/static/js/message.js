@@ -14,6 +14,7 @@
     const picBtn = $('#pm-pic-btn'), videoBtn = $('#pm-video-btn');
     const picInput = $('#pm-pic-input'), videoInput = $('#pm-video-input');
     const emojiBtn = $('#pm-emoji-btn'), emojiPanel = $('#pm-emoji-panel');
+    const bdayBar = $('#pm-bday-bar'), bdayBtn = $('#pm-bday-btn');
     const groupsBox = $('#pm-groups');
 
     // ---------- 本地镜像 ----------
@@ -151,6 +152,113 @@
         return 'emoji/' + encodeURIComponent(String(fileName));
     }
 
+    // ---------- 生日祝福消息 ----------
+    const BDAY_CAKE_SVG = `<svg class="bday-cake" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 2.2c1.3 1.2 1.8 2.1 1.8 2.8a1.8 1.8 0 0 1-3.6 0c0-.7.5-1.6 1.8-2.8z" fill="currentColor" stroke="none"/>
+        <path d="M12 6.7v4.5"/>
+        <path d="M4 11.2a2 2 0 0 1 4 0 2 2 0 0 1 4 0 2 2 0 0 1 4 0 2 2 0 0 1 4 0"/>
+        <path d="M4 11.2v5.6c0 1 .8 1.8 1.8 1.8h12.4c1 0 1.8-.8 1.8-1.8v-5.6"/>
+        <path d="M2.6 20.4h18.8"/>
+    </svg>`;
+
+    function bdayBubbleHtml() {
+        return `<div class="bubble bday-bubble">${BDAY_CAKE_SVG}
+            <div class="bday-title">生日快乐</div>
+            <div class="bday-sub">祝你今天开心一整天</div>
+        </div>`;
+    }
+
+    function confettiBurst() {
+        const colors = ['#ff4d4f', '#ffd666', '#52c41a', '#40a9ff', '#b37feb', '#ff85c0'];
+        const box = document.createElement('div');
+        box.className = 'pm-confetti';
+        for (let i = 0; i < 26; i++) {
+            const s = document.createElement('i');
+            s.style.left = (3 + Math.random() * 94).toFixed(2) + '%';
+            s.style.background = colors[i % colors.length];
+            s.style.animationDelay = (Math.random() * 0.25).toFixed(2) + 's';
+            box.appendChild(s);
+        }
+        document.body.appendChild(box);
+        setTimeout(() => box.remove(), 2400);
+    }
+
+    // ---------- 生日祝福：互关 + 对方今天生日才显示按钮 ----------
+    function followedIds(r) {
+        const rows = r && Array.isArray(r.data) ? r.data : [];
+        return rows.map(x => String(YT.pick(x, 'userId', 'user_id') || '')).filter(Boolean);
+    }
+
+    async function isMutualFollow(a, b) {
+        try {
+            const [following, fans] = await Promise.all([
+                YT.api.get('/api/user/select/me/follow', { me: a }),
+                YT.api.get('/api/user/select/me/fans', { me: a })
+            ]);
+            return followedIds(following).includes(b) && followedIds(fans).includes(b);
+        } catch (e) {
+            return false;
+        }
+    }
+
+    async function refreshBdayBtn() {
+        if (!bdayBar) return;
+        bdayBar.style.display = 'none';
+        if (!current || !current.userId) return;
+
+        const uid = current.userId;
+        const sentKey = 'yt-bday-sent-' + me.userId + '-' + uid + '-' + YT.todayMD();
+        try { if (localStorage.getItem(sentKey)) return; } catch (e) { }
+        try {
+            const [bday, mutual] = await Promise.all([YT.birthdayOf(uid), isMutualFollow(me.userId, uid)]);
+            if (!current || current.userId !== uid) return;   // 期间切换了会话
+            if (mutual && YT.isBirthdayToday(bday)) bdayBar.style.display = '';
+        } catch (e) { /* 查询失败就不显示按钮 */ }
+    }
+
+    async function sendBirthday() {
+        if (!current || loading) return;
+        const toUser = current.userId;
+        const peerName = current.name || '';
+
+        loading = true;
+        if (bdayBtn) bdayBtn.disabled = true;
+        if (sendBtn) sendBtn.disabled = true;
+        try {
+            const r = await YT.api.post('/api/private_message/send', {
+                fromUser: me.userId,
+                toUser,
+                contents: '生日快乐！',
+                msgType: 'birthday'
+            });
+            if (!r || !r.success) { YT.toast((r && r.message) || '发送失败'); return; }
+
+            const nowMsg = {
+                msgId: String((r.data && r.data.msgId) || ''),
+                fromUser: me.userId,
+                toUser,
+                contents: '生日快乐！',
+                msgType: 'birthday',
+                createTime: localNow()
+            };
+            curList.push(nowMsg);
+            appendMsgs([nowMsg], false);
+            lastChatSig = chatSig(curList);
+            touchPeer(toUser, peerName, '[生日祝福]', nowMsg.createTime);
+            confettiBurst();
+            try { localStorage.setItem('yt-bday-sent-' + me.userId + '-' + toUser + '-' + YT.todayMD(), '1'); } catch (e) { }
+            if (bdayBar) bdayBar.style.display = 'none';   // 已经送过，收起来
+            loadInbox();
+        } catch (e) {
+            YT.toast('发送失败：' + (e.message || '网络错误'));
+        } finally {
+            loading = false;
+            if (bdayBtn) bdayBtn.disabled = false;
+            if (sendBtn) sendBtn.disabled = false;
+            ta.focus();
+        }
+    }
+
     function msgHtml(m, isGroup = false) {
         if (String(m.contents || '').includes('正在阅读群聊并思考')) return '';
 
@@ -171,6 +279,8 @@
             bodyHtml = `<div class="bubble media"><img src="${YT.mediaUrl(mediaFile)}" alt="" loading="lazy"></div>`;
         } else if (mtype === 'video' && mediaFile) {
             bodyHtml = `<div class="bubble media"><video controls preload="metadata" playsinline src="${YT.mediaUrl(mediaFile)}"></video></div>`;
+        } else if (mtype === 'birthday') {
+            bodyHtml = bdayBubbleHtml();
         } else {
             // bodyHtml = `<div class="bubble">${YT.esc(String(m.contents || ''))}</div>`;
             const rawText = String(m.contents || '');
@@ -290,6 +400,7 @@
         if (t === 'image') return '[图片]';
         if (t === 'video') return '[视频]';
         if (t === 'emoji') return '[表情]';
+        if (t === 'birthday') return '[生日祝福]';
         return String(m.contents || '').slice(0, 30);
     }
 
@@ -410,6 +521,7 @@
         videoBtn.disabled = false;
 
         current = { userId, name: name || '' };
+        if (bdayBar) bdayBar.style.display = 'none';
         renderHead(); renderPeers(); renderMyGroups();
 
         msgs.innerHTML = '<div class="empty">加载对话…</div>';
@@ -429,12 +541,13 @@
 
             try { await YT.api.post('/api/private_message/read', { me: me.userId, other: userId }); } catch (e) { }
             refreshUnread();
-        } catch (e) { msgs.innerHTML = `<div class="empty">加载失败：${YT.esc(e.message)}</div>`; } finally { loading = false; }
+        } catch (e) { msgs.innerHTML = `<div class="empty">加载失败：${YT.esc(e.message)}</div>`; } finally { loading = false; refreshBdayBtn(); }
     }
 
     async function openGroupChat(groupId, groupName) {
         current = null;
         currentGroup = { groupId, groupName };
+        if (bdayBar) bdayBar.style.display = 'none';
         ta.disabled = false;
         ta.placeholder = '发送群消息…（Enter 发送）';
         sendBtn.disabled = false;
@@ -1072,6 +1185,10 @@
                 if (newMsgs.length > 0) {
                     appendMsgs(newMsgs, false);
                     curList.push(...newMsgs);
+                    // 收到对方发来的生日祝福 → 撒彩带
+                    if (newMsgs.some(m => String(YT.pick(m, 'msgType', 'msg_type') || '').toLowerCase() === 'birthday')) {
+                        confettiBurst();
+                    }
                 }
                 lastChatSig = sig;
                 try { await YT.api.post('/api/private_message/read', { me: me.userId, other: peerId }); } catch (e) { }
@@ -1130,6 +1247,7 @@
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
     });
     sendBtn.addEventListener('click', doSend);
+    if (bdayBtn) bdayBtn.addEventListener('click', sendBirthday);
 
     picBtn.addEventListener('click', () => { picInput.value = ''; picInput.click(); });
     videoBtn.addEventListener('click', () => { videoInput.value = ''; videoInput.click(); });

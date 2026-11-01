@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestParam;
 import reactor.core.publisher.Flux;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -148,10 +149,26 @@ public class UserInformationService {
      * 把违规的昵称变成先知白兑换码
      *
      */
-    public Result<Map<String,Object>> editProhibitedNickname(@RequestParam String userId){
+    public Result<Map<String,Object>> editProhibitedNickname(String userId){
         String listName = userInformationMapper.getNickname(userId);
         if(userInformationMapper.countProhibitedWords(listName)>0)
             userInformationMapper.editNickname(randomlyCreateID.createId(),userId);
         return Result.success("你现在的昵称如下：",Map.of("nickname",listName,"userId",userId));
+    }
+    /**
+     * 添加出生日期
+     *
+     * **/
+    public Result<Map<String,Object>> addBirthday(LocalDateTime birthday,String userId){
+        int k=userInformationMapper.addBirthday(birthday,userId);
+        if(k==0) return Result.fail("添加失败！");
+        return Result.success("添加成功！",Map.of("birthday",birthday));
+    }
+    /**
+     * 查看我的生日
+     * **/
+    public Result<List<Map<String,Object>>> selectMyBirthday(String userId){
+        if(userInformationMapper.selectMyBirthday(userId).isEmpty()) return Result.fail("当前未添加你的生日！");
+        return Result.success(userInformationMapper.selectMyBirthday(userId));
     }
 }

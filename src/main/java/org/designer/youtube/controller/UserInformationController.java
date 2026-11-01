@@ -9,6 +9,7 @@ import org.designer.youtube.mapper.UserInformationMapper;
 import org.designer.youtube.service.UserInformationService;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
@@ -113,17 +114,37 @@ public class UserInformationController {
          return userInformationService.editProhibitedNickname(userId);
     }
     /**
+     *
+     * @deprecated
+     * 2026/10/27
      * 当以上方法都无法清理违规昵称时，用此方法清理所有违规昵称，临时测试，不打算写入代码中
      *
      * **/
-    //@GetMapping("/clean/all/prohibited")
-    //public String cleanAll() {
-    //    List<String> allUserIds = userInformationMapper.getAllUserIds();
-    //    int count = 0;
-    //    for (String uid : allUserIds) {
-    //        Result<Map<String,Object>> res = userInformationService.editProhibitedNickname(uid);
-    //        if (res.getMessage().contains("已重置")) count++;
-    //    }
-    //    return "清理完成！共重置了 " + count + " 个违规昵称。";
-    //}
+
+    @GetMapping("/clean/all/prohibited")
+    public String cleanAll() {
+        List<String> allUserIds = userInformationMapper.getAllUserIds();
+        int count = 0;
+        for (String uid : allUserIds) {
+            Result<Map<String,Object>> res = userInformationService.editProhibitedNickname(uid);
+            if (res.getMessage().contains("已重置")) count++;
+        }
+        return "清理完成！共重置了 " + count + " 个违规昵称。";
+    }
+    /**
+     * 2026/10/31
+     *
+     *
+     * 万圣节时创建
+     * 添加出生日期
+     * **/
+    @PostMapping("/add/birthday")
+    public Result<Map<String,Object>> addBirthday(@RequestParam LocalDateTime birthday,
+                                                  @RequestParam String userId){
+        return userInformationService.addBirthday(birthday,userId);
+    }
+    @GetMapping("/select/birthday")
+    public Result<List<Map<String,Object>>> selectMyBirthday(@RequestParam String userId) {
+        return userInformationService.selectMyBirthday(userId);
+    }
 }

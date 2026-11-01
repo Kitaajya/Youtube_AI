@@ -582,19 +582,19 @@ public class VideoService {
         }
     }
     /**
+     * @deprecated
      * 让DeepSeek自动实现删除违规评论的功能
      *
      *  //查找包含违禁词的评论ID（利用你现有的 prohibit_words 表）
-     *  @Select("""
+     *  at_Select("""
      *  SELECT vc.comment_id
      *  FROM video_comment vc
      *  JOIN prohibit_words pw ON vc.contents LIKE CONCAT('%', pw.message, '%')
      *  """)
      *  List<String> findViolationCommentIds();
+     *  DeepSeek查出违规评论，实现自动化删评
      * */
-    /**
-     * DeepSeek查出违规评论，实现自动化删评
-     * **/
+
     public List<String> findViolationCommentIds(){
         return vm.findViolationCommentIds();
     }
@@ -678,16 +678,12 @@ public class VideoService {
             suspiciousIdSet.add(String.valueOf(c.get("comment_id")));
         }
         List<String> finalIds = new ArrayList<>();
-        for (String id : violationIds) {
-            if (suspiciousIdSet.contains(id) && !finalIds.contains(id)) {
+        for (String id : violationIds)
+            if (suspiciousIdSet.contains(id) && !finalIds.contains(id))
                 finalIds.add(id);
-            }
-        }
-        if (finalIds.isEmpty()) {
+        if (finalIds.isEmpty())
             return Result.success("审查完毕，共 " + total + " 条评论，未发现违规");
-        }
-
-        // ---------- 6. 删除（连带楼中楼回复） ----------
+        // ----------删除（连带楼中楼回复） ----------
         int deleted = 0;
         for (String id : finalIds) {
             try {
@@ -772,6 +768,12 @@ public class VideoService {
      * **/
     private static final String DEEPSEEK_USER_ID = "AI_BOT";
 
+    /**
+     *
+     * 2026/10/30/17:20
+     *
+     *
+     * **/
     public Flux<String> detectCommentsIsHaveAtDeepSeek(ChatClient client, long videoId) {
         List<Map<String, Object>> comments = vm.selectCommentsByIdOnlyOneArgument(videoId);
         Optional<Map<String, Object>> targetComment = comments.stream()

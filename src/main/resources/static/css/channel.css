@@ -221,3 +221,60 @@
 #ch-pm:hover {
     background: var(--surface-3);
 }
+/* ---------- 生日（仅"我的频道"显示） ---------- */
+.ch-bday {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+.ch-bday .bday-ic { width: 16px; height: 16px; flex: none; color: var(--text-secondary); }
+.ch-bday #ch-bday-val { color: var(--text-primary); }
+.ch-bday #ch-bday-val.bday-empty { color: var(--text-tertiary); }
+.ch-bday .btn { height: 26px; padding: 0 10px; font-size: 12px; }
+
+/* ---------- 生日设置弹窗 ---------- */
+.bday-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, .5);
+}
+.bday-box {
+    width: 340px;
+    max-width: calc(100vw - 32px);
+    background: var(--surface);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-menu);
+    overflow: hidden;
+}
+.bday-head { padding: 16px 20px 0; font-size: 16px; font-weight: 600; }
+.bday-body { padding: 14px 20px 4px; }
+.bday-body input[type="date"] {
+    width: 100%;
+    height: 38px;
+    padding: 0 10px;
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    font: inherit;
+}
+.bday-body input[type="date"]:focus {
+    outline: none;
+    border-color: var(--focus-ring);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 20%, transparent);
+}
+.bday-tip { margin-top: 8px; font-size: 12px; line-height: 1.5; color: var(--text-tertiary); }
+.bday-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px 16px; }
+
+@media (max-width: 700px) {
+    .ch-bday { justify-content: center; flex-wrap: wrap; }
+}

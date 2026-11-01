@@ -21,4 +21,6 @@ public class UserInformation {
     private String phone;
     //注册时间
     private java.time.LocalDateTime createTime;
+    //出生日期
+    private java.time.LocalDateTime birthday;
 }

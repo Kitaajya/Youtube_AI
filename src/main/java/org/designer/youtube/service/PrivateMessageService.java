@@ -77,6 +77,9 @@ public class PrivateMessageService {
         if(privateMessage.getFromUser()==null) return Result.fail("发件人不能为空");
         if(privateMessage.getToUser()==null) return Result.fail("目标人不能为空");
         privateMessage.setContents(content);
+        // 普通文字消息默认 text；生日祝福等特殊消息由前端传 msgType 进来
+        if (privateMessage.getMsgType() == null || privateMessage.getMsgType().isBlank())
+            privateMessage.setMsgType("text");
         RandomlyCreateID randomlyCreateID = new RandomlyCreateID();
         privateMessage.setMsgId(randomlyCreateID.createId());
         privateMessage.setIsRead(0);
@@ -427,5 +430,11 @@ public class PrivateMessageService {
               """;
         String finalQuestion="成员信息数据库如下："+sb+"；用户问题："+question;
         return chatClient.prompt().system(systemPrompt).user(finalQuestion).stream().content();
+    }
+    /**
+     * 如果今天是我的生日，那么DeepSeek也得主动私信我为我祝福。本接口主要实现DeepSeek主动发送私信的功能
+     * **/
+    public Flux<String> insertDeepSeekPrivateMessage(ChatClient client,String userId,String content){
+        //TODO
     }
 }

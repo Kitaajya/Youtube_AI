@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 300" width="520" height="300" fill="none" role="img" aria-label="气球和生日蛋糕">
+  <defs>
+    <linearGradient id="bal-pink" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffb3c9"/>
+      <stop offset="1" stop-color="#ff5f8f"/>
+    </linearGradient>
+    <linearGradient id="bal-yellow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffe6a3"/>
+      <stop offset="1" stop-color="#ffbe3d"/>
+    </linearGradient>
+    <linearGradient id="bal-blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#b3e2ff"/>
+      <stop offset="1" stop-color="#5fb8ff"/>
+    </linearGradient>
+    <linearGradient id="cake-body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff4f8"/>
+      <stop offset="1" stop-color="#ffe0ec"/>
+    </linearGradient>
+    <linearGradient id="frosting" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff6fa"/>
+      <stop offset="1" stop-color="#ffc9de"/>
+    </linearGradient>
+    <radialGradient id="flame-glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffe08a" stop-opacity=".85"/>
+      <stop offset="1" stop-color="#ffe08a" stop-opacity="0"/>
+    </radialGradient>
+    <style>
+      .float-slow { animation: bd-float 5.2s ease-in-out infinite; }
+      .float-mid  { animation: bd-float 4.2s ease-in-out infinite .5s; }
+      .float-fast { animation: bd-float 3.6s ease-in-out infinite 1s; }
+      .flicker    { animation: bd-flicker 1.6s ease-in-out infinite; transform-origin: center bottom; }
+      @keyframes bd-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+      @keyframes bd-flicker { 0%,100% { transform: scaleY(1) scaleX(1); } 50% { transform: scaleY(1.08) scaleX(.94); } }
+      @media (prefers-reduced-motion: reduce) { .float-slow, .float-mid, .float-fast, .flicker { animation: none; } }
+    </style>
+  </defs>
+
+  <!-- 背景彩带 -->
+  <g opacity=".9">
+    <rect x="52" y="46" width="8" height="16" rx="2" fill="#ff6f91" transform="rotate(-24 56 54)"/>
+    <rect x="74" y="150" width="7" height="13" rx="2" fill="#ffd166" transform="rotate(18 77 156)"/>
+    <rect x="432" y="42" width="9" height="16" rx="2" fill="#6ec6ff" transform="rotate(28 436 50)"/>
+    <rect x="462" y="132" width="8" height="14" rx="2" fill="#9b8cff" transform="rotate(-16 466 139)"/>
+    <rect x="406" y="206" width="7" height="13" rx="2" fill="#7bdcb5" transform="rotate(24 409 212)"/>
+    <rect x="88" y="228" width="8" height="14" rx="2" fill="#ff8fab" transform="rotate(-30 92 235)"/>
+    <rect x="310" y="26" width="7" height="12" rx="2" fill="#ffd166" transform="rotate(40 313 32)"/>
+    <rect x="176" y="34" width="7" height="12" rx="2" fill="#9b8cff" transform="rotate(-18 179 40)"/>
+    <circle cx="120" cy="52" r="3" fill="#ffd166"/>
+    <circle cx="392" cy="86" r="3" fill="#ff6f91"/>
+    <circle cx="446" cy="180" r="3" fill="#7bdcb5"/>
+    <circle cx="64" cy="196" r="3" fill="#6ec6ff"/>
+  </g>
+
+  <!-- 星星 -->
+  <g fill="#ffd166">
+    <path d="M96 108l3.2 8.4 8.4 3.2-8.4 3.2L96 131.2l-3.2-8.4-8.4-3.2 8.4-3.2z"/>
+    <path d="M424 158l2.4 6.3 6.3 2.4-6.3 2.4-2.4 6.3-2.4-6.3-6.3-2.4 6.3-2.4z" opacity=".8"/>
+    <path d="M318 62l2 5.2 5.2 2-5.2 2-2 5.2-2-5.2-5.2-2 5.2-2z" opacity=".7"/>
+  </g>
+
+  <!-- 气球 -->
+  <g class="float-slow">
+    <path d="M122 143c-8 25-22 42-30 71" stroke="#e0a6bd" stroke-width="2" stroke-linecap="round" opacity=".85"/>
+    <ellipse cx="122" cy="95" rx="33" ry="40" fill="url(#bal-pink)"/>
+    <ellipse cx="110" cy="80" rx="8" ry="13" fill="#fff" opacity=".42" transform="rotate(-22 110 80)"/>
+    <path d="M122 135l-6 9h12z" fill="#f2547d"/>
+  </g>
+
+  <g class="float-mid">
+    <path d="M240 126c8 28 18 50 22 76" stroke="#e0a6bd" stroke-width="2" stroke-linecap="round" opacity=".85"/>
+    <ellipse cx="240" cy="70" rx="39" ry="47" fill="url(#bal-yellow)"/>
+    <ellipse cx="226" cy="52" rx="9" ry="15" fill="#fff" opacity=".45" transform="rotate(-22 226 52)"/>
+    <path d="M240 117l-7 10h14z" fill="#f0a922"/>
+  </g>
+
+  <g class="float-fast">
+    <path d="M350 147c-6 25-18 43-28 67" stroke="#e0a6bd" stroke-width="2" stroke-linecap="round" opacity=".85"/>
+    <ellipse cx="350" cy="100" rx="32" ry="39" fill="url(#bal-blue)"/>
+    <ellipse cx="339" cy="86" rx="8" ry="12" fill="#fff" opacity=".45" transform="rotate(-22 339 86)"/>
+    <path d="M350 139l-6 9h12z" fill="#3f9fe6"/>
+  </g>
+
+  <!-- 蛋糕投影 -->
+  <ellipse cx="236" cy="264" rx="124" ry="12" fill="#b9cde3" opacity=".45"/>
+  <!-- 盘子 -->
+  <ellipse cx="236" cy="252" rx="112" ry="13" fill="#e6eefa" stroke="#cfdff0" stroke-width="2"/>
+
+  <!-- 蛋糕体 -->
+  <rect x="146" y="196" width="180" height="54" rx="11" fill="url(#cake-body)" stroke="#f0b6cd" stroke-width="2"/>
+  <rect x="146" y="226" width="180" height="9" fill="#ffd1e3" opacity=".9"/>
+
+  <!-- 奶油 -->
+  <path d="M146 204c0-9 6-15 15-15h150c9 0 15 6 15 15v6H146z" fill="url(#frosting)"/>
+  <g fill="#ffc9de">
+    <circle cx="154" cy="209" r="8"/>
+    <circle cx="170" cy="209" r="8"/>
+    <circle cx="186" cy="209" r="8"/>
+    <circle cx="202" cy="209" r="8"/>
+    <circle cx="218" cy="209" r="8"/>
+    <circle cx="234" cy="209" r="8"/>
+    <circle cx="250" cy="209" r="8"/>
+    <circle cx="266" cy="209" r="8"/>
+    <circle cx="282" cy="209" r="8"/>
+    <circle cx="298" cy="209" r="8"/>
+    <circle cx="314" cy="209" r="8"/>
+  </g>
+
+  <!-- 蛋糕上的小圆点 -->
+  <g fill="#ff9ec0" opacity=".75">
+    <circle cx="168" cy="240" r="3.2"/>
+    <circle cx="196" cy="234" r="2.6"/>
+    <circle cx="224" cy="241" r="3.2"/>
+    <circle cx="252" cy="235" r="2.6"/>
+    <circle cx="280" cy="241" r="3.2"/>
+    <circle cx="306" cy="236" r="2.6"/>
+  </g>
+
+  <!-- 蜡烛 -->
+  <g>
+    <rect x="202" y="166" width="9" height="32" rx="4" fill="#ff8fab"/>
+    <path d="M202 178h9M202 190h9" stroke="#fff" stroke-width="2.4" opacity=".65"/>
+    <path d="M206.5 166v-5" stroke="#8a5a2b" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="206.5" cy="150" r="17" fill="url(#flame-glow)"/>
+    <g class="flicker">
+      <path d="M206.5 143c5 6 7 10 7 13a7 7 0 0 1-14 0c0-3 2-7 7-13z" fill="#ffb703"/>
+      <path d="M206.5 149c2.4 3 3.4 5 3.4 6.6a3.4 3.4 0 0 1-6.8 0c0-1.6 1-3.6 3.4-6.6z" fill="#ffe08a"/>
+    </g>
+
+    <rect x="231.5" y="166" width="9" height="32" rx="4" fill="#7fc8ff"/>
+    <path d="M231.5 178h9M231.5 190h9" stroke="#fff" stroke-width="2.4" opacity=".65"/>
+    <path d="M236 166v-5" stroke="#8a5a2b" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="236" cy="150" r="17" fill="url(#flame-glow)"/>
+    <g class="flicker" style="animation-delay:.35s">
+      <path d="M236 143c5 6 7 10 7 13a7 7 0 0 1-14 0c0-3 2-7 7-13z" fill="#ffb703"/>
+      <path d="M236 149c2.4 3 3.4 5 3.4 6.6a3.4 3.4 0 0 1-6.8 0c0-1.6 1-3.6 3.4-6.6z" fill="#ffe08a"/>
+    </g>
+
+    <rect x="261" y="166" width="9" height="32" rx="4" fill="#ffd166"/>
+    <path d="M261 178h9M261 190h9" stroke="#fff" stroke-width="2.4" opacity=".65"/>
+    <path d="M265.5 166v-5" stroke="#8a5a2b" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="265.5" cy="150" r="17" fill="url(#flame-glow)"/>
+    <g class="flicker" style="animation-delay:.7s">
+      <path d="M265.5 143c5 6 7 10 7 13a7 7 0 0 1-14 0c0-3 2-7 7-13z" fill="#ffb703"/>
+      <path d="M265.5 149c2.4 3 3.4 5 3.4 6.6a3.4 3.4 0 0 1-6.8 0c0-1.6 1-3.6 3.4-6.6z" fill="#ffe08a"/>
+    </g>
+  </g>
+</svg>

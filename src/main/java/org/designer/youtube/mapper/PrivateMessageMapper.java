@@ -29,8 +29,8 @@ public interface PrivateMessageMapper {
 
     // 我发送私信（msgId 由 Service 调RandomlyCreateID填好再传进来）
     @Insert("""
-    INSERT INTO private_message(msg_id, from_user, to_user, contents, is_read)
-    VALUES(#{msgId}, #{fromUser}, #{toUser}, #{contents}, 0)
+    INSERT INTO private_message(msg_id, from_user, to_user, contents, is_read, msg_type)
+    VALUES(#{msgId}, #{fromUser}, #{toUser}, #{contents}, 0, #{msgType})
     """)
     int send(PrivateMessage privateMessage);
 
@@ -60,6 +60,7 @@ public interface PrivateMessageMapper {
                     WHEN msg_type='image' THEN '[图片]'
                     WHEN msg_type='video' THEN '[视频]'
                     WHEN msg_type='emoji' THEN '[表情]'
+                    WHEN msg_type='birthday' THEN '[生日祝福]'
                     ELSE contents END AS contents,
                create_time,
                ROW_NUMBER() OVER (PARTITION BY CASE WHEN from_user=#{me} THEN to_user ELSE from_user END
@@ -284,4 +285,16 @@ public interface PrivateMessageMapper {
     WHERE #{content} LIKE CONCAT('%', message, '%')
     """)
     int findProhibitedWords(@Param("content") String content);
+    /**
+     * 2026/10/31/19:08
+     * 如果今天是我的生日，那么DeepSeek也得主动私信我为我祝福。
+     * 本接口主要实现DeepSeek主动发送私信的功能
+     * **/
+    @Insert("""
+         INSERT INTO private_message (msg_id, from_user, to_user, contents, msg_type)
+         VALUES (#{msgId}, 'AI_BOT', #{toUser}, #{contents}, 'text')
+     """)
+    int insertDeepSeekPrivateMessage(@Param("msgId") String msgId,
+                                     @Param("toUser") String toUser,
+                                     @Param("contents") String contents);
 }

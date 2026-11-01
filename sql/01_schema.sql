@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS user_information(
     avatar      VARCHAR(500) NULL,                   -- 头像路径，VideoMapper 的 SQL 用到
     email       VARCHAR(100) NULL,
     phone       VARCHAR(20)  NULL,
+    birthday    DATETIME     NULL,                   -- 生日，前端弹贺卡 / 私信生日祝福用
     create_time DATETIME     DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id),
     UNIQUE KEY uk_username (username)
@@ -26,6 +27,8 @@ CREATE TABLE IF NOT EXISTS user_information(
 
 -- 【已建过表的话看这里】老表缺 avatar 列时，单独补一次，不用重建表：
 -- ALTER TABLE user_information ADD COLUMN avatar VARCHAR(500) NULL;
+-- 生日功能需要 birthday 列（缺列时 /api/user/add/birthday 会报 Unknown column）：
+-- ALTER TABLE user_information ADD COLUMN birthday DATETIME NULL;
 -- 想确认到底缺不缺，跑这句：
 -- SELECT COLUMN_NAME, COLUMN_TYPE FROM information_schema.COLUMNS
 --   WHERE TABLE_SCHEMA='youtube' AND TABLE_NAME='user_information';
@@ -141,6 +144,8 @@ CREATE TABLE IF NOT EXISTS private_message(
     is_read     TINYINT     NOT NULL DEFAULT 0,      -- 0=未读 1=已读（收件人视角）
     is_withdrawn TINYINT    NOT NULL DEFAULT 0,      -- 0=正常 1=已撤回（正文清空，双方显示"已撤回"）
     from_deleted TINYINT    NOT NULL DEFAULT 0,      -- 0=正常 1=发送方单方面删除（仅发送方查询时过滤）
+    msg_type    VARCHAR(20) NOT NULL DEFAULT 'text', -- text / image / video / emoji / birthday
+    media_path  VARCHAR(500) NULL,                   -- 图片/视频文件名，text 为 NULL
     create_time DATETIME    DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (msg_id),
     KEY idx_pm_inbox (to_user, is_read, create_time),   -- 收件箱/未读数查询走索引
@@ -155,6 +160,13 @@ CREATE TABLE IF NOT EXISTS private_message(
 -- 撤回 / 单方面删除功能需要这两列（缺列时所有私信查询会直接报错）：
 -- ALTER TABLE private_message ADD COLUMN is_withdrawn TINYINT NOT NULL DEFAULT 0;  -- 1=已撤回
 -- ALTER TABLE private_message ADD COLUMN from_deleted TINYINT NOT NULL DEFAULT 0;  -- 1=发送方已单方面删除
+-- 图片/视频/生日祝福消息需要这两列（缺列时 send 会报 Unknown column）：
+-- ALTER TABLE private_message ADD COLUMN msg_type VARCHAR(20) NOT NULL DEFAULT 'text';
+-- ALTER TABLE private_message ADD COLUMN media_path VARCHAR(500) NULL;
+-- 如果老库给 msg_type 加了 CHECK 约束，必须把 birthday 加进去，否则发送生日祝福会报 ck_pm_msg_type violated：
+-- ALTER TABLE private_message DROP CHECK ck_pm_msg_type;
+-- ALTER TABLE private_message ADD CONSTRAINT ck_pm_msg_type
+--   CHECK (msg_type IN ('text','image','video','emoji','birthday'));
 -- 想确认实际结构，跑这句：
 -- SHOW CREATE TABLE private_message;
 

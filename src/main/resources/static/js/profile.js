@@ -361,5 +361,80 @@
         });
     }
 
+    // ---------- 生日模块 ----------
+    // 后端：POST /api/user/add/birthday?birthday=yyyy-MM-ddTHH:mm:ss（@RequestParam LocalDateTime）
+    // 目前后端只有写入接口、没有查询接口，所以回显先用 localStorage 兜底；
+    // 换设备或清缓存后会显示"未设置"，这是后端还缺 GET 接口导致的，不是前端 bug。
+    const BDAY_KEY = 'yt-birthday';
+    const bdayRow = $('#ch-bday');
+    const bdayVal = $('#ch-bday-val');
+    const bdayBtn = $('#ch-bday-edit');
+    const bdayModal = $('#bday-modal');
+    const bdayInput = $('#bday-input');
+    const bdaySave = $('#bday-save');
+
+    const pad2 = n => String(n).padStart(2, '0');
+    function todayStr() {
+        const d = new Date();
+        return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    }
+    function readBday() {
+        try { return localStorage.getItem(BDAY_KEY) || ''; } catch (e) { return ''; }
+    }
+    function paintBday() {
+        const v = readBday();
+        bdayVal.textContent = v ? v.replace(/-/g, ' / ') : '未设置';
+        bdayVal.classList.toggle('bday-empty', !v);
+        bdayBtn.textContent = v ? '修改' : '设置';
+    }
+    function openBday() {
+        bdayInput.max = todayStr();          // 不允许选未来日期
+        bdayInput.value = readBday() || '';
+        bdayModal.style.display = 'flex';
+        bdayInput.focus();
+    }
+    function closeBday() { bdayModal.style.display = 'none'; }
+
+    if (isMine) {
+        bdayRow.style.display = 'flex';
+        paintBday();
+        // 后端有记录时以服务器为准：换设备 / 清缓存后也能回显
+        YT.birthdayOf(me.userId).then(paintBday).catch(() => { });
+        bdayBtn.addEventListener('click', openBday);
+        $('#bday-cancel').addEventListener('click', closeBday);
+        bdayModal.addEventListener('click', e => { if (e.target === bdayModal) closeBday(); });
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && bdayModal.style.display !== 'none') closeBday();
+        });
+
+        bdaySave.addEventListener('click', async () => {
+            const v = bdayInput.value;
+            if (!v) return YT.toast('请选择生日');
+            if (v > todayStr()) return YT.toast('生日不能晚于今天');
+
+            bdaySave.disabled = true;
+            try {
+                // 与 dynamic.js 的 nowISO() 同款格式，后端 LocalDateTime 可直接解析
+                // 后端已改成按 userId 更新，必须带上当前登录用户
+                const r = await YT.api.post('/api/user/add/birthday', {
+                    birthday: v + 'T00:00:00',
+                    userId: me.userId,
+                });
+                if (r && r.success) {
+                    try { localStorage.setItem(BDAY_KEY, v); } catch (e) { /* 隐私模式忽略 */ }
+                    paintBday();
+                    closeBday();
+                    YT.toast(r.message || '生日已保存');
+                } else {
+                    YT.toast((r && (r.message || r.error)) || '保存失败');
+                }
+            } catch (e) {
+                YT.toast('保存失败：' + (e.message || '网络错误'));
+            } finally {
+                bdaySave.disabled = false;
+            }
+        });
+    }
+
     switchTab('home');
 })();

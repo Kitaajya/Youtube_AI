@@ -3,6 +3,7 @@ package org.designer.youtube.mapper;
 import org.apache.ibatis.annotations.*;
 import org.designer.youtube.entity.UserInformation;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -50,24 +51,24 @@ public interface UserInformationMapper {
     ORDER BY s.create_time DESC
     """)
     List<Map<String,Object>> selectMyFans(@Param("me") String me);
-//
-//***
-//*-- 关注关系表：一条记录 = 一次关注（与 video_like 同构）
-//* CREATE TABLE IF NOT EXISTS subscription(
-//*     fan_id      VARCHAR(13) NOT NULL,   -- 关注者（粉丝）
-//*     up_id       VARCHAR(13) NOT NULL,   -- 被关注者（UP主）
-//*     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-//*     PRIMARY KEY (fan_id, up_id),        -- 联合主键 = 一人只能关注一次
-//*     KEY idx_sub_up (up_id, create_time),        -- 查"某人有哪些粉丝"走索引
-//*     CONSTRAINT fk_sub_fan FOREIGN KEY (fan_id)
-//*         REFERENCES user_information(user_id) ON DELETE CASCADE,
-//*     CONSTRAINT fk_sub_up FOREIGN KEY (up_id)
-//*         REFERENCES user_information(user_id) ON DELETE CASCADE
-//* ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
-//*
-//*/
-//
-//
+    //
+    //***
+    //*-- 关注关系表：一条记录 = 一次关注（与 video_like 同构）
+    //* CREATE TABLE IF NOT EXISTS subscription(
+    //*     fan_id      VARCHAR(13) NOT NULL,   -- 关注者（粉丝）
+    //*     up_id       VARCHAR(13) NOT NULL,   -- 被关注者（UP主）
+    //*     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    //*     PRIMARY KEY (fan_id, up_id),        -- 联合主键 = 一人只能关注一次
+    //*     KEY idx_sub_up (up_id, create_time),        -- 查"某人有哪些粉丝"走索引
+    //*     CONSTRAINT fk_sub_fan FOREIGN KEY (fan_id)
+    //*         REFERENCES user_information(user_id) ON DELETE CASCADE,
+    //*     CONSTRAINT fk_sub_up FOREIGN KEY (up_id)
+    //*         REFERENCES user_information(user_id) ON DELETE CASCADE
+    //* ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+    //*
+    //*/
+    //
+    //
     //我关注up主，我是up主的粉丝
     @Insert("""
     INSERT INTO subscription(fan_id,up_id) VALUES (#{me},#{upId})
@@ -112,6 +113,22 @@ public interface UserInformationMapper {
      SELECT nickname FROM user_information WHERE user_id=#{userId}
      """)
      String getNickname(@Param("userId") String userId);
-    // @Select("SELECT user_id FROM user_information WHERE nickname IS NOT NULL")
-    // List<String> getAllUserIds();
+     /** @deprecated  **/
+     @Select("SELECT user_id FROM user_information WHERE nickname IS NOT NULL")
+     List<String> getAllUserIds();
+     /**
+      * 添加出生日期
+      * **/
+     @Update("UPDATE user_information SET birthday = #{birthday} WHERE user_id = #{userId}")
+     int addBirthday(@Param("birthday") LocalDateTime birthday, @Param("userId") String userId);
+    /**
+     * 查看我的生日
+     * **/
+     @Select("""
+     SELECT DATE_FORMAT(birthday, '%Y-%m-%d') AS birthday
+     FROM user_information WHERE user_id=#{userId}
+     """)
+     List<Map<String,Object>> selectMyBirthday(@Param("userId") String userId);
+
 }
+

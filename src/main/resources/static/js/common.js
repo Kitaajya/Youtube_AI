@@ -148,6 +148,144 @@ const YT = (() => {
         return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
     }
 
+    // ---------- 生日 ----------
+    // 后端：GET /api/user/select/birthday?userId=xxx
+    //   → { success:true, data:[{ birthday:"2000-10-31T00:00:00" }] }
+    // 用户存在但没设生日时会返回 [{ birthday:null }]，所以必须判空，不能直接 String()
+    const BDAY_CACHE_KEY = 'yt-birthday';
+    const pad2 = n => String(n).padStart(2, '0');
+
+    function todayMD() {
+        const d = new Date();
+        return pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+    }
+    // 后端可能返回 "2000-10-31"，也可能是被序列化成 UTC 的 "2000-10-30T16:00:00.000Z"。
+    // 后者直接 slice(0,10) 在东八区会少一天，所以带时区的必须先转回本地日期。
+    function normalizeBday(v) {
+        const s = String(v || '').trim();
+        if (!s) return '';
+        if (/\d{4}-\d{2}-\d{2}T/.test(s) && /(Z|[+-]\d{2}:?\d{2})$/i.test(s)) {
+            const d = new Date(s);
+            if (isNaN(d)) return '';
+            return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+        }
+        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        return m ? `${m[1]}-${m[2]}-${m[3]}` : '';
+    }
+    function isBirthdayToday(bday) {
+        const s = String(bday || '').slice(5, 10);      // "2000-10-31" → "10-31"
+        if (!/^\d{2}-\d{2}$/.test(s)) return false;
+        const md = todayMD();
+        if (s === md) return true;
+        // 2 月 29 日出生的人：平年按 2 月 28 日庆祝，免得四年才过一次
+        const d = new Date();
+        const leap = new Date(d.getFullYear(), 1, 29).getDate() === 29;
+        return s === '02-29' && !leap && md === '02-28';
+    }
+    // 取某个用户的生日（yyyy-MM-dd）。后端查不到时，自己的生日退回本地缓存
+    async function birthdayOf(userId) {
+        if (!userId) return '';
+        try {
+            const r = await api.get('/api/user/select/birthday', { userId });
+            const row = r && Array.isArray(r.data) ? r.data[0] : null;
+            const s = normalizeBday(row ? pick(row, 'birthday') : '');
+            if (s) {
+                const u = user();
+                if (u && u.userId === userId) {
+                    try { localStorage.setItem(BDAY_CACHE_KEY, s); } catch (e) { /* 隐私模式忽略 */ }
+                }
+                return s;
+            }
+        } catch (e) { /* 接口不可用时走下面的本地兜底 */ }
+
+        const u = user();
+        if (u && u.userId === userId) {
+            try { return localStorage.getItem(BDAY_CACHE_KEY) || ''; } catch (e) { return ''; }
+        }
+        return '';
+    }
+
+    // 全站生日贺卡：登录用户 + 今天生日 + 当天没弹过
+    const BDAY_CARD_CSS = `
+.yt-bday-card-mask{position:fixed;inset:0;z-index:4000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(8,8,10,.58);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);animation:yt-bday-fade .2s ease both;}
+.yt-bday-card{position:relative;width:min(430px,92vw);max-height:90vh;overflow:auto;border-radius:22px;background:linear-gradient(160deg,#ffeaf3 0%,#fff8e8 52%,#e9f4ff 100%);box-shadow:0 26px 70px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.35) inset;animation:yt-bday-pop .4s cubic-bezier(.2,1.25,.45,1) both;}
+[data-theme="dark"] .yt-bday-card{background:linear-gradient(160deg,#3a1b2a 0%,#332a17 52%,#152736 100%);box-shadow:0 26px 70px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.08) inset;}
+.yt-bday-card-img{display:block;width:100%;height:auto;user-select:none;-webkit-user-drag:none;}
+.yt-bday-card-body{padding:2px 26px 26px;text-align:center;}
+.yt-bday-card-title{font-size:22px;line-height:1.35;font-weight:800;letter-spacing:1px;color:#c2276b;word-break:break-word;}
+[data-theme="dark"] .yt-bday-card-title{color:#ff9dc4;}
+.yt-bday-card-sub{margin-top:8px;font-size:13px;line-height:1.6;color:#77576a;}
+[data-theme="dark"] .yt-bday-card-sub{color:#c7b3bd;}
+.yt-bday-card-ok{margin-top:18px;height:38px;padding:0 28px;border:none;border-radius:19px;background:linear-gradient(135deg,#ff6f91,#ffa26b);color:#fff;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 6px 18px rgba(255,111,145,.4);transition:transform .15s ease,box-shadow .15s ease;}
+.yt-bday-card-ok:hover{transform:translateY(-1px);box-shadow:0 9px 22px rgba(255,111,145,.5);}
+.yt-bday-card-ok:active{transform:scale(.97);}
+.yt-bday-card-close{position:absolute;top:10px;right:10px;width:32px;height:32px;padding:0;border:none;border-radius:50%;background:rgba(0,0,0,.28);color:#fff;font-size:20px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s ease;}
+.yt-bday-card-close:hover{background:rgba(0,0,0,.45);}
+.yt-bday-card-mask.closing{animation:yt-bday-fade .18s ease reverse both;}
+@keyframes yt-bday-fade{from{opacity:0}to{opacity:1}}
+@keyframes yt-bday-pop{from{opacity:0;transform:translateY(16px) scale(.94)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.yt-bday-card-mask,.yt-bday-card{animation:none;}}
+`;
+
+    function showBirthdayCard(nickname) {
+        if (document.getElementById('yt-bday-card-mask')) return;
+        if (!document.getElementById('yt-bday-card-css')) {
+            const st = document.createElement('style');
+            st.id = 'yt-bday-card-css';
+            st.textContent = BDAY_CARD_CSS;
+            document.head.appendChild(st);
+        }
+
+        const mask = document.createElement('div');
+        mask.id = 'yt-bday-card-mask';
+        mask.className = 'yt-bday-card-mask';
+        mask.innerHTML = `
+            <div class="yt-bday-card" role="dialog" aria-modal="true" aria-labelledby="yt-bday-card-title">
+                <button class="yt-bday-card-close" id="yt-bday-card-close" type="button" aria-label="关闭">&times;</button>
+                <img class="yt-bday-card-img" src="images/birthday-card.svg?v=1" alt="生日蛋糕插画">
+                <div class="yt-bday-card-body">
+                    <div class="yt-bday-card-title" id="yt-bday-card-title">生日快乐，${esc(nickname)}！</div>
+                    <div class="yt-bday-card-sub">今天是属于你的日子，愿所有的美好都如期而至。</div>
+                    <button class="yt-bday-card-ok" id="yt-bday-card-ok" type="button">收下祝福</button>
+                </div>
+            </div>`;
+        document.body.appendChild(mask);
+
+        let closed = false;
+        const close = () => {
+            if (closed) return;
+            closed = true;
+            mask.classList.add('closing');
+            setTimeout(() => mask.remove(), 180);
+        };
+        mask.addEventListener('click', e => { if (e.target === mask) close(); });
+        document.getElementById('yt-bday-card-close').addEventListener('click', close);
+        document.getElementById('yt-bday-card-ok').addEventListener('click', close);
+        document.addEventListener('keydown', function onKey(e) {
+            if (e.key !== 'Escape') return;
+            document.removeEventListener('keydown', onKey);
+            close();
+        });
+    }
+
+    async function maybeBirthdayCard() {
+        const u = user();
+        if (!u) return;
+
+        let bday = '';
+        try { bday = await birthdayOf(u.userId); } catch (e) { return; }
+        if (!isBirthdayToday(bday)) return;
+
+        const y = new Date().getFullYear();
+        const key = 'yt-bday-card-' + u.userId + '-' + y + '-' + todayMD();
+        try {
+            if (localStorage.getItem(key)) return;   // 当天已经弹过
+            localStorage.setItem(key, '1');
+        } catch (e) { /* 隐私模式：无法记录，允许重复弹 */ }
+
+        showBirthdayCard(u.nickname || u.userId);
+    }
+
     let toastTimer = null;
     function toast(msg) {
         let el = document.getElementById('yt-toast');
@@ -563,8 +701,10 @@ const YT = (() => {
     }
 
     document.addEventListener('DOMContentLoaded', renderHeader);
+    // 生日贺卡：全站生效，仅登录用户且今天生日时弹一次
+    document.addEventListener('DOMContentLoaded', () => { maybeBirthdayCard().catch(() => { }); });
 
     return { api, randId, user, requireLogin, logout, esc, pick, mediaUrl, thumb, timeAgo, fmtNum,
-        fmtFull, toast, safeFrom, currentPath, FROM_KEY, IC };})();
+        fmtFull, toast, safeFrom, currentPath, FROM_KEY, IC, todayMD, isBirthdayToday, birthdayOf };})();
 //截止2026/10/16/8:34，我已经修复了通知红点bug，以上的红点bug注释作废
 //2026/10/21/14:48 修复通知图标丢失及文字重复问题
