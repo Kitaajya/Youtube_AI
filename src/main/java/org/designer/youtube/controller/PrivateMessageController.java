@@ -177,4 +177,9 @@ public class PrivateMessageController {
     public Result<List<Map<String, Object>>>selectMemberInformation(@RequestParam String groupId){
         return privateMessageService.selectMemberInformation(groupId);
     }
+    /**
+     * DeepSeek自动给我发送生日祝福
+     *
+     * **/
+
 }

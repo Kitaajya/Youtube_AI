@@ -129,6 +129,16 @@ public interface UserInformationMapper {
      FROM user_information WHERE user_id=#{userId}
      """)
      List<Map<String,Object>> selectMyBirthday(@Param("userId") String userId);
-
+     /**
+      * 查询今天生日的用户
+      *
+      * **/
+      @Select("""
+      SELECT user_id AS userId, nickname 
+        FROM user_information 
+      WHERE birthday IS NOT NULL 
+        AND DATE_FORMAT(birthday, '%m-%d') = DATE_FORMAT(CURDATE(), '%m-%d')
+     """)
+      List<Map<String, Object>> selectTodayBirthdayUsers();
 }
 

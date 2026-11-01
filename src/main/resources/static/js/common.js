@@ -578,6 +578,11 @@ const YT = (() => {
         const box = document.getElementById('app-header');
         if (!box) return;
         const u = user();
+
+        if (u) {
+            YT.api.post('/api/user/trigger/birthday').catch(() => {});
+        }
+
         const q = new URLSearchParams(location.search).get('q') || '';
         box.innerHTML = `
         <header class="hd">

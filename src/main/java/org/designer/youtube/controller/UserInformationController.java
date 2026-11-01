@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.designer.youtube.RandomlyCreateID;
 import org.designer.youtube.common.Result;
 import org.designer.youtube.mapper.UserInformationMapper;
+import org.designer.youtube.service.PrivateMessageService;
 import org.designer.youtube.service.UserInformationService;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,6 +24,7 @@ public class UserInformationController {
     private final ScheduledExecutorService service;
     private final RandomlyCreateID randomlyCreateID;
     private final UserInformationMapper userInformationMapper;
+    private final PrivateMessageService privateMessageService;
     //注册
     @PostMapping("/create/user/account")
     public Result<Map<String,Object>> createNewAccount(@RequestParam String username,@RequestParam String password,
@@ -147,4 +149,24 @@ public class UserInformationController {
     public Result<List<Map<String,Object>>> selectMyBirthday(@RequestParam String userId) {
         return userInformationService.selectMyBirthday(userId);
     }
+
+    @PostMapping("/trigger/birthday")
+    public Result<String> triggerBirthdayMessage() {
+        // 调用 service 查出今天生日的人
+        List<Map<String, Object>> todayList = userInformationService.selectTodayBirthdayUsers();
+        if (todayList == null || todayList.isEmpty()) {
+            return Result.successMessage("今天没有人过生日");
+        }
+
+        int count = 0;
+        for (Map<String, Object> user : todayList) {
+            String userId = String.valueOf(user.get("userId"));
+            String nickname = String.valueOf(user.get("nickname"));
+            // 这里需要注入 PrivateMessageService
+            privateMessageService.sendBirthdayMessage(userId, nickname);
+            count++;
+        }
+        return Result.successMessage("生日祝福发送完毕，共处理 " + count + " 人");
+    }
+
 }

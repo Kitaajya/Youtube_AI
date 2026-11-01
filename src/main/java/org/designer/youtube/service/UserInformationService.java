@@ -9,7 +9,6 @@ import org.designer.youtube.mapper.UserInformationMapper;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.RequestParam;
 import reactor.core.publisher.Flux;
 
 import java.time.LocalDateTime;
@@ -170,5 +169,12 @@ public class UserInformationService {
     public Result<List<Map<String,Object>>> selectMyBirthday(String userId){
         if(userInformationMapper.selectMyBirthday(userId).isEmpty()) return Result.fail("当前未添加你的生日！");
         return Result.success(userInformationMapper.selectMyBirthday(userId));
+    }
+    /**
+     * 查出今天过生日的人
+     *
+     * **/
+    public List<Map<String,Object>> selectTodayBirthdayUsers(){
+        return userInformationMapper.selectTodayBirthdayUsers();
     }
 }

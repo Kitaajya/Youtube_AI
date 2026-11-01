@@ -1182,12 +1182,18 @@
             if (sig !== lastChatSig) {
                 const existingIds = new Set(curList.map(x => String(x.msgId)));
                 const newMsgs = list.filter(m => !existingIds.has(String(YT.pick(m, 'msg_id', 'msgId'))));
+                // 修改
                 if (newMsgs.length > 0) {
                     appendMsgs(newMsgs, false);
                     curList.push(...newMsgs);
-                    // 收到对方发来的生日祝福 → 撒彩带
-                    if (newMsgs.some(m => String(YT.pick(m, 'msgType', 'msg_type') || '').toLowerCase() === 'birthday')) {
-                        confettiBurst();
+
+                    // 检查是否有 AI_BOT 发来的生日祝福
+                    const hasAiBday = newMsgs.some(m =>
+                        String(m.fromUser) === 'AI_BOT' &&
+                        (String(m.contents).includes('生日') || String(m.contents).includes('快乐'))
+                    );
+                    if (hasAiBday) {
+                        confettiBurst(); // 撒彩带
                     }
                 }
                 lastChatSig = sig;
