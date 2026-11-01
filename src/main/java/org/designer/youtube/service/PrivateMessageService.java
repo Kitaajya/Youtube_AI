@@ -439,7 +439,7 @@ public class PrivateMessageService {
         int k=privateMessageMapper.countTodayAiBdayMsg(userId);
         if(k>=1) return;
         String systemPrompt = """
-            你是一个友好的 AI 助手。你的用户今天过生日。
+            你是一个友好的 AI 助手。你的用户今天过生日。先浏览聊天历史。
             请用一句简短、温暖、有创意的话祝他生日快乐。
             要求：不要超过30个字，不要用Markdown格式，直接输出祝福语。
             """;
