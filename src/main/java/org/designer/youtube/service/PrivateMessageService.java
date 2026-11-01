@@ -435,6 +435,9 @@ public class PrivateMessageService {
      * DeepSeek主动发送生日私信
      */
     public void sendBirthdayMessage(String userId, String nickname) {
+        //放重发
+        int k=privateMessageMapper.countTodayAiBdayMsg(userId);
+        if(k>=1) return;
         String systemPrompt = """
             你是一个友好的 AI 助手。你的用户今天过生日。
             请用一句简短、温暖、有创意的话祝他生日快乐。
