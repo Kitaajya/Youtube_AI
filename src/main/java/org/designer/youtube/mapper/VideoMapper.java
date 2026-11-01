@@ -710,7 +710,6 @@ public interface VideoMapper {
     """)
     List<Map<String,Object>> getProhibitedWords();
     /**获得视频下方的评论，无userId，单参，绝对不要同名重载！**/
-    /**获得视频下方的评论，无userId，单参，绝对不要同名重载！**/
     @Select("""
     SELECT comment_id, user_id, contents, create_time 
     FROM video_comment 

@@ -291,10 +291,23 @@ public interface PrivateMessageMapper {
      * 本接口主要实现DeepSeek主动发送私信的功能
      * **/
     @Insert("""
-         INSERT INTO private_message (msg_id, from_user, to_user, contents, msg_type)
+         INSERT IGNORE INTO private_message (msg_id, from_user, to_user, contents, msg_type)
          VALUES (#{msgId}, 'AI_BOT', #{toUser}, #{contents}, 'text')
      """)
     int insertDeepSeekPrivateMessage(@Param("msgId") String msgId,
                                      @Param("toUser") String toUser,
                                      @Param("contents") String contents);
+
+    /**
+     * 查询今天AI_BOT是否给该用户发过生日祝福，用于防重发。
+     * 如果不加这个判断，那么每次刷新的时候总会发送祝福，这不是我们想要的
+     */
+    @Select("""
+    SELECT COUNT(*) FROM private_message 
+    WHERE from_user = 'AI_BOT' 
+      AND to_user = #{userId} 
+      AND contents LIKE '%生日%' 
+      AND DATE(create_time) = CURDATE()
+    """)
+    int countTodayAiBdayMsg(@Param("userId") String userId);
 }
