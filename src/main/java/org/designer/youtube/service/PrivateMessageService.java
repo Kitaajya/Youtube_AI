@@ -432,9 +432,36 @@ public class PrivateMessageService {
         return chatClient.prompt().system(systemPrompt).user(finalQuestion).stream().content();
     }
     /**
-     * 如果今天是我的生日，那么DeepSeek也得主动私信我为我祝福。本接口主要实现DeepSeek主动发送私信的功能
-     * **/
-    public Flux<String> insertDeepSeekPrivateMessage(ChatClient client,String userId,String content){
-        //TODO
+     * DeepSeek主动发送生日私信
+     */
+    public void sendBirthdayMessage(String userId, String nickname) {
+        // 1. 给 DeepSeek 设定人设，让它生成简短的祝福
+        String systemPrompt = """
+            你是一个友好的 AI 助手。你的用户今天过生日。
+            请用一句简短、温暖、有创意的话祝他生日快乐。
+            要求：不要超过30个字，不要用Markdown格式，直接输出祝福语。
+            """;
+        String userPrompt = "用户昵称是：" + nickname + "，请为他送上祝福。";
+
+        try {
+            // 同步调用 DeepSeek 生成内容
+            String aiContent = chatClient.prompt()
+                    .system(systemPrompt)
+                    .user(userPrompt)
+                    .call()
+                    .content();
+
+            if (aiContent == null || aiContent.isBlank()) {
+                aiContent = "祝你生日快乐！愿新的一年万事胜意！";
+            }
+
+            // 2. 插入数据库（调用你写好的 Mapper 方法）
+            String msgId = new RandomlyCreateID().createId();
+            privateMessageMapper.insertDeepSeekPrivateMessage(msgId, userId, aiContent.trim());
+            log.info("已成功给用户 {} 发送生日祝福私信", userId);
+
+        } catch (Exception e) {
+            log.error("给用户 {} 发送生日祝福失败", userId, e);
+        }
     }
 }
