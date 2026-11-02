@@ -34,6 +34,7 @@ package org.designer.youtube.controller;
  *
  *
  * **/
+
 import lombok.RequiredArgsConstructor;
 import org.designer.youtube.common.Result;
 import org.designer.youtube.service.VideoFileService;
@@ -344,11 +345,11 @@ public class VideoController {
     @PostMapping("/delete/auto/prohibited/comment")
     public Result<String> deleteCommentByDeepSeek(@RequestParam long videoId) {
         //现在升级成不用作者本人，DeepSeek就能杀死违规评论了
-       //Map<String, Object> owner = vs.selectVideoOwner(videoId);
-       //if (owner == null) return Result.fail("视频不存在");
-       //if (!userId.equals(String.valueOf(owner.get("user_id")))) {
-       //    return Result.fail("无权操作：仅视频作者可审核");
-       //}
+        //Map<String, Object> owner = vs.selectVideoOwner(videoId);
+        //if (owner == null) return Result.fail("视频不存在");
+        //if (!userId.equals(String.valueOf(owner.get("user_id")))) {
+        //    return Result.fail("无权操作：仅视频作者可审核");
+        //}
         return vs.auditAndDeleteComments(this.client,videoId);
     }
     @PostMapping("/select/comments/at_deepseek")
@@ -363,7 +364,7 @@ public class VideoController {
      *
      */
     @GetMapping("/select/hot/video")
-    public Result<List<Video>>selectHotVideos(){
+    public Result<List<Map<String, Object>>>selectHotVideos(){
         return vs.selectHotVideos();
     }
 }

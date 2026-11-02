@@ -848,7 +848,7 @@ public class VideoService {
     /**
      * 获取全站视频热榜 热度算法：播放量 * 0.3 + 点赞量 * 0.7 (通过联表统计点赞数)
      * **/
-    public Result<List<Video>> selectHotVideos(){
+    public Result<List<Map<String,Object>>> selectHotVideos(){
         try {
             return Result.success(vm.selectHotVideos());
         }catch (Exception e){
