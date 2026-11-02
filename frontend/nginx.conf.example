@@ -1,0 +1,93 @@
+# ===== Youtube_AI 生产部署参考配置（Nginx）=====
+#
+# 适用场景：frontend/dist 由 Nginx 托管静态文件，
+#           同时把后端接口反向代理到 Spring Boot(:8080)。
+# 这样浏览器访问的所有路径都同源（同一个域名+端口），
+# 因此后端【不需要】配置 CORS，验证码依赖的 HttpSession Cookie 也能正常带上。
+#
+# 使用方式：把本文件内容并入你的 nginx.conf（或放进 conf.d/ 目录），
+#           按实际情况修改 root 路径、域名、后端地址，然后 nginx -s reload。
+#
+# ⚠️ 必须反代的路径一共四类，缺一不可：
+#    /api           业务接口（视频、用户、动态、私信、AI）
+#    /captcha       验证码图片流    —— 注意它不带 /api 前缀
+#    /checkCaptcha  验证码校验      —— 同样不带 /api 前缀
+#    /videos        视频、封面、私信媒体的静态访问路径
+#                   （后端把磁盘目录 D:/videos/... 映射成了这个 URL 前缀）
+#    漏掉 /captcha 会导致登录页验证码裂图、无法登录；
+#    漏掉 /videos  会导致所有视频和聊天图片无法播放/显示。
+
+server {
+    listen       80;
+    server_name  localhost;          # 改成你的域名
+
+    # ---------- 静态前端（Vite 构建产物）----------
+    # Windows 下写成类似 D:/nginx/html/dist；Linux 下写 /var/www/youtube-ai/dist
+    root   D:/nginx/html/dist;
+    index  index.html;
+
+    # 前端上传限制要和后端 application.properties 的 1024MB 对齐，
+    # 否则大视频会被 Nginx 以 413 拦下，根本到不了后端
+    client_max_body_size 1024m;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # ---------- 后端 API ----------
+    # proxy_buffering off 是关键：AI 接口返回 Flux<String> 流式数据，
+    # 前端用 getReader() 逐块读取，如果 Nginx 缓冲整个响应，
+    # 「AI 总结评论区」等功能会卡住不出字，直到全部生成完才一次性吐出。
+    location /api/ {
+        proxy_pass         http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+
+        # 流式响应（SSE / Flux）必须关闭缓冲，并放宽读超时
+        proxy_buffering    off;
+        proxy_cache        off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
+    # ---------- 验证码（图片流，不带 /api 前缀）----------
+    location = /captcha {
+        proxy_pass       http://127.0.0.1:8080;
+        proxy_set_header Host            $host;
+        proxy_set_header X-Real-IP       $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location = /checkCaptcha {
+        proxy_pass       http://127.0.0.1:8080;
+        proxy_set_header Host            $host;
+        proxy_set_header X-Real-IP       $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # ---------- 视频与私信媒体（后端映射的磁盘目录）----------
+    # 视频文件较大且需要支持拖动进度条，交给 Nginx 关闭缓冲、
+    # 并允许 Range 分段请求（后端 Spring 静态资源默认已支持 Range）。
+    location /videos/ {
+        proxy_pass          http://127.0.0.1:8080;
+        proxy_set_header    Host              $host;
+        proxy_set_header    X-Real-IP         $remote_addr;
+        proxy_set_header    X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_buffering     off;
+        proxy_read_timeout  3600s;
+    }
+
+    # ---------- 可选优化：让 Nginx 直接吐视频文件，绕过 Java ----------
+    # 如果视频量很大，可以让 Nginx 直接读磁盘目录，性能明显高于经后端转发。
+    # 启用前请先确认下面的路径与后端 video.storage.dir 完全一致，
+    # 然后把上面的 location /videos/ 整段注释掉。
+    #
+    # location /videos/ {
+    #     alias D:/videos/Video_Bilibili_Practice/videos/;   # 必须与 video.storage.dir 一致，结尾斜杠不能少
+    #     add_header Accept-Ranges bytes;
+    #     access_log off;
+    # }
+}
