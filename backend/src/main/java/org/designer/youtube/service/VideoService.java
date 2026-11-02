@@ -845,4 +845,11 @@ public class VideoService {
                 .doOnError(e -> log.error("DeepSeek 流式回答异常 videoId={}", videoId, e));
     }
 
+    /**
+     * 获取全站视频热榜 热度算法：播放量 * 0.3 + 点赞量 * 0.7 (通过联表统计点赞数)
+     * **/
+    public Result<List<Video>> selectHotVideos(){
+        if(vm.selectHotVideos().isEmpty()) return Result.fail("当前没有热榜视频/视频网站内容为空！");
+        return Result.success(vm.selectHotVideos());
+    }
 }
