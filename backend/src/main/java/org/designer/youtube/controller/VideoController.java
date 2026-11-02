@@ -356,4 +356,13 @@ public class VideoController {
         return vs.detectCommentsIsHaveAtDeepSeek(this.client,videoId);
     }
 
+    /**
+     *    2026/11/02/10:55
+     *     获取全站视频热榜 热度算法：播放量 * 0.3 + 点赞量 * 0.7 (通过联表统计点赞数)
+     *
+     *
+     */
+    public Result<List<Video>>selectHotVideos(){
+        return vs.selectHotVideos();
+    }
 }
