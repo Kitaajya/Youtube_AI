@@ -29,11 +29,24 @@
         chips.innerHTML = '';
         const lbl = document.createElement('span');
         lbl.className = 'chip-lbl';
-        lbl.textContent = '热门标签（按标题关键词搜索）';
+        lbl.textContent = '热门标签';
         chips.appendChild(lbl);
+
+        //硬编码添加一个“热榜”按钮
+        const hotBtn = document.createElement('button');
+        hotBtn.className = 'chip';
+        hotBtn.textContent = '🔥 全站热榜';
+        hotBtn.onclick = () => {
+            chips.querySelectorAll('.chip').forEach(x => x.classList.remove('active'));
+            hotBtn.classList.add('active');
+            loadHotVideos(); // 调用新的加载函数
+        };
+        chips.appendChild(hotBtn);
+
+        // 原来的分类按钮
         ['全部视频', ...cats].forEach((c, i) => {
             const b = document.createElement('button');
-            b.className = 'chip' + (i === 0 ? ' active' : '');
+            b.className = 'chip' + (i === 0 && !q ? ' active' : ''); // 如果没搜索词，默认选中“全部视频”
             b.textContent = c;
             b.onclick = () => {
                 chips.querySelectorAll('.chip').forEach(x => x.classList.remove('active'));
@@ -63,6 +76,30 @@
             </div>
         </div>`;
     }
+
+    async function loadHotVideos() {
+        empty.style.display = 'none';
+        grid.innerHTML = '<div class="empty">加载热榜中…</div>';
+        try {
+            // 🟢 调用你刚刚写好的后端接口
+            const res = await YT.api.get('/api/video/select/hot/video');
+            const list = Array.isArray(res.data) ? res.data : [];
+
+            if (!list.length) {
+                grid.innerHTML = '';
+                empty.textContent = '目前还没有上榜的视频哦';
+                empty.style.display = 'block';
+                return;
+            }
+            // 复用现有的 card(v) 渲染函数
+            grid.innerHTML = list.map(card).join('');
+        } catch (e) {
+            grid.innerHTML = '';
+            empty.textContent = '热榜加载失败：' + e.message;
+            empty.style.display = 'block';
+        }
+    }
+
 
     async function load(kw) {
         empty.style.display = 'none';
@@ -246,7 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             sendBtn.disabled = false;
             input.focus();
-            // 🟢 流式输出结束后，保存完整的聊天记录
+            //流式输出结束后，保存完整的聊天记录
             saveHistory();
         }
     }
