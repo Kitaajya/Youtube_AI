@@ -1,5 +1,4 @@
 
-
 ***
 
 # YouTube AI
@@ -7,457 +6,455 @@
 [![CI](https://github.com/Kitaajya/Youtube_AI/actions/workflows/ci.yml/badge.svg)](https://github.com/Kitaajya/Youtube_AI/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-一个从零实现的视频社区网站，前后端一体，深度接入 AI 与高并发架构
+A video community website built from scratch, featuring a separated frontend and backend architecture, deeply integrated with AI and high-concurrency design.
 
-本项目为个人学习实践作品，与 YouTube 官方无任何关联。
+*This is a personal learning and practice project and is not affiliated with YouTube in any way.*
 
-覆盖 AI 智能问答、视频上传/播放/点赞/评论、短视频流、动态社交、私信会话（含群聊）、关注粉丝、收藏夹、消息通知、历史记录等完整模块。前端为原生 HTML/CSS/JS 多页应用，后端为 Spring Boot + Spring AI + MyBatis + MySQL + Redis。包括DeepSeek配置！
+The project covers a complete set of modules including AI Q&A, video upload/playback/likes/comments, short video streams, dynamic social feeds, private messaging (including group chats), followers/following, playlists, notifications, and watch history. The frontend is a multi-page application using native HTML/CSS/JS, while the backend is built with Spring Boot + Spring AI + MyBatis + MySQL + Redis. DeepSeek configuration is included!
 
-## 🖼️ 界面预览
+## 🖼️ Interface Preview
 
-<h1>🐳 DeepSeek AI 助手</h1>
-<img width="100%" src="https://github.com/user-attachments/assets/3b2a585b-672f-434d-a1f8-f6b17af81ac3" alt="DeepSeek AI样式" />
+<h1>🐳 DeepSeek AI Assistant</h1>
+<img width="100%" src="https://github.com/user-attachments/assets/3b2a585b-672f-434d-a1f8-f6b17af81ac3" alt="DeepSeek AI Style" />
 
-<h1>🐳 DeepSeek网络评论警察自动筛选违规评论并删除</h1>
-<h1>展示违规评论</h1>
+<h1>🐳 DeepSeek Network Comment Police: Automatically screening and deleting violating comments</h1>
+<h1>Showcasing Violating Comments</h1>
 <img width="1295" height="522" alt="image" src="https://github.com/user-attachments/assets/8a6fccfd-bdc5-4af5-b488-131c839e80f1" />
-<h1>DeepSeek审查评论</h1>
+<h1>DeepSeek Reviewing Comments</h1>
 <img width="2349" height="727" alt="image" src="https://github.com/user-attachments/assets/97f4f932-6717-4b46-90b9-b5eff7dd58be" />
-<h1>DeepSeek删除评论</h1>
+<h1>DeepSeek Deleting Comments</h1>
 <img width="1302" height="389" alt="image" src="https://github.com/user-attachments/assets/72a73766-f3f3-451e-8f82-0f94708fa70f" />
 
+<h1>🗄️ Database Intelligent Q&A (NL2SQL Logic)</h1>
+<img width="100%" src="https://github.com/user-attachments/assets/42e08553-da93-4c71-aa2b-9bc41ab56d11" alt="DeepSeek after inserting into database" />
 
+<h1>📝 Video Comment Section AI Summary</h1>
+<img width="100%" src="https://github.com/user-attachments/assets/f141190c-842a-4c0c-b3e9-ff1931f84b14" alt="Video Comment Summary" />
 
-<h1>🗄️ 数据库智能问答（NL2SQL 逻辑）</h1>
-<img width="100%" src="https://github.com/user-attachments/assets/42e08553-da93-4c71-aa2b-9bc41ab56d11" alt="插入数据库后的DeepSeek" />
+<h1>🎬 Video Stream and Short Videos</h1>
+<img width="100%" src="https://github.com/user-attachments/assets/afd8fc23-8f47-48fa-a5f5-ec7005e85e6c" alt="Normal Sample" />
+<img width="100%" src="https://github.com/user-attachments/assets/a5bdeeed-8111-4477-adf8-ba6c3b3c8b3e" alt="Short Video Section" />
 
-<h1>📝 视频评论区 AI 总结</h1>
-<img width="100%" src="https://github.com/user-attachments/assets/f141190c-842a-4c0c-b3e9-ff1931f84b14" alt="视频评论区总结" />
+<h1>👤 Profile Page and Watch History</h1>
+<img width="100%" src="https://github.com/user-attachments/assets/279127f0-8e3e-4bf3-9637-c5d4a206cae6" alt="Profile Page" />
+<img width="100%" src="https://github.com/user-attachments/assets/523e6da2-513f-49fa-9899-a869aa71bb1c" alt="Watch History" />
 
-<h1>🎬 视频流与短视频</h1>
-<img width="100%" src="https://github.com/user-attachments/assets/afd8fc23-8f47-48fa-a5f5-ec7005e85e6c" alt="普通样例" />
-<img width="100%" src="https://github.com/user-attachments/assets/a5bdeeed-8111-4477-adf8-ba6c3b3c8b3e" alt="短视频区域" />
+## 📖 Table of Contents
 
-<h1>👤 个人主页与观看历史</h1>
-<img width="100%" src="https://github.com/user-attachments/assets/279127f0-8e3e-4bf3-9637-c5d4a206cae6" alt="个人主页" />
-<img width="100%" src="https://github.com/user-attachments/assets/523e6da2-513f-49fa-9899-a869aa71bb1c" alt="查找历史" />
+- [✨ Features](#-features)
+- [🛠 Tech Stack](#-tech-stack)
+- [🚀 Quick Start](#-quick-start)
+- [📁 Project Structure](#-project-structure)
+- [🗄 Database Tables Overview](#-database-tables-overview)
+- [📡 API Overview](#-api-overview)
+- [🧠 Troubleshooting & Pitfalls Guide](#-troubleshooting--pitfalls-guide)
+- [⚠️ Known Limitations](#️-known-limitations)
 
-## 📖 目录
+## ✨ Features
 
-- [✨ 功能特性](#-功能特性)
-- [🛠 技术栈](#-技术栈)
-- [🚀 快速开始](#-快速开始)
-- [📁 目录结构](#-目录结构)
-- [🗄 数据表一览](#-数据表一览)
-- [📡 API 一览](#-api-一览)
-- [🧠 踩坑与排错 Skill 指南](#-踩坑与排错-skill-指南)
-- [⚠️ 已知局限](#️-已知局限)
+### 🤖 AI Intelligent Interaction Module (Core Highlight)
+- **Fully Streaming AI Q&A**: The frontend uses `fetch` with `ReadableStream` and the backend uses `Flux` to achieve a typewriter-effect streaming dialogue, with handling for interruption and retry logic.
+- **Intelligent Intent Routing**: Based on keywords in user queries (e.g., "emoji", "feed", "user", "like"), the frontend AI assistant automatically routes requests to different data analysis endpoints or standard chat endpoints.
+- **Natural Language Database Querying (NL2SQL Logic)**: Converts user info, like records, feed comments, and emoji data into natural language context and inserts it into the Prompt.
+- **AI Group Chat Summary & Q&A**: In group chats, if a user sends a specific command (e.g., containing "DeepSeek"), the AI automatically reads the chat history, summarizes the context, and answers as a group member (the frontend uses an `aiLock` state lock + temporary thinking bubbles to completely resolve infinite loops caused by streaming output).
+- **One-Click Video Comment Summary**: The playback page provides an AI summary button to analyze all comments under a video and extract core viewpoints.
 
-## ✨ 功能特性
+### 🛡️ Nickname Content Moderation & Auto-Cleansing (Security Module)
+- **Admission Interception**: Uses an asynchronous "allow first, cleanse later" mechanism. When a new user registers, a background scheduled task (`ScheduledExecutorService`) checks if the nickname contains prohibited words from the `prohibit_words` table. If found, the original nickname is automatically reset to a 13-character random string (like a gift card code) from the source to prevent violating nicknames from polluting the live environment.
+- **One-Click Full Cleansing**: The backend provides a `/api/user/clean/all/prohibited` endpoint, supporting a one-click full database scan of registered users to precisely locate violating nicknames and force reset them to random IDs.
+- **Blacklist Pattern Matching**: The underlying system uses MySQL's `LIKE CONCAT('%', message, '%')` for multi-pattern matching, safely isolating violating content containing pornographic, violent, or other sensitive fields.
 
-### 🤖 AI 智能交互模块（核心亮点）
-- **全流式 AI 问答**：前端利用 `fetch` 配合 `ReadableStream`，配合后端 `Flux` 实现打字机效果的流式对话，并处理了中断与重试逻辑。
-- **智能意图路由**：前端 AI 助手根据用户提问关键词（如“表情”、“动态”、“用户”、“点赞”等），自动将请求分发至不同的数据分析接口或普通聊天接口。
-- **自然语言查库（NL2SQL 逻辑）**：将用户信息、点赞记录、动态评论、表情包数据转换为自然语言上下文塞入 Prompt。
-- **AI 群聊总结与问答**：私信群聊中，若用户发送特定指令（如包含“DeepSeek”），AI 会自动读取群聊历史记录，总结上下文并以群友身份回答（前端使用 `aiLock` 状态锁 + 临时思考气泡，彻底解决流式输出引发的死循环）。
-- **视频评论一键总结**：播放页提供 AI 总结按钮，一键分析该视频下的所有评论并提炼核心观点。
+### 🎬 Video and Short Video Module
+- **Real File Upload**: Multipart chunked receiving, supporting up to 1GB. The backend automatically uses `ffprobe` to detect duration and resolution, determining if it is a vertical short video (browser-side fallback duration detection resolves issues on servers without ffprobe).
+- **In-Site Playback**: The server uses `WebMvcConfigurer` to map local directories as `/videos/**` static resources.
+- **Short Video Stream (Shorts)**: Vertical sliding stream, automatically calculating heat (Views*0.3 + Likes*0.7), using `IntersectionObserver` for auto-play when entering the viewport and pause when sliding out.
+- **Watch History**: Automatically records videos watched by the user, queried by time descending with pagination (max 200 records at a time).
 
-### 🛡️ 昵称内容审核与自动清洗（安全模块）
-- **准入查杀拦截**：采用“先放行、后清洗”的异步机制。新用户注册时，系统后台会利用 `ScheduledExecutorService` 开启定时任务，若检测到昵称包含 `prohibit_words` 表中的违禁词，则自动将原昵称重置为 13 位随机字符串（先知白兑换码），从源头避免违规昵称污染线上环境。
-- **一键全量清洗**：后台提供 `/api/user/clean/all/prohibited` 接口，支持一键遍历扫描全库已注册用户，精准定位违规昵称并强制重置为随机 ID。
-- **黑名单模式匹配**：底层基于 MySQL 的 `LIKE CONCAT('%', message, '%')` 进行多模式匹配，安全隔离含有色情、暴力等敏感字段的违规内容。
+### 🚀 High-Concurrency Like Module
+- **MySQL as Primary, Redis as Secondary (Cache-Aside Pattern)**: Database records are the single source of truth. Redis Sets are used to intercept duplicate like requests, avoiding database write hot spots under high concurrency.
+- **Cache Consistency Guarantee**: When unliking, the Redis count is directly reset to the latest database value, completely resolving cache and database inconsistency bugs (data resetting to zero after refresh).
 
-### 🎬 视频与短视频模块
-- **真实文件上传**：Multipart 分片接收，最大支持 1GB，后端自动使用 `ffprobe` 探测时长与分辨率，自动判定是否为竖屏短视频（浏览器端兜底探测时长，解决服务器无 ffprobe 的问题）。
-- **站内播放**：服务端通过 `WebMvcConfigurer` 将本地目录映射为 `/videos/**` 静态资源。
-- **短视频流（Shorts）**：竖屏滑动流，自动计算热度（播放量*0.3 + 点赞*0.7），`IntersectionObserver` 实现进入视口自动播放、滑出暂停。
-- **观看历史**：自动记录用户看过的视频，按时间倒序分页查询（单次最多 200 条）。
+### 💬 Private Messaging and Group Chat Module (Newly Upgraded)
+- **One-on-One Private Messaging**: Complete loading of bidirectional conversations, supporting text, images, videos, and emoji sending.
+- **Server-Side Inbox**: Uses MySQL 8 window functions to aggregate the last message + unread count for each conversation, so records aren't lost when switching devices.
+- **Group Chat & Member Management**: Supports creating groups, inviting members, leaving groups, and viewing group member lists.
+- **Smart Group Owner Transfer & Group Dissolution**: When the group owner leaves, the system automatically randomly transfers ownership (excluding AI_BOT) to an active member. If there are no active members left, it triggers a cascade delete (`ON DELETE CASCADE`), automatically dissolving the group and clearing all group messages and member records.
+- **Message Recall & Soft Delete**: Supports recalling messages within 120 seconds and unilateral soft delete (the other party can still see it).
 
-### 🚀 高并发点赞模块
-- **MySQL 为主，Redis 为辅（Cache-Aside 模式）**：以数据库记录为唯一口径，Redis Set 用于拦截重复点赞请求，避免高并发下的数据库写热点。
-- **缓存一致性保障**：取消点赞时，直接将 Redis 计数重置为数据库最新值，彻底解决缓存与数据库不一致（刷新后数据归零）的 Bug。
+### 👥 Feed and Social
+- Publish / Edit / Delete feeds. Feed comments support nested replies.
+- Follow / Unfollow creators, view following lists and follower lists.
+- YouTube-style channel page: Banner cover, centered avatar, Subscribe-style button, including four tabs: "Home / Videos / Playlists / Following & Followers".
 
-### 💬 私信与群聊模块（全新升级）
-- **一对一私信**：双向会话完整加载，支持文本、图片、视频、表情包发送。
-- **服务器端收件箱**：使用 MySQL 8 窗口函数聚合每个会话最后一条消息 + 未读数，换设备不丢记录。
-- **群聊与成员管理**：支持创建群聊、拉人、退群、查看群成员列表。
-- **群主智能转让与群解散**：群主退群时，系统自动随机（排除 AI_BOT）转让给群内活人；若群内无活人，则触发级联删除（`ON DELETE CASCADE`），自动解散并清空所有群消息及成员记录。
-- **消息撤回与软删除**：支持 120 秒内撤回消息，支持单方面软删除（对方依然可见）。
+### 🔔 Notification Module
+- Actions like video likes, video comments, replies, comment likes, and follows will write to the `notification` table.
+- Top bar bell button + unread red dot. Frontend uses 5-second long polling. The dropdown panel displays the notification list, and opening the panel marks them as read.
 
-### 👥 动态与社交
-- 发布 / 编辑 / 删除动态，动态评论支持楼中楼。
-- 关注 / 取关 UP 主，查看关注列表与粉丝列表。
-- 仿 YouTube 频道页：横幅封面、居中头像、Subscribe 风格按钮，包含「首页 / 视频 / 收藏夹 / 关注与粉丝」四标签页。
+## 🛠 Tech Stack
 
-### 🔔 消息通知模块
-- 视频点赞、视频评论、回复、评论点赞、关注等操作会写入 `notification` 表。
-- 顶栏铃铛按钮 + 未读红点，前端 5 秒长轮询，下拉面板显示通知列表，点开面板即标记已读。
-
-## 🛠 技术栈
-
-| 层 | 技术 |
+| Layer | Technology |
 |---|---|
-| **AI 引擎** | Spring AI · Ollama / DeepSeek API (SSE 流式响应) |
-| 后端 | Java 17 · Spring Boot 3.x · Spring MVC |
-| **缓存层** | Redis (StringRedisTemplate 处理点赞拦截与计数) |
-| 持久层 | MyBatis (注解 SQL) · MySQL 8 (InnoDB / utf8mb4) |
-| 前端 | 原生 HTML / CSS / JavaScript（多页），Vite 负责开发代理与构建 |
-| 其他 | Lombok · Multipart 文件存储 · Caffeine (本地缓存) |
+| **AI Engine** | Spring AI · Ollama / DeepSeek API (SSE Streaming Response) |
+| Backend | Java 17 · Spring Boot 3.x · Spring MVC |
+| **Cache Layer** | Redis (StringRedisTemplate for like interception and counting) |
+| Persistence | MyBatis (Annotation SQL) · MySQL 8 (InnoDB / utf8mb4) |
+| Frontend | Native HTML / CSS / JavaScript (Multi-page), Vite for dev proxy and build |
+| Others | Lombok · Multipart File Storage · Caffeine (Local Cache) |
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 环境要求
+### Requirements
 - JDK 17+
-- Node.js 18+（前端 Vite 开发服务器与构建）
+- Node.js 18+ (Frontend Vite dev server and build)
 - MySQL 8.0+
-- Redis (用于点赞模块)
-- Spring AI 支持的模型环境（如本地 Ollama 运行 deepseek-r1:8b / qwen2.5-coder，或配置 API Key）
+- Redis (for the Like module)
+- Spring AI supported model environment (e.g., local Ollama running deepseek-r1:8b / qwen2.5-coder, or configured API Key)
 
-### 1. 初始化数据库
-按文件名顺序执行 `sql/` 目录下的脚本，创建 `youtube` 库及全部表：
+### 1. Initialize Database
+Execute the scripts in the `sql/` directory in filename order to create the `youtube` database and all tables:
 
 ```bash
-mysql -u root -p < sql/01_schema.sql        # 建表
-mysql -u root -p < sql/02_fix_collation.sql # 修复排序规则
+mysql -u root -p < sql/01_schema.sql        # Create tables
+mysql -u root -p < sql/02_fix_collation.sql # Fix collation
 ```
 
-### 2. 修改配置
-编辑 `backend/src/main/resources/application.properties`：
+### 2. Modify Configuration
+Edit `backend/src/main/resources/application.properties`:
 
 ```properties
-# 数据库配置
+# Database Configuration
 spring.datasource.url=jdbc:mysql://localhost:3306/youtube?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8
-spring.datasource.username=你的数据库用户
-spring.datasource.password=你的数据库密码
+spring.datasource.username=YOUR_DB_USERNAME
+spring.datasource.password=YOUR_DB_PASSWORD
 
-# Redis 配置
+# Redis Configuration
 spring.data.redis.host=localhost
 spring.data.redis.port=6379
 
-# 视频文件落盘目录（需提前创建）
+# Video File Storage Directory (Needs to be created in advance)
 video.storage.dir=D:/videos/Video_Bilibili_Practice/videos
 
-# Spring AI 配置 (示例为本地 Ollama)
+# Spring AI Configuration (Example for local Ollama)
 spring.ai.ollama.base-url=http://localhost:11434
 spring.ai.ollama.chat.model=deepseek-r1:8b
 ```
 
-### 3. 启动（前后端分离）
+### 3. Launch (Separated Frontend & Backend)
 
-项目已拆分为 `backend/`（Spring Boot API）与 `frontend/`（Vite 多页前端），需要**分别启动**。
+The project has been split into `backend/` (Spring Boot API) and `frontend/` (Vite multi-page frontend), which need to be **started separately**.
 
-**方式一：一键脚本（推荐）**
+**Method 1: One-Click Script (Recommended)**
 
-双击运行 `startYoutubeAI-分离版.bat`，脚本会自动检查环境、打包后端、拉起前端，并打开两个服务窗口。
+Double-click `startYoutubeAI-分离版.bat` (Separated Version). The script will automatically check the environment, package the backend, start the frontend, and open two service windows.
 
-> 旧的 `startYoutubeAI.bat` 因工程拆分后内部路径已失效，仅作保留，请改用分离版脚本。
+> The old `startYoutubeAI.bat` has invalid internal paths due to the project split and is kept for reference only. Please use the separated version script instead.
 
-**方式二：手动启动**
+**Method 2: Manual Start**
 
 ```bash
-# 终端 1 —— 启动后端 API（:8080）
+# Terminal 1 — Start Backend API (:8080)
 cd backend
-./mvnw spring-boot:run        # Windows 用 mvnw.cmd
+./mvnw spring-boot:run        # Use mvnw.cmd on Windows
 
-# 终端 2 —— 启动前端（:5173）
+# Terminal 2 — Start Frontend (:5173)
 cd frontend
-npm install                   # 仅首次需要
+npm install                   # Only required for the first time
 npm run dev
 ```
 
-启动后，浏览器访问 **http://localhost:5173**（前端页面），注册账号即可体验全部功能。
-后端 API 单独跑在 http://localhost:8080，前端通过 Vite 代理把 `/api`、`/captcha`、`/checkCaptcha`、`/videos` 转发到后端，浏览器视角同源，无需配置跨域。
+After starting, visit **http://localhost:5173** in your browser (Frontend pages) and register an account to experience all features.
+The backend API runs separately on http://localhost:8080. The frontend uses a Vite proxy to forward `/api`, `/captcha`, `/checkCaptcha`, and `/videos` to the backend. From the browser's perspective, it's same-origin, requiring no CORS configuration.
 
-**生产构建**
+**Production Build**
 
 ```bash
 cd frontend
-npm run build                 # 产物输出到 frontend/dist
+npm run build                 # Output goes to frontend/dist
 ```
 
-`dist/` 是纯静态目录，交给 Nginx 托管，并把上述四类路径反向代理到后端 8080 即可（同源部署，无需 CORS）。Nginx 参考配置见 `frontend/nginx.conf.example`。
+`dist/` is a pure static directory. Hand it over to Nginx for hosting and reverse proxy the four paths mentioned above to the backend on port 8080 (same-origin deployment, no CORS needed). See `frontend/nginx.conf.example` for an Nginx reference configuration.
 
-## 📁 目录结构
+## 📁 Project Structure
 
 ```text
-├── sql/                            # 数据库建表与修复脚本
-├── LICENSE                         # 开源协议
-├── README.md                       # 项目说明
-├── startYoutubeAI-分离版.bat        # 一键启动（前后端分离版，推荐使用）
+├── sql/                            # Database schema and fix scripts
+├── LICENSE                         # Open Source License
+├── README.md                       # Project Documentation
+├── startYoutubeAI-分离版.bat        # One-click startup (Separated Version, Recommended)
 │
-├── backend/                        # Spring Boot 后端工程（只提供 API，不再内置页面）
+├── backend/                        # Spring Boot Backend (API only, no built-in pages)
 │   ├── pom.xml
 │   ├── mvnw / mvnw.cmd / .mvn/     # Maven Wrapper
 │   └── src/
 │       ├── main/
 │       │   ├── java/org/designer/youtube/
-│       │   │   ├── YoutubeApplication.java   # 启动类
-│       │   │   ├── RandomlyCreateID.java     # 13 位随机业务主键生成器
-│       │   │   ├── common/                   # 统一响应体 Result
-│       │   │   ├── config/                   # 视频目录映射(WebMvc)、Caffeine 缓存、异步线程池
-│       │   │   ├── controller/               # Web 控制层 (按业务拆分)
-│       │   │   │   ├── UserInformationController.java  # 用户与粉丝关注
-│       │   │   │   ├── VideoController.java            # 视频、点赞、评论、收藏夹、通知
-│       │   │   │   ├── DynamicController.java          # 动态 CRUD
-│       │   │   │   ├── PrivateMessageController.java   # 私信、群聊、表情包
-│       │   │   │   ├── DeepSeekController.java         # AI 对话与数据分析路由
-│       │   │   │   ├── CaptchaController.java          # 图片验证码生成与校验
-│       │   │   │   └── RedisController.java            # Redis 连通性测试
-│       │   │   ├── entity/                   # 数据库实体类 (User, Video, PrivateMessage...)
-│       │   │   ├── mapper/                   # MyBatis 注解 SQL 接口 (无 XML)
-│       │   │   │   ├── UserInformationMapper.java      # 用户、关注、违禁词
-│       │   │   │   ├── VideoMapper.java                # 视频、评论、点赞、收藏夹、通知、历史
-│       │   │   │   ├── DynamicMapper.java              # 动态及评论
-│       │   │   │   └── PrivateMessageMapper.java       # 私信、群聊、表情包
-│       │   │   └── service/                  # 业务逻辑层
-│       │   │       ├── VideoService.java               # 视频、高并发点赞、AI 审核逻辑
-│       │   │       ├── VideoFileService.java           # 文件落盘、ffprobe 探测、封面/私信媒体
-│       │   │       ├── UserInformationService.java     # 注册登录、违禁词清洗
-│       │   │       ├── DynamicService.java             # 动态业务
-│       │   │       ├── PrivateMessageService.java      # 私信/群聊流转、群主转让/解散
-│       │   │       └── DeepSeekTest.java               # Spring AI 底层调用封装
+│       │   │   ├── YoutubeApplication.java   # Application entry
+│       │   │   ├── RandomlyCreateID.java     # 13-char random business ID generator
+│       │   │   ├── common/                   # Unified response Result
+│       │   │   ├── config/                   # Video dir mapping (WebMvc), Caffeine cache, Async thread pool
+│       │   │   ├── controller/               # Web Controller layer (split by business)
+│       │   │   │   ├── UserInformationController.java  # User and Follow relations
+│       │   │   │   ├── VideoController.java            # Video, Likes, Comments, Playlists, Notifications
+│       │   │   │   ├── DynamicController.java          # Feed CRUD
+│       │   │   │   ├── PrivateMessageController.java   # Private Messages, Group Chat, Emoji
+│       │   │   │   ├── DeepSeekController.java         # AI Chat and Data Analysis routing
+│       │   │   │   ├── CaptchaController.java          # Image Captcha generation and validation
+│       │   │   │   └── RedisController.java            # Redis connectivity test
+│       │   │   ├── entity/                   # Database entities (User, Video, PrivateMessage...)
+│       │   │   ├── mapper/                   # MyBatis annotation SQL interfaces (No XML)
+│       │   │   │   ├── UserInformationMapper.java      # User, Follow, Prohibited words
+│       │   │   │   ├── VideoMapper.java                # Video, Comment, Like, Playlist, Notification, History
+│       │   │   │   ├── DynamicMapper.java              # Feed and Comments
+│       │   │   │   └── PrivateMessageMapper.java       # Private Message, Group Chat, Emoji
+│       │   │   └── service/                  # Business Logic layer
+│       │   │       ├── VideoService.java               # Video, High-concurrency Likes, AI moderation logic
+│       │   │       ├── VideoFileService.java           # File storage, ffprobe detection, covers/PM media
+│       │   │       ├── UserInformationService.java     # Register/Login, Prohibited word cleansing
+│       │   │       ├── DynamicService.java             # Feed business
+│       │   │       ├── PrivateMessageService.java      # PM/Group flow, Owner transfer/dissolution
+│       │   │       └── DeepSeekTest.java               # Spring AI low-level call encapsulation
 │       │   └── resources/
-│       │       └── application.properties              # 全局配置(数据库/Redis/AI/视频路径)
-│       └── test/                                         # 测试代码
+│       │       └── application.properties              # Global config (Database/Redis/AI/Video Path)
+│       └── test/                                         # Test code
 │
-└── frontend/                       # Vite 前端工程（原生 HTML/CSS/JS 多页）
-    ├── package.json                # 前端依赖与 dev/build/preview 脚本
-    ├── vite.config.js              # 多页入口 + 开发代理(/api、/captcha、/checkCaptcha、/videos)
-    ├── .env.development            # 后端地址 VITE_BACKEND（代理目标）
-    ├── nginx.conf.example          # 生产部署参考（静态托管 + 反向代理，同源）
+└── frontend/                       # Vite Frontend (Native HTML/CSS/JS Multi-page)
+    ├── package.json                # Frontend dependencies and dev/build/preview scripts
+    ├── vite.config.js              # Multi-page entries + Dev proxy (/api, /captcha, /checkCaptcha, /videos)
+    ├── .env.development            # Backend address VITE_BACKEND (Proxy target)
+    ├── nginx.conf.example          # Production deployment reference (Static hosting + Reverse proxy, same-origin)
     ├── src/
-    │   └── vite-plugin-absolute-assets.js  # 构建期插件：把相对资源引用改写为绝对路径
-    ├── public/                     # 静态资源，原样托管到站点根路径
-    │   ├── css/                    # 样式文件
-    │   │   ├── vars.css            # 亮色主题变量
-    │   │   ├── dark.css            # 深色模式覆盖
-    │   │   ├── style.css           # 全局公共样式(顶栏、播放器、评论区)
-    │   │   ├── channel.css         # 频道页样式
-    │   │   ├── pm.css              # 私信/群聊样式
-    │   │   ├── register.css        # 登录注册页样式
-    │   │   └── shorts.css          # 短视频滑动流样式
-    │   ├── js/                     # 逻辑脚本（全局 IIFE，加载顺序 theme.js → common.js → 页面脚本）
-    │   │   ├── common.js           # 全局请求封装、导航栏/侧栏渲染、通知轮询
-    │   │   ├── theme.js            # 深浅色主题切换记忆
-    │   │   ├── home.js             # 首页视频流渲染 + 悬浮 AI 助手
-    │   │   ├── watch.js            # 播放页、评论楼中楼、点赞、AI 总结
-    │   │   ├── shorts.js           # 短视频滑动、IntersectionObserver 预加载
-    │   │   ├── message.js          # 私信/群聊、轮询、AI 思考气泡
-    │   │   ├── profile.js          # 频道页、收藏夹、关注粉丝
-    │   │   ├── upload.js           # 分片上传、浏览器端时长兜底探测
-    │   │   ├── dynamic.js          # 动态发布与本地镜像
-    │   │   ├── history.js          # 观看历史列表
-    │   │   ├── login.js            # 登录与验证码
-    │   │   ├── register.js         # 注册
-    │   │   └── comment.js          # 评论组件(旧)
-    │   ├── emoji/                  # 私信表情包图片
-    │   ├── images/                 # 页面插图
-    │   └── *.png                   # logo 等图片资源
-    └── *.html                      # 多页入口（Vite 逐个登记为构建入口）
-        ├── index.html              # 首页(视频流)
-        ├── watch.html              # 播放页
-        ├── shorts.html             # 短视频流
-        ├── message.html            # 私信与群聊
-        ├── profile.html            # 个人/他人频道页
-        ├── dynamic.html            # 动态广场
-        ├── upload.html             # 视频上传
-        ├── history.html            # 观看历史
-        ├── login.html              # 登录
-        └── register.html           # 注册
+    │   └── vite-plugin-absolute-assets.js  # Build-time plugin: Rewrite relative asset references to absolute paths
+    ├── public/                     # Static resources, hosted as-is at site root
+    │   ├── css/                    # Stylesheets
+    │   │   ├── vars.css            # Light theme variables
+    │   │   ├── dark.css            # Dark mode overrides
+    │   │   ├── style.css           # Global common styles (Top nav, player, comments)
+    │   │   ├── channel.css         # Channel page styles
+    │   │   ├── pm.css              # Private message/Group chat styles
+    │   │   ├── register.css        # Login/Register page styles
+    │   │   └── shorts.css          # Short video sliding stream styles
+    │   ├── js/                     # Logic scripts (Global IIFE, load order: theme.js → common.js → page scripts)
+    │   │   ├── common.js           # Global request wrapper, Nav/Sidebar rendering, Notification polling
+    │   │   ├── theme.js            # Dark/Light theme toggle memory
+    │   │   ├── home.js             # Homepage video stream rendering + Floating AI Assistant
+    │   │   ├── watch.js            # Playback page, Nested comments, Likes, AI Summary
+    │   │   ├── shorts.js           # Short video sliding, IntersectionObserver preloading
+    │   │   ├── message.js          # Private message/Group chat, Polling, AI thinking bubble
+    │   │   ├── profile.js          # Channel page, Playlists, Following & Followers
+    │   │   ├── upload.js           # Chunked upload, Browser-side fallback duration detection
+    │   │   ├── dynamic.js          # Feed publishing and local mirroring
+    │   │   ├── history.js          # Watch history list
+    │   │   ├── login.js            # Login and Captcha
+    │   │   ├── register.js         # Register
+    │   │   └── comment.js          # Comment component (Legacy)
+    │   ├── emoji/                  # PM emoji images
+    │   ├── images/                 # Page illustrations
+    │   └── *.png                   # logo and other image assets
+    └── *.html                      # Multi-page entries (Vite registers them as build entries one by one)
+        ├── index.html              # Homepage (Video Stream)
+        ├── watch.html              # Playback page
+        ├── shorts.html             # Short video stream
+        ├── message.html            # Private message & Group chat
+        ├── profile.html            # Personal/Others' Channel page
+        ├── dynamic.html            # Feed square
+        ├── upload.html             # Video upload
+        ├── history.html            # Watch history
+        ├── login.html              # Login
+        └── register.html           # Register
 ```
 
-## 🗄 数据表一览
+## 🗄 Database Tables Overview
 
-| 表 | 用途 | 关键设计 |
+| Table | Purpose | Key Design |
 |---|---|---|
-| `user_information` | 用户 | user_id 13位随机主键，username 唯一 |
-| `prohibit_words` | 违禁词表 | 存储色情、暴力等违规词汇，供昵称/消息拦截 |
-| `video` | 视频 | 自增主键，含 `is_short`、`duration_sec`、`cover_path` |
-| `video_like` | 视频点赞 | 联合主键 (video_id, user_id) |
-| `video_comment` | 视频评论 | parent_id 自引用实现楼中楼 |
-| `comment_like` | 评论点赞 | 联合主键 (user_id, comment_id) |
-| `dynamic` | 动态 | - |
-| `content_comments` | 动态评论 | 独立于视频评论的表 |
-| `private_message` | 私信 | is_read 标记 + 软删除/撤回标记 |
-| `chat_group` | 群聊主体 | 记录群主、建群时间 |
-| `group_member` | 群成员 | 关联群与用户 |
-| `group_message` | 群聊消息 | 支持文本/图片/视频/表情 |
-| `subscription` | 关注关系 | 联合主键 (fan_id, up_id) |
-| `playlist` | 收藏夹 | uk_playlist_name 同人不可重名 |
-| `playlist_video` | 收藏内容 | 联合主键 (playlist_id, video_id) |
-| `notification` | 消息通知 | is_read 标记 + 索引优化 |
-| `watch_history` | 观看历史 | 联合主键 (user_id, video_id) |
-| `emoji_item` | 表情包 | 记录表情包文件路径与名称 |
+| `user_information` | Users | user_id 13-char random PK, username unique |
+| `prohibit_words` | Prohibited Words | Stores pornographic, violent words for nickname/message interception |
+| `video` | Videos | Auto-increment PK, includes `is_short`, `duration_sec`, `cover_path` |
+| `video_like` | Video Likes | Composite PK (video_id, user_id) |
+| `video_comment` | Video Comments | parent_id self-reference for nested replies |
+| `comment_like` | Comment Likes | Composite PK (user_id, comment_id) |
+| `dynamic` | Feeds | - |
+| `content_comments` | Feed Comments | Independent from video comments |
+| `private_message` | Private Messages | is_read flag + soft delete/recall flags |
+| `chat_group` | Group Chats | Records group owner, creation time |
+| `group_member` | Group Members | Links groups and users |
+| `group_message` | Group Messages | Supports text/image/video/emoji |
+| `subscription` | Follow Relations | Composite PK (fan_id, up_id) |
+| `playlist` | Playlists | uk_playlist_name prevents duplicate names per user |
+| `playlist_video` | Playlist Contents | Composite PK (playlist_id, video_id) |
+| `notification` | Notifications | is_read flag + index optimization |
+| `watch_history` | Watch History | Composite PK (user_id, video_id) |
+| `emoji_item` | Emojis | Records emoji file paths and names |
 
-## 📡 API 一览
+## 📡 API Overview
 
-> **全局约定：**
-> 1. 统一返回体为 `Result{code, success, message, data}`。
-> 2. 除特别注明外，所有接口的参数均通过 `@RequestParam` 接收，前端直接使用 **Query String**（GET/DELETE）或 **application/x-www-form-urlencoded**（POST）提交。
-> 3. 文件上传接口使用 `multipart/form-data`。
-> 4. 标注为 **(流式)** 的接口，返回类型为 `Flux<String>`，前端需使用 `ReadableStream` 处理流式输出。
-
----
-
-### 🤖 AI 对话与智能分析 `/api/deepseek`
-*深度接入 Spring AI，把数据库内容转化为上下文喂给大模型（NL2SQL 逻辑）。*
-
-| 方法 | 路径 | 参数 | 说明 |
-| :--- | :--- | :--- | :--- |
-| GET | `/stream` | `question` | 普通 AI 流式问答（打字机效果）**(流式)** |
-| GET | `/ask/deepseek` | `question` | 普通 AI 阻塞式问答 |
-| GET | `/analyze/likes` | `question` | 把全站点赞记录喂给 AI，进行总结或查询 **(流式)** |
-| GET | `/analyze/user` | `question` | 把全站用户信息喂给 AI，支持条件检索 **(流式)** |
-| GET | `/analyze/dynamic/comments` | `question` | 把动态评论数据喂给 AI 进行分析 **(流式)** |
-| GET | `/analyze/private/message/emoji` | `question` | 把表情包数据库喂给 AI 进行查询 **(流式)** |
-| GET | `/analyze/video/comments` | `vid`, `question` | 提取某视频下的所有评论，让 AI 一键总结 **(流式)** |
-| GET | `/analyze/private/message/member` | `groupId`, `question` | 把群成员信息喂给 AI 进行查询 **(流式)** |
+> **Global Conventions:**
+> 1. Unified response body is `Result{code, success, message, data}`.
+> 2. Unless otherwise specified, all endpoints accept parameters via `@RequestParam`. The frontend submits directly using **Query String** (GET/DELETE) or **application/x-www-form-urlencoded** (POST).
+> 3. File upload endpoints use `multipart/form-data`.
+> 4. Endpoints marked as **(Streaming)** return `Flux<String>`. The frontend must use `ReadableStream` to handle the streaming output.
 
 ---
 
-### 👤 用户模块 `/api/user`
+### 🤖 AI Chat & Intelligent Analysis `/api/deepseek`
+*Deeply integrated with Spring AI, converting database content into context fed to the LLM (NL2SQL logic).*
 
-| 方法 | 路径 | 参数 | 说明 |
+| Method | Path | Params | Description |
 | :--- | :--- | :--- | :--- |
-| POST | `/create/user/account` | `username`, `password`, `nickname`, `email`, `phone` | 注册账号（自动生成 13 位 userId） |
-| POST | `/login` | `username`, `password`, `captcha` | 登录（强制校验 Session 中的验证码） |
-| GET | `/select/me/follow` | `me` | 查询我关注了谁（返回列表） |
-| GET | `/select/me/fans` | `me` | 查询谁关注了我（返回列表） |
-| POST | `/follow` | `me`, `upId` | 关注某人（自动拦截重复关注） |
-| POST | `/unfollow` | `me`, `upId` | 取关某人（返回 0 行视为本来就没关注，非报错） |
-| GET | `/check/nickname` | `nickname`, `userId` | 注册/修改前预检昵称是否包含违禁词 |
-| POST | `/edit/nickname` | `newNickname`, `userId` | 用户主动修改昵称 |
-| POST | `/edit/prohibited/nickname`| `userId` | 强制清洗某个违规用户的昵称（重置为随机 ID） |
-| GET | `/clean/all/prohibited` | 无 | **[管理端]** 全库扫描并重置违规昵称 |
+| GET | `/stream` | `question` | Standard AI streaming Q&A (Typewriter effect) **(Streaming)** |
+| GET | `/ask/deepseek` | `question` | Standard AI blocking Q&A |
+| GET | `/analyze/likes` | `question` | Feed all site like records to AI for summary or querying **(Streaming)** |
+| GET | `/analyze/user` | `question` | Feed all site user info to AI, supports conditional retrieval **(Streaming)** |
+| GET | `/analyze/dynamic/comments` | `question` | Feed feed comments to AI for analysis **(Streaming)** |
+| GET | `/analyze/private/message/emoji` | `question` | Feed emoji database to AI for querying **(Streaming)** |
+| GET | `/analyze/video/comments` | `vid`, `question` | Extract all comments under a video and let AI summarize them **(Streaming)** |
+| GET | `/analyze/private/message/member` | `groupId`, `question` | Feed group member info to AI for querying **(Streaming)** |
 
 ---
 
-### 🎬 视频与点赞模块 `/api/video`
+### 👤 User Module `/api/user`
 
-#### 视频上传与查询
-| 方法 | 路径 | 参数 | 说明 |
+| Method | Path | Params | Description |
 | :--- | :--- | :--- | :--- |
-| POST | `/upload/file` | `userId`, `title`, `file`(Multipart), `clientDurationSec`, `clientVertical` | **首选**：真实文件上传落盘（支持前端时长兜底探测） |
-| POST | `/upload` | `userId`, `title`, `videoPath` | 备用：仅登记服务器上的视频路径字符串 |
-| GET | `/select/videos/upinfor` | 无 | 查全站视频（联表带出 UP 主昵称、头像、点赞数） |
-| GET | `/select/video/single/infor`| `id` | 根据视频 ID 查单条详情 |
-| GET | `/select/like` | `keyword` | 模糊搜索视频标题（内置了 Sleep 防刷机制） |
-| POST | `/edit/title` | `newTitle`, `id`, `userId` | 修改自己视频的标题 |
-| DELETE | `/delete/videos` | `id`, `userId` | 删除自己的视频 |
-| POST | `/upload/cover` | `videoId`, `userId`, `file`(Multipart) | 上传/更换视频封面 |
-| POST | `/check/video/title` | `videoId` | 单独触发视频标题的违禁词审核 |
-
-#### 播放与点赞
-| 方法 | 路径 | 参数 | 说明 |
-| :--- | :--- | :--- | :--- |
-| POST | `/add/view` | `id` | 视频播放量 +1（回读真实播放量返回） |
-| GET | `/select/like/count` | `id`, `userId` | 查视频点赞数及当前用户是否点过赞 |
-| POST | `/add/like` | `id`, `userId` | 点赞（MySQL 为准，Redis 拦截高并发重复点击） |
-| POST | `/cancel/like` | `id`, `userId` | 取消点赞（直接重置 Redis 计数为 MySQL 最新值） |
-
-#### 评论与楼中楼
-| 方法 | 路径 | 参数 | 说明 |
-| :--- | :--- | :--- | :--- |
-| GET | `/get/all/comments` | `videoId`, `userId`(可选) | 查视频的所有评论（带点赞数及当前用户是否赞过） |
-| POST | `/add/my/comments` | `commentId`, `videoId`, `userId`, `content`, `parentId`(可选) | 发布评论（`parentId` 有值则是楼中楼回复） |
-| POST | `/add/comment/like` | `me`, `commentId` | 给评论点赞/取消点赞（Toggle 逻辑） |
-| DELETE | `/delete/my/comments` | `myUserId`, `videoId`, `commentId` | 删除自己的评论 |
-| POST | `/edit/my/comments` | `newContent`, `commentId`, `myUserId` | 修改自己的评论 |
-
-#### 其他（历史、短视频、AI审核）
-| 方法 | 路径 | 参数 | 说明 |
-| :--- | :--- | :--- | :--- |
-| GET | `/select/short` | `size`, `offset` | 获取短视频流（按热度 `播放*0.3+点赞*0.7` 排序） |
-| GET | `/select/history` | `userId` | 查观看历史（限 200 条） |
-| POST | `/insert/history` | `userId`, `videoId` | 写入观看历史（`ON DUPLICATE KEY UPDATE` 刷新时间） |
-| POST | `/delete/auto/prohibited/comment` | `videoId` | 触发 DeepSeek 静默审查并自动删除违规评论 |
+| POST | `/create/user/account` | `username`, `password`, `nickname`, `email`, `phone` | Register account (Auto-generates 13-char userId) |
+| POST | `/login` | `username`, `password`, `captcha` | Login (Mandatorily checks Captcha in Session) |
+| GET | `/select/me/follow` | `me` | Query who I follow (Returns list) |
+| GET | `/select/me/fans` | `me` | Query who follows me (Returns list) |
+| POST | `/follow` | `me`, `upId` | Follow someone (Automatically intercepts duplicate follows) |
+| POST | `/unfollow` | `me`, `upId` | Unfollow someone (Returns 0 rows if not followed, not an error) |
+| GET | `/check/nickname` | `nickname`, `userId` | Pre-check if nickname contains prohibited words before reg/edit |
+| POST | `/edit/nickname` | `newNickname`, `userId` | User actively modifies nickname |
+| POST | `/edit/prohibited/nickname`| `userId` | Force cleanse a violating user's nickname (Reset to random ID) |
+| GET | `/clean/all/prohibited` | None | **[Admin]** Full database scan and reset violating nicknames |
 
 ---
 
-### 📁 收藏夹与通知 `/api/video`
+### 🎬 Video & Like Module `/api/video`
 
-| 方法 | 路径 | 参数 | 说明 |
+#### Video Upload & Query
+| Method | Path | Params | Description |
 | :--- | :--- | :--- | :--- |
-| POST | `/create/like/format` | `pList`, `userId`, `name`, `description`, `isPublic` | 创建新收藏夹 |
-| POST | `/add/to/like` | `pList`, `videoId` | 把视频加入收藏夹 |
-| GET | `/select/like/format` | `owner`, `viewer`, `videoId` | 查某人的收藏夹列表（带视频数及视频是否在里面） |
-| GET | `/select/like/format/videos`| `pList` | 查某收藏夹内的所有视频 |
-| POST | `/edit/like/format/public` | `pList`, `userId`, `isPublic` | 修改收藏夹公开/私密状态 |
-| DELETE | `/remove/from/like` | `pList`, `videoId` | 从收藏夹中移出单个视频 |
-| DELETE | `/delete/like` | `pList`, `userId` | 删除整个收藏夹 |
-| GET | `/notify` | `me`, `size`, `offset` | 拉取通知列表（点赞、评论、关注等） |
-| POST | `/notify/read/all` | `me` | 把发给我的所有未读通知标记为已读 |
+| POST | `/upload/file` | `userId`, `title`, `file`(Multipart), `clientDurationSec`, `clientVertical` | **Preferred**: Real file upload to disk (Supports frontend duration fallback) |
+| POST | `/upload` | `userId`, `title`, `videoPath` | Fallback: Just register a video path string on the server |
+| GET | `/select/videos/upinfor` | None | Query all site videos (Joins UP nickname, avatar, like count) |
+| GET | `/select/video/single/infor`| `id` | Query single video details by ID |
+| GET | `/select/like` | `keyword` | Fuzzy search video title (Built-in Sleep anti-spam mechanism) |
+| POST | `/edit/title` | `newTitle`, `id`, `userId` | Modify own video title |
+| DELETE | `/delete/videos` | `id`, `userId` | Delete own video |
+| POST | `/upload/cover` | `videoId`, `userId`, `file`(Multipart) | Upload/Change video cover |
+| POST | `/check/video/title` | `videoId` | Independently trigger prohibited word check on video title |
+
+#### Playback & Likes
+| Method | Path | Params | Description |
+| :--- | :--- | :--- | :--- |
+| POST | `/add/view` | `id` | Video view count +1 (Returns the real view count after reading) |
+| GET | `/select/like/count` | `id`, `userId` | Query video like count and whether current user liked it |
+| POST | `/add/like` | `id`, `userId` | Like (MySQL as primary, Redis intercepts high-concurrency duplicate clicks) |
+| POST | `/cancel/like` | `id`, `userId` | Unlike (Directly resets Redis count to latest MySQL value) |
+
+#### Comments & Nested Replies
+| Method | Path | Params | Description |
+| :--- | :--- | :--- | :--- |
+| GET | `/get/all/comments` | `videoId`, `userId`(opt) | Query all video comments (With like count and if current user liked) |
+| POST | `/add/my/comments` | `commentId`, `videoId`, `userId`, `content`, `parentId`(opt) | Post comment (`parentId` value indicates nested reply) |
+| POST | `/add/comment/like` | `me`, `commentId` | Like/Unlike a comment (Toggle logic) |
+| DELETE | `/delete/my/comments` | `myUserId`, `videoId`, `commentId` | Delete own comment |
+| POST | `/edit/my/comments` | `newContent`, `commentId`, `myUserId` | Edit own comment |
+
+#### Others (History, Shorts, AI Moderation)
+| Method | Path | Params | Description |
+| :--- | :--- | :--- | :--- |
+| GET | `/select/short` | `size`, `offset` | Get short video stream (Sorted by heat `views*0.3+likes*0.7`) |
+| GET | `/select/history` | `userId` | Query watch history (Limit 200) |
+| POST | `/insert/history` | `userId`, `videoId` | Insert watch history (`ON DUPLICATE KEY UPDATE` refreshes time) |
+| POST | `/delete/auto/prohibited/comment` | `videoId` | Trigger DeepSeek silent review and auto-delete violating comments |
 
 ---
 
-### 💬 私信与群聊 `/api/private_message`
+### 📁 Playlists & Notifications `/api/video`
 
-#### 私信基础
-| 方法 | 路径 | 参数 | 说明 |
+| Method | Path | Params | Description |
 | :--- | :--- | :--- | :--- |
-| GET | `/select/message` | `a`, `b` | 加载两人之间的双向完整聊天记录 |
-| GET | `/select/inbox` | `me` | 加载收件箱（会话最后一条消息 + 未读数，窗口函数实现）|
-| GET | `/count/unread` | `me` | 查别人发给我的未读消息总数 |
-| POST | `/send` | `PrivateMessage` 实体 | 发送文本私信（`fromUser`, `toUser`, `contents`） |
-| POST | `/upload/media` | `file`(Multipart) | 私信图片/视频上传落盘，返回 `mediaPath` |
-| POST | `/send/picture/video` | `PrivateMessage` 实体 | 发送图片/视频私信（携带上一步的 `mediaPath`） |
-| POST | `/send/emoji` | `PrivateMessage` 实体 | 发送表情包（携带 `mediaPath`） |
-| GET | `/emoji/list` | 无 | 获取可用表情包列表 |
-| POST | `/withdraw/private/message` | `msgId`, `userId`, `timeWithdraw` | 撤回私信（通常前端传 120 秒内） |
-| POST | `/delete/private/message` | `msgId`, `userId` | 单方面软删除私信（不影响对方查看） |
-
-#### 群聊与 AI 助手
-| 方法 | 路径 | 参数 | 说明 |
-| :--- | :--- | :--- | :--- |
-| POST | `/establish/group` | `groupName`, `ownerId` | 创建群聊（后端自动生成 `groupId`） |
-| POST | `/add/member` | `groupId`, `userId`, `fromUser` | 拉人进群（自动发送通知给被拉者） |
-| POST | `/remove/member` | `groupId`, `userId`, `groupOwner` | 群主踢人 |
-| GET | `/select/my/groups` | `me` | 查我加入的群聊列表 |
-| GET | `/select/group/message` | `groupId` | 查群聊的聊天记录 |
-| POST | `/add/group/message` | `msgId`(可选), `groupId`, `fromUser`, `contents`, `msgType`, `mediaPath` | 发送群消息（文本/图片/表情） |
-| POST | `/exit/group` | `groupId`, `userId` | 退群（群主退群触发随机转让或自动解散） |
-| GET | `/select/group/member` | `groupId` | 查群成员列表 |
-| GET | `/select/group/message/deepseek` | `question`, `groupId` | **核心 AI**：DeepSeek 读取群聊上下文并流式回答 **(流式)** |
+| POST | `/create/like/format` | `pList`, `userId`, `name`, `description`, `isPublic` | Create new playlist |
+| POST | `/add/to/like` | `pList`, `videoId` | Add video to playlist |
+| GET | `/select/like/format` | `owner`, `viewer`, `videoId` | Query someone's playlists (With video count and if video is in it) |
+| GET | `/select/like/format/videos`| `pList` | Query all videos in a playlist |
+| POST | `/edit/like/format/public` | `pList`, `userId`, `isPublic` | Modify playlist public/private status |
+| DELETE | `/remove/from/like` | `pList`, `videoId` | Remove a single video from playlist |
+| DELETE | `/delete/like` | `pList`, `userId` | Delete entire playlist |
+| GET | `/notify` | `me`, `size`, `offset` | Fetch notification list (likes, comments, follows, etc.) |
+| POST | `/notify/read/all` | `me` | Mark all unread notifications sent to me as read |
 
 ---
 
-### 🧩 其他辅助接口
+### 💬 Private Messaging & Group Chat `/api/private_message`
 
-| 方法 | 路径 | 参数 | 说明 |
+#### Private Messaging Basics
+| Method | Path | Params | Description |
 | :--- | :--- | :--- | :--- |
-| GET | `/api/dynamic/dynamic/select/all` | `id`, `content`, `createTime` | 精确匹配查询动态 |
-| POST | `/api/dynamic/dynamic/write` | `content`, `id`, `userId` | 发布动态 |
-| DELETE | `/api/dynamic/dynamic/delete` | `id`, `createTime` | 删除动态 |
-| GET | `/captcha` | 无 | 生成 4 位图片验证码（存入 Session） |
-| GET | `/checkCaptcha` | `inputCode` | 校验验证码是否正确 |
-| GET | `/api/redis/get` | 无 | Redis 连通性测试 |
+| GET | `/select/message` | `a`, `b` | Load full bidirectional chat history between two users |
+| GET | `/select/inbox` | `me` | Load inbox (Last message + unread count per conversation, Window function)|
+| GET | `/count/unread` | `me` | Query total unread messages sent to me by others |
+| POST | `/send` | `PrivateMessage` entity | Send text PM (`fromUser`, `toUser`, `contents`) |
+| POST | `/upload/media` | `file`(Multipart) | Upload PM image/video to disk, returns `mediaPath` |
+| POST | `/send/picture/video` | `PrivateMessage` entity | Send image/video PM (Carries `mediaPath` from previous step) |
+| POST | `/send/emoji` | `PrivateMessage` entity | Send emoji PM (Carries `mediaPath`) |
+| GET | `/emoji/list` | None | Get available emoji list |
+| POST | `/withdraw/private/message` | `msgId`, `userId`, `timeWithdraw` | Recall PM (Frontend usually passes within 120s) |
+| POST | `/delete/private/message` | `msgId`, `userId` | Unilateral soft delete PM (Does not affect the other party) |
+
+#### Group Chats & AI Assistant
+| Method | Path | Params | Description |
+| :--- | :--- | :--- | :--- |
+| POST | `/establish/group` | `groupName`, `ownerId` | Create group (Backend auto-generates `groupId`) |
+| POST | `/add/member` | `groupId`, `userId`, `fromUser` | Invite member (Auto-sends notification to invitee) |
+| POST | `/remove/member` | `groupId`, `userId`, `groupOwner` | Group owner kicks member |
+| GET | `/select/my/groups` | `me` | Query groups I've joined |
+| GET | `/select/group/message` | `groupId` | Query group chat history |
+| POST | `/add/group/message` | `msgId`(opt), `groupId`, `fromUser`, `contents`, `msgType`, `mediaPath` | Send group message (Text/Image/Emoji) |
+| POST | `/exit/group` | `groupId`, `userId` | Leave group (Owner leaving triggers random transfer or auto-dissolution) |
+| GET | `/select/group/member` | `groupId` | Query group member list |
+| GET | `/select/group/message/deepseek` | `question`, `groupId` | **Core AI**: DeepSeek reads group chat context and streams an answer **(Streaming)** |
 
 ---
 
-### 💡 核心响应示例
+### 🧩 Other Auxiliary Endpoints
 
-**1. 视频点赞成功 (POST `/api/video/add/like`)**
+| Method | Path | Params | Description |
+| :--- | :--- | :--- | :--- |
+| GET | `/api/dynamic/dynamic/select/all` | `id`, `content`, `createTime` | Exact match query for feeds |
+| POST | `/api/dynamic/dynamic/write` | `content`, `id`, `userId` | Publish feed |
+| DELETE | `/api/dynamic/dynamic/delete` | `id`, `createTime` | Delete feed |
+| GET | `/captcha` | None | Generate 4-character image captcha (Stored in Session) |
+| GET | `/checkCaptcha` | `inputCode` | Validate if captcha is correct |
+| GET | `/api/redis/get` | None | Redis connectivity test |
+
+---
+
+### 💡 Core Response Example
+
+**1. Video Like Successful (POST `/api/video/add/like`)**
 ```json
 {
   "code": 200,
   "success": true,
-  "message": "点赞成功",
+  "message": "Liked successfully",
   "data": {
     "like_count": 128,
     "liked": true
   }
 }
 ```
-## 🧠 踩坑与排错 Skill 指南
 
-在开发过程中，我们总结了大量复杂全栈场景的排错经验（详见 `Skill.txt`）：
-1. **AI 流式输出防抖**：不要用特征文本（如“思考中”）作为状态载体，应当使用 `msgType='ai_thinking'` 标记并在渲染时过滤；前端必须加 `aiLock` 状态锁，防止轮询和流式请求把主线程打满。
-2. **异常兜底**：遇到点击无反应，先按 `F12` 看 Network 是否有满屏红色 500。Spring AI 的 `.stream()` 调用必须捕获异常，避免底层 500 堆栈直接抛给前端。
-3. **外键与脏数据**：建群拉人时，如果前端静默吞掉了后端的 `message`，会导致“假成功”。应当明确通过 `alert` 暴露错误，并在后端使用 `@Transactional` 保证一致性。
-4. **SSE 接口 400 排查**：遇到 `WebClientResponseException: 400 Bad Request`，大概率是塞给 AI 的上下文超长了（`num_ctx` 溢出），或者模型不支持 Tool Calling。
-5. **字符串匹配与空值陷阱**：在编写违规词全库清洗逻辑时，务必防范 `nickname` 为空导致的 `Map.of()` 空指针异常。同时，清洗接口的 `Controller` 需对 `Service` 返回的 message 字符串进行精确匹配（如包含“已重置”），否则会出现“数据库已修改，但页面统计仍为 0”的假象。
+## 🧠 Troubleshooting & Pitfalls Guide
 
-## 📄 开源协议
+During development, we summarized a wealth of troubleshooting experience for complex full-stack scenarios (details in `Skill.txt`):
+1. **AI Streaming Output Debounce**: Do not use characteristic text (like "Thinking...") as a state carrier. Use a `msgType='ai_thinking'` flag and filter it during rendering. The frontend must add an `aiLock` state lock to prevent polling and streaming requests from flooding the main thread.
+2. **Exception Fallback**: If a click has no response, press `F12` and check Network for a screen full of red 500 errors. Spring AI's `.stream()` call must catch exceptions to prevent underlying 500 stack traces from being thrown directly to the frontend.
+3. **Foreign Keys & Dirty Data**: When creating a group and inviting members, if the frontend silently swallows the backend `message`, it leads to "fake success". Errors should be explicitly exposed via `alert`, and the backend should use `@Transactional` to ensure consistency.
+4. **SSE Endpoint 400 Troubleshooting**: Encountering `WebClientResponseException: 400 Bad Request` is highly likely due to the context fed to the AI being too long (`num_ctx` overflow), or the model not supporting Tool Calling.
+5. **String Matching & Null Traps**: When writing the full database cleansing logic for prohibited words, be sure to prevent NullPointerExceptions from `Map.of()` caused by empty `nickname`. Also, the cleansing endpoint's `Controller` must perform exact matching on the `message` string returned by the `Service` (e.g., containing "has been reset"), otherwise "database modified but page stats still 0" false impressions will occur.
 
-本项目基于 [MIT License](LICENSE) 开源，可自由使用、修改与分发，请保留版权声明。
+## 📄 License
 
+This project is open-sourced under the [MIT License](LICENSE). You are free to use, modify, and distribute it, provided the copyright notice is retained.
