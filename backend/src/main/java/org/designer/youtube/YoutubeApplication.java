@@ -6,6 +6,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
+/**
+ * 2026/11/02/10:20,前后端分离
+ *
+ * **/
+
 //@MapperScan 扫描 mapper 包下的 MyBatis 接口
 @MapperScan("org.designer.youtube.mapper")
 @SpringBootApplication
