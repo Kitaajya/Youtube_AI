@@ -740,4 +740,20 @@ public interface VideoMapper {
     @Select("SELECT COUNT(*) FROM video_comment WHERE parent_id = #{parentId} AND user_id = #{userId}")
     Integer countReplyByUser(@Param("parentId") String parentId,
                              @Param("userId") String userId);
+    /**
+     * 获取全站视频热榜
+     * 热度算法：播放量 * 0.3 + 点赞量 * 0.7 (通过联表统计点赞数)
+     */
+    @Select("SELECT v.*, " +
+            "       u.nickname AS up_name, " +      // 假设你想带出UP主名字
+            "       u.avatar AS up_avatar, " +      // 假设你想带出UP主头像
+            "       COUNT(vl.user_id) AS like_count " + // 统计真实点赞数
+            "FROM video v " +
+            "LEFT JOIN user_information u ON v.user_id = u.user_id " +
+            "LEFT JOIN video_like vl ON v.id = vl.video_id " +
+            "WHERE v.is_short = 0 " +              // 过滤掉短视频，只在主页显示长视频
+            "GROUP BY v.id " +
+            "ORDER BY (v.view_count * 0.3 + COUNT(vl.user_id) * 0.7) DESC " +
+            "LIMIT 20")                            // 取前20名
+    List<Video> selectHotVideos();
 }
