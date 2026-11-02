@@ -362,6 +362,7 @@ public class VideoController {
      *
      *
      */
+    @GetMapping("/select/hot/video")
     public Result<List<Video>>selectHotVideos(){
         return vs.selectHotVideos();
     }
