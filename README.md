@@ -101,13 +101,14 @@
 | 后端 | Java 17 · Spring Boot 3.x · Spring MVC |
 | **缓存层** | Redis (StringRedisTemplate 处理点赞拦截与计数) |
 | 持久层 | MyBatis (注解 SQL) · MySQL 8 (InnoDB / utf8mb4) |
-| 前端 | 原生 HTML / CSS / JavaScript，无框架、无构建 |
+| 前端 | 原生 HTML / CSS / JavaScript（多页），Vite 负责开发代理与构建 |
 | 其他 | Lombok · Multipart 文件存储 · Caffeine (本地缓存) |
 
 ## 🚀 快速开始
 
 ### 环境要求
 - JDK 17+
+- Node.js 18+（前端 Vite 开发服务器与构建）
 - MySQL 8.0+
 - Redis (用于点赞模块)
 - Spring AI 支持的模型环境（如本地 Ollama 运行 deepseek-r1:8b / qwen2.5-coder，或配置 API Key）
@@ -121,7 +122,7 @@ mysql -u root -p < sql/02_fix_collation.sql # 修复排序规则
 ```
 
 ### 2. 修改配置
-编辑 `src/main/resources/application.properties`：
+编辑 `backend/src/main/resources/application.properties`：
 
 ```properties
 # 数据库配置
@@ -141,79 +142,128 @@ spring.ai.ollama.base-url=http://localhost:11434
 spring.ai.ollama.chat.model=deepseek-r1:8b
 ```
 
-### 3. 启动
-运行 `YoutubeApplication.java`，浏览器访问 `http://localhost:8080`，注册账号即可体验全部功能。
+### 3. 启动（前后端分离）
+
+项目已拆分为 `backend/`（Spring Boot API）与 `frontend/`（Vite 多页前端），需要**分别启动**。
+
+**方式一：一键脚本（推荐）**
+
+双击运行 `startYoutubeAI-分离版.bat`，脚本会自动检查环境、打包后端、拉起前端，并打开两个服务窗口。
+
+> 旧的 `startYoutubeAI.bat` 因工程拆分后内部路径已失效，仅作保留，请改用分离版脚本。
+
+**方式二：手动启动**
+
+```bash
+# 终端 1 —— 启动后端 API（:8080）
+cd backend
+./mvnw spring-boot:run        # Windows 用 mvnw.cmd
+
+# 终端 2 —— 启动前端（:5173）
+cd frontend
+npm install                   # 仅首次需要
+npm run dev
+```
+
+启动后，浏览器访问 **http://localhost:5173**（前端页面），注册账号即可体验全部功能。
+后端 API 单独跑在 http://localhost:8080，前端通过 Vite 代理把 `/api`、`/captcha`、`/checkCaptcha`、`/videos` 转发到后端，浏览器视角同源，无需配置跨域。
+
+**生产构建**
+
+```bash
+cd frontend
+npm run build                 # 产物输出到 frontend/dist
+```
+
+`dist/` 是纯静态目录，交给 Nginx 托管，并把上述四类路径反向代理到后端 8080 即可（同源部署，无需 CORS）。Nginx 参考配置见 `frontend/nginx.conf.example`。
 
 ## 📁 目录结构
 
 ```text
-├── sql/                        # 数据库建表与修复脚本
-├── LICENSE                     # 开源协议
-├── README.md                   # 项目说明
-└── src/
-    └── main/
-        ├── java/org/designer/youtube/
-        │   ├── YoutubeApplication.java   # 启动类
-        │   ├── RandomlyCreateID.java     # 13 位随机业务主键生成器
-        │   ├── common/                   # 统一响应体 Result
-        │   ├── config/                   # 静态资源映射(WebMvc)、Caffeine 缓存配置
-        │   ├── controller/               # Web 控制层 (按业务拆分)
-        │   │   ├── UserInformationController.java  # 用户与粉丝关注
-        │   │   ├── VideoController.java            # 视频、点赞、评论、收藏夹、通知
-        │   │   ├── DynamicController.java          # 动态 CRUD
-        │   │   ├── PrivateMessageController.java   # 私信、群聊、表情包
-        │   │   ├── DeepSeekController.java         # AI 对话与数据分析路由
-        │   │   ├── CaptchaController.java          # 图片验证码生成与校验
-        │   │   └── RedisController.java            # Redis 连通性测试
-        │   ├── entity/                   # 数据库实体类 (User, Video, PrivateMessage...)
-        │   ├── mapper/                   # MyBatis 注解 SQL 接口 (无 XML)
-        │   │   ├── UserInformationMapper.java      # 用户、关注、违禁词
-        │   │   ├── VideoMapper.java                # 视频、评论、点赞、收藏夹、通知、历史
-        │   │   ├── DynamicMapper.java              # 动态及评论
-        │   │   └── PrivateMessageMapper.java       # 私信、群聊、表情包
-        │   └── service/                  # 业务逻辑层
-        │       ├── VideoService.java               # 视频、高并发点赞、AI 审核逻辑
-        │       ├── VideoFileService.java           # 文件落盘、ffprobe 探测、封面/私信媒体
-        │       ├── UserInformationService.java     # 注册登录、违禁词清洗
-        │       ├── DynamicService.java             # 动态业务
-        │       ├── PrivateMessageService.java      # 私信/群聊流转、群主转让/解散
-        │       └── DeepSeekTest.java               # Spring AI 底层调用封装
-        └── resources/
-            ├── application.properties              # 全局配置(数据库/Redis/AI/视频路径)
-            └── static/                             # 原生前端多页应用 (无构建)
-                ├── css/                            # 样式文件
-                │   ├── vars.css                    # 亮色主题变量
-                │   ├── dark.css                    # 深色模式覆盖
-                │   ├── style.css                   # 全局公共样式(顶栏、播放器、评论区)
-                │   ├── channel.css                 # 频道页样式
-                │   ├── pm.css                      # 私信/群聊样式
-                │   ├── register.css                # 登录注册页样式
-                │   └── shorts.css                  # 短视频滑动流样式
-                ├── js/                             # 逻辑脚本
-                │   ├── common.js                   # 全局请求封装、导航栏/侧栏渲染、通知轮询
-                │   ├── theme.js                    # 深浅色主题切换记忆
-                │   ├── home.js                     # 首页视频流渲染 + 悬浮 AI 助手
-                │   ├── watch.js                    # 播放页、评论楼中楼、点赞、AI 总结
-                │   ├── shorts.js                   # 短视频滑动、IntersectionObserver 预加载
-                │   ├── message.js                  # 私信/群聊、轮询、AI 思考气泡
-                │   ├── profile.js                  # 频道页、收藏夹、关注粉丝
-                │   ├── upload.js                   # 分片上传、浏览器端时长兜底探测
-                │   ├── dynamic.js                  # 动态发布与本地镜像
-                │   ├── history.js                  # 观看历史列表
-                │   ├── login.js                    # 登录与验证码
-                │   ├── register.js                 # 注册
-                │   └── comment.js                  # 评论组件(旧)
-                └── *.html                          # 页面入口
-                    ├── index.html                  # 首页(视频流)
-                    ├── watch.html                  # 播放页
-                    ├── shorts.html                 # 短视频流
-                    ├── message.html                # 私信与群聊
-                    ├── profile.html                # 个人/他人频道页
-                    ├── dynamic.html                # 动态广场
-                    ├── upload.html                 # 视频上传
-                    ├── history.html                # 观看历史
-                    ├── login.html                  # 登录
-                    └── register.html               # 注册
+├── sql/                            # 数据库建表与修复脚本
+├── LICENSE                         # 开源协议
+├── README.md                       # 项目说明
+├── startYoutubeAI-分离版.bat        # 一键启动（前后端分离版，推荐使用）
+│
+├── backend/                        # Spring Boot 后端工程（只提供 API，不再内置页面）
+│   ├── pom.xml
+│   ├── mvnw / mvnw.cmd / .mvn/     # Maven Wrapper
+│   └── src/
+│       ├── main/
+│       │   ├── java/org/designer/youtube/
+│       │   │   ├── YoutubeApplication.java   # 启动类
+│       │   │   ├── RandomlyCreateID.java     # 13 位随机业务主键生成器
+│       │   │   ├── common/                   # 统一响应体 Result
+│       │   │   ├── config/                   # 视频目录映射(WebMvc)、Caffeine 缓存、异步线程池
+│       │   │   ├── controller/               # Web 控制层 (按业务拆分)
+│       │   │   │   ├── UserInformationController.java  # 用户与粉丝关注
+│       │   │   │   ├── VideoController.java            # 视频、点赞、评论、收藏夹、通知
+│       │   │   │   ├── DynamicController.java          # 动态 CRUD
+│       │   │   │   ├── PrivateMessageController.java   # 私信、群聊、表情包
+│       │   │   │   ├── DeepSeekController.java         # AI 对话与数据分析路由
+│       │   │   │   ├── CaptchaController.java          # 图片验证码生成与校验
+│       │   │   │   └── RedisController.java            # Redis 连通性测试
+│       │   │   ├── entity/                   # 数据库实体类 (User, Video, PrivateMessage...)
+│       │   │   ├── mapper/                   # MyBatis 注解 SQL 接口 (无 XML)
+│       │   │   │   ├── UserInformationMapper.java      # 用户、关注、违禁词
+│       │   │   │   ├── VideoMapper.java                # 视频、评论、点赞、收藏夹、通知、历史
+│       │   │   │   ├── DynamicMapper.java              # 动态及评论
+│       │   │   │   └── PrivateMessageMapper.java       # 私信、群聊、表情包
+│       │   │   └── service/                  # 业务逻辑层
+│       │   │       ├── VideoService.java               # 视频、高并发点赞、AI 审核逻辑
+│       │   │       ├── VideoFileService.java           # 文件落盘、ffprobe 探测、封面/私信媒体
+│       │   │       ├── UserInformationService.java     # 注册登录、违禁词清洗
+│       │   │       ├── DynamicService.java             # 动态业务
+│       │   │       ├── PrivateMessageService.java      # 私信/群聊流转、群主转让/解散
+│       │   │       └── DeepSeekTest.java               # Spring AI 底层调用封装
+│       │   └── resources/
+│       │       └── application.properties              # 全局配置(数据库/Redis/AI/视频路径)
+│       └── test/                                         # 测试代码
+│
+└── frontend/                       # Vite 前端工程（原生 HTML/CSS/JS 多页）
+    ├── package.json                # 前端依赖与 dev/build/preview 脚本
+    ├── vite.config.js              # 多页入口 + 开发代理(/api、/captcha、/checkCaptcha、/videos)
+    ├── .env.development            # 后端地址 VITE_BACKEND（代理目标）
+    ├── nginx.conf.example          # 生产部署参考（静态托管 + 反向代理，同源）
+    ├── src/
+    │   └── vite-plugin-absolute-assets.js  # 构建期插件：把相对资源引用改写为绝对路径
+    ├── public/                     # 静态资源，原样托管到站点根路径
+    │   ├── css/                    # 样式文件
+    │   │   ├── vars.css            # 亮色主题变量
+    │   │   ├── dark.css            # 深色模式覆盖
+    │   │   ├── style.css           # 全局公共样式(顶栏、播放器、评论区)
+    │   │   ├── channel.css         # 频道页样式
+    │   │   ├── pm.css              # 私信/群聊样式
+    │   │   ├── register.css        # 登录注册页样式
+    │   │   └── shorts.css          # 短视频滑动流样式
+    │   ├── js/                     # 逻辑脚本（全局 IIFE，加载顺序 theme.js → common.js → 页面脚本）
+    │   │   ├── common.js           # 全局请求封装、导航栏/侧栏渲染、通知轮询
+    │   │   ├── theme.js            # 深浅色主题切换记忆
+    │   │   ├── home.js             # 首页视频流渲染 + 悬浮 AI 助手
+    │   │   ├── watch.js            # 播放页、评论楼中楼、点赞、AI 总结
+    │   │   ├── shorts.js           # 短视频滑动、IntersectionObserver 预加载
+    │   │   ├── message.js          # 私信/群聊、轮询、AI 思考气泡
+    │   │   ├── profile.js          # 频道页、收藏夹、关注粉丝
+    │   │   ├── upload.js           # 分片上传、浏览器端时长兜底探测
+    │   │   ├── dynamic.js          # 动态发布与本地镜像
+    │   │   ├── history.js          # 观看历史列表
+    │   │   ├── login.js            # 登录与验证码
+    │   │   ├── register.js         # 注册
+    │   │   └── comment.js          # 评论组件(旧)
+    │   ├── emoji/                  # 私信表情包图片
+    │   ├── images/                 # 页面插图
+    │   └── *.png                   # logo 等图片资源
+    └── *.html                      # 多页入口（Vite 逐个登记为构建入口）
+        ├── index.html              # 首页(视频流)
+        ├── watch.html              # 播放页
+        ├── shorts.html             # 短视频流
+        ├── message.html            # 私信与群聊
+        ├── profile.html            # 个人/他人频道页
+        ├── dynamic.html            # 动态广场
+        ├── upload.html             # 视频上传
+        ├── history.html            # 观看历史
+        ├── login.html              # 登录
+        └── register.html           # 注册
 ```
 
 ## 🗄 数据表一览

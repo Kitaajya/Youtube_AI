@@ -22,8 +22,21 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
+          cache-dependency-path: backend/pom.xml
 
-      - name: Compile
+      - name: Compile backend
+        working-directory: backend
         run: |
           chmod +x ./mvnw
           ./mvnw -B -DskipTests compile
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm install
+          npm run build
