@@ -755,5 +755,5 @@ public interface VideoMapper {
             "GROUP BY v.id " +
             "ORDER BY (v.view_count * 0.3 + COUNT(vl.user_id) * 0.7) DESC " +
             "LIMIT 20")                            // 取前20名
-    List<Video> selectHotVideos();
+    List<Map<String,Object>> selectHotVideos();
 }
