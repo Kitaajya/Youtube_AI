@@ -756,4 +756,40 @@ public interface VideoMapper {
             "ORDER BY (v.view_count * 0.3 + COUNT(vl.user_id) * 0.7) DESC " +
             "LIMIT 20")                            // 取前20名
     List<Map<String,Object>> selectHotVideos();
+
+    /**
+     * 我的视频屏蔽某些人，这些人不需要我任何条件就可以被我屏蔽
+     屏蔽：INSERT IGNORE 幂等，重复屏蔽不报主键冲突。
+     注：是把upId屏蔽userId。
+    批量屏蔽：upId 一次屏蔽 userIds 里的所有人
+    ON DUPLICATE KEY UPDATE 保证重复屏蔽幂等，不报主键冲突
+     */
+    @Insert("""
+    <script>
+    INSERT INTO video_shield (up_id, user_id) VALUES
+    <foreach collection="userIds" item="uid" separator=",">
+        (#{upId}, #{uid})
+    </foreach>
+    ON DUPLICATE KEY UPDATE create_time = create_time
+    </script>
+    """)
+    int obscureMyVideoBatch(@Param("upId") String upId,
+                            @Param("userIds") List<String> userIds);
+
+    /**
+     * 取消我的屏蔽，批量操作
+     *
+     * **/
+    @Delete("""
+    <script>
+    DELETE FROM video_shield
+    WHERE up_id = #{upId}
+      AND user_id IN
+    <foreach collection="userIds" item="uid" open="(" separator="," close=")">
+        #{uid}
+    </foreach>
+    </script>
+    """)
+    int cancelShieldBatch(@Param("upId")    String upId,
+                          @Param("userIds") List<String> userIds);
 }
