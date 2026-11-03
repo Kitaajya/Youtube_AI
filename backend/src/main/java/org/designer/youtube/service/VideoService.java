@@ -862,6 +862,7 @@ public class VideoService {
      *
      */
     public Result<Map<String,Object>> obscureMyVideo(String upId,List<String> userIds){
+        if (userIds == null || userIds.isEmpty()) return Result.fail("请选择要屏蔽的用户");
         int k=vm.obscureMyVideoBatch(upId,userIds);
         if(k==0) return Result.fail("屏蔽失败！");
         return Result.success("屏蔽成功！",Map.of("upId",upId,"userId",userIds));
