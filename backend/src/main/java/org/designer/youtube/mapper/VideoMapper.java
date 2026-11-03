@@ -797,4 +797,22 @@ public interface VideoMapper {
     """)
     int cancelShieldBatch(@Param("upId")    String upId,
                           @Param("userIds") List<String> userIds);
+    /**
+     * 查看我屏蔽了多少人
+     * **/
+    @Select("""
+    SELECT COUNT(*) FROM video_shield WHERE up_id = #{upId}
+    """)
+    int countHowManyPeopleIObscured(@Param("upId") String upId);
+    /**
+     * 查看我屏蔽的人的信息
+     *
+     * **/
+    @Select("""
+    SELECT vs.up_id, vs.user_id, vs.create_time, u.nickname, u.avatar
+    FROM video_shield vs
+    LEFT JOIN user_information u ON vs.user_id = u.user_id
+    WHERE vs.up_id = #{upId}
+    """)
+    List<Map<String,Object>> selectObscuredUsersInformation(@Param("upId") String upId);
 }
