@@ -367,4 +367,22 @@ public class VideoController {
     public Result<List<Map<String, Object>>>selectHotVideos(){
         return vs.selectHotVideos();
     }
+
+    /**
+     * 我的视频屏蔽某些人，这些人不需要我任何条件就可以被我屏蔽 屏蔽：INSERT IGNORE 幂等，重复屏蔽不报主键冲突
+     *
+     *
+     */
+    @PostMapping("/obscure/users")
+    public Result<Map<String,Object>> obscureMyVideo(@RequestParam String upId,@RequestParam List<String> userIds){
+        return vs.obscureMyVideo(upId,userIds);
+    }
+    /**
+     * 解除屏蔽，批量解除
+     * **/
+    @PostMapping("/cancel/obscure")
+    Result<Map<String,Object>> cancelShieldBatch(@RequestParam String upId,@RequestParam List<String> userIds){
+        return vs.cancelShieldBatch(upId,userIds);
+    }
+
 }
