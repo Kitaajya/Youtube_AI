@@ -856,4 +856,28 @@ public class VideoService {
             return Result.fail("热榜视频获取失败！");
         }
     }
+    /**
+     * 我的视频屏蔽某些人，这些人不需要我任何条件就可以被我屏蔽 屏蔽：INSERT IGNORE 幂等，重复屏蔽不报主键冲突
+     *
+     *
+     */
+    public Result<Map<String,Object>> obscureMyVideo(String upId,List<String> userIds){
+        int k=vm.obscureMyVideoBatch(upId,userIds);
+        if(k==0) return Result.fail("屏蔽失败！");
+        return Result.success("屏蔽成功！",Map.of("upId",upId,"userId",userIds));
+    }
+    /**
+     * 取消我的屏蔽，批量操作
+     */
+    public Result<Map<String,Object>> cancelShieldBatch(String upId, List<String> userIds){
+        if (userIds == null || userIds.isEmpty())
+            return Result.fail("请选择要取消屏蔽的用户");
+        // upId由Controller从session取好后传入，此处不再校验来源
+        int affected = vm.cancelShieldBatch(upId, userIds);
+        return Result.success("解屏成功！", Map.of(
+                "upId", upId,
+                "userIds", userIds,
+                "affected", affected
+        ));
+    }
 }
