@@ -880,4 +880,17 @@ public class VideoService {
                 "affected", affected
         ));
     }
+    /**
+     * 查看我屏蔽了多少人
+     *
+     * **/
+    public int countHowManyPeopleIObscured(String upId){
+        return vm.countHowManyPeopleIObscured(upId);
+    }
+    /**
+     * 查看我屏蔽的人的信息
+     * **/
+    public Result<List<Map<String,Object>>> selectObscuredUsersInformation(String upId){
+        return Result.success(vm.selectObscuredUsersInformation(upId));
+    }
 }
