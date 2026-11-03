@@ -381,7 +381,7 @@ public class VideoController {
      * 解除屏蔽，批量解除
      * **/
     @PostMapping("/cancel/obscure")
-    Result<Map<String,Object>> cancelShieldBatch(@RequestParam String upId,@RequestParam List<String> userIds){
+    public Result<Map<String,Object>> cancelShieldBatch(@RequestParam String upId,@RequestParam List<String> userIds){
         return vs.cancelShieldBatch(upId,userIds);
     }
     /**
