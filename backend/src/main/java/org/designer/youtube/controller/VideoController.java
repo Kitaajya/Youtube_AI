@@ -384,5 +384,14 @@ public class VideoController {
     Result<Map<String,Object>> cancelShieldBatch(@RequestParam String upId,@RequestParam List<String> userIds){
         return vs.cancelShieldBatch(upId,userIds);
     }
+    /**
+     * 查看我屏蔽的人的信息，同时传递我屏蔽的人数
+     *
+     * **/
+    @GetMapping("/select/my/obscured/user")
+    public Result<List<Map<String,Object>>> selectObscuredUsersInformation(@RequestParam String upId){
+        log.info("屏蔽的人共有{}",vs.countHowManyPeopleIObscured(upId));
+        return vs.selectObscuredUsersInformation(upId);
+    }
 
 }
