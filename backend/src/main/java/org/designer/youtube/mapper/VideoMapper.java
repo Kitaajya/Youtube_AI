@@ -193,7 +193,12 @@ public interface VideoMapper {
     FROM video_comment vc
     LEFT JOIN user_information u ON vc.user_id = u.user_id
     WHERE vc.video_id=#{videoId}
-    """)
+      AND NOT EXISTS (
+          SELECT 1 FROM video_shield vs
+          WHERE vs.up_id = (SELECT user_id FROM video WHERE id = vc.video_id)
+            AND vs.user_id = vc.user_id
+      )
+""")
     List<Map<String,Object>> selectCommentsById(@Param("videoId") long videoId, @Param("userId") String userId);
     //删除我的评论
     @Delete("""
