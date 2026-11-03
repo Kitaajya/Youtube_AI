@@ -23,6 +23,29 @@
     const title = String(YT.pick(video, 'title'));
     const upName = String(YT.pick(video, 'uploader') || YT.pick(video, 'user_id'));
     const upId = String(YT.pick(video, 'user_id'));
+
+    // ⚠️ 注意：item() 内部又声明了一个局部 const isMine（那里表示"这条评论是我发的"），
+    // 会把模块级的 isMine 遮蔽掉。屏蔽按钮要的是"我是这个视频的 UP 主"，
+    // 所以这里另起一个不冲突的名字，避免在 item()/opBtns() 里拿到错误的值。
+    const isUpOwner = !!currentUserId && currentUserId === upId;
+
+    // 我是 UP 主时，先把自己屏蔽过的人拉下来：
+    // 1) 评论按钮才能正确渲染成"已屏蔽" 2) 支持在评论区就地解除屏蔽
+    // 用 shieldReady 保证 loadComments 首次渲染前它已经就绪，否则会出现按钮状态闪烁/错位。
+    // 这块必须声明得很靠前：上面 runSilentAudit 的 2 秒定时器里也会调 loadComments()，
+    // 而 loadComments 里有 `await shieldReady`——const 存在暂时性死区，声明晚了会抛 ReferenceError。
+    const shieldedIds = new Set();
+    const shieldReady = isUpOwner
+        ? YT.api.get('/api/video/select/my/obscured/user', { upId: currentUserId })
+            .then(r => {
+                ((r && r.data) || []).forEach(u => {
+                    const uid = String(YT.pick(u, 'user_id'));
+                    if (uid) shieldedIds.add(uid);
+                });
+            })
+            .catch(() => { /* 拉不到就当没屏蔽过，不影响正常看评论 */ })
+        : Promise.resolve();
+
     document.title = title + ' - YouTube';
     $('#w-title').textContent = title;
     $('#w-stats').textContent = `${YT.fmtNum(YT.pick(video, 'view_count'))} 次观看 · ${YT.fmtFull(YT.pick(video, 'create_time'))}`;
@@ -398,7 +421,7 @@
     const cmtSvgLike = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10.5 12 4h1.6c.9 0 1.5.8 1.3 1.6L14 10h4.2a2 2 0 0 1 1.95 2.45l-1.3 5.5A2 2 0 0 1 16.9 19H7"/><path d="M7 10.5V19"/><path d="M4 10.5h3V19H4z"/></svg>';
     const cmtSvgLiked = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10.5 12 4h1.6c.9 0 1.5.8 1.3 1.6L14 10h4.2a2 2 0 0 1 1.95 2.45l-1.3 5.5A2 2 0 0 1 16.9 19H7"/><path d="M7 10.5V19" fill="none"/><path d="M4 10.5h3V19H4z"/></svg>';
 
-    function opBtns(c, isMine) {
+    function opBtns(c, isMine, commentUid) {
         const cid = YT.esc(YT.pick(c, 'comment_id'));
         const cLikeCount = Number(c.like_count || 0);
         // 读取后端的 my_liked，如果是 1 就是已赞
@@ -408,6 +431,16 @@
         const color = myLiked ? 'var(--link)' : 'var(--text-secondary)';
         const icon = myLiked ? cmtSvgLiked : cmtSvgLike;
 
+        // 屏蔽按钮：只有「我是这个视频的 UP 主」且「评论不是我自己的」才显示。
+        // 后端是 upId 屏蔽 userId 的关系表，所以按钮语义跟着 shieldedIds 切换。
+        const uid = YT.esc(commentUid);
+        let shieldBtn = '';
+        if (isUpOwner && commentUid && !isMine) {
+            shieldBtn = shieldedIds.has(String(commentUid))
+                ? `<span class="op-btn" data-unshield-user="${uid}">已屏蔽</span>`
+                : `<span class="op-btn" data-shield-user="${uid}" data-shield-name="${YT.esc(YT.pick(c, 'commenter') || commentUid)}">屏蔽此人</span>`;
+        }
+
         return `<div class="ops">
             <button class="js-cmt-like" data-comment-like="${cid}" type="button" style="display:inline-flex;align-items:center;gap:4px;background:none;border:none;color:${color};cursor:pointer;padding:0;font-size:13px;margin-right:8px;transition:color 0.2s;">
                 <span class="cmt-like-ic" style="display:flex;align-items:center;">${icon}</span>
@@ -416,6 +449,7 @@
             <span class="op-btn" data-reply="${cid}">回复</span>
             ${isMine ? `<span class="op-btn" data-edit="${cid}">修改</span>
                        <span class="op-btn" style="color:var(--danger);" data-del="${cid}">删除</span>` : ''}
+            ${shieldBtn}
         </div>`;
     }
 
@@ -423,18 +457,20 @@
         const cid = String(YT.pick(c, 'comment_id'));
         const who = String(YT.pick(c, 'commenter') || YT.pick(c, 'user_id') || '匿名用户');
         const isMine = !!currentUserId && String(YT.pick(c, 'user_id')) === currentUserId;
+        // 评论者的 userId，屏蔽功能要用它（opBtns 只拿到 c，这里显式传进去）
+        const commentUid = String(YT.pick(c, 'user_id') || '');
         const roAttr = currentUserId ? '' : ' readonly';
         const roPh = currentUserId ? `回复 ${YT.esc(who)}…` : '登录后即可回复…';
         const rootAttr = isReply ? ` data-root="${YT.esc(cid)}"` : '';
         const av = String(YT.pick(c, 'commenter_avatar', 'commenterAvatar') || '');
         const avInner = av ? `<img src="${YT.mediaUrl(av)}" alt="">` : YT.esc(who.slice(0, 1).toUpperCase());
         return `
-        <div class="comment${isReply ? ' is-reply' : ''}" data-cid="${YT.esc(cid)}" data-who="${YT.esc(who)}"${rootAttr}>
+        <div class="comment${isReply ? ' is-reply' : ''}" data-cid="${YT.esc(cid)}" data-who="${YT.esc(who)}" data-uid="${YT.esc(commentUid)}"${rootAttr}>
             <span class="avatar">${avInner}</span>
             <div class="body">
                 <div class="who">@${YT.esc(who)}<span class="time">${YT.timeAgo(YT.pick(c, 'create_time'))}</span></div>
                 <div class="text">${YT.esc(YT.pick(c, 'contents'))}</div>
-                ${opBtns(c, isMine)}
+                ${opBtns(c, isMine, commentUid)}
                 ${isReply ? '' : `<button class="toggle-replies" data-toggle="${YT.esc(cid)}" hidden></button>`}
                 <div class="edit-form" style="display:none;"></div>
                 <div class="reply-form">
@@ -464,6 +500,8 @@
 
     async function loadComments() {
         list.innerHTML = '<div class="empty" style="padding:20px;">加载评论…</div>';
+        // 我是 UP 主时，先等屏蔽名单到位再渲染，否则"屏蔽/已屏蔽"按钮会先画错再闪一次
+        await shieldReady;
         let data = [];
         try {
             // 加上 currentUserId 传给后端
@@ -615,6 +653,37 @@
 
         // 2. 强行拦截【回复/删除/修改等操作】
         const cid = t.dataset;
+
+        // 2.0 屏蔽 / 解除屏蔽（按钮只有视频 UP 主才看得到）
+        // data-shield-user="xxx" → 屏蔽此人；data-unshield-user="xxx" → 已屏蔽，点了解除
+        if (cid.shieldUser || cid.unshieldUser) {
+            if (!isUpOwner) return;
+            const uid = String(cid.shieldUser || cid.unshieldUser);
+            if (!uid) return;
+            const shielding = !!cid.shieldUser;
+            const nm = cid.shieldName || uid;
+            if (!confirm(shielding
+                ? `确定屏蔽 @${nm}？屏蔽后 TA 的评论将不再出现在你的视频下。`
+                : `确定解除对 @${nm} 的屏蔽？解除后 TA 的评论会重新显示。`)) return;
+            try {
+                const r = await YT.api.post(
+                    shielding ? '/api/video/obscure/users' : '/api/video/cancel/obscure',
+                    { upId: currentUserId, userIds: [uid] }
+                );
+                if (r && r.success) {
+                    if (shielding) shieldedIds.add(uid); else shieldedIds.delete(uid);
+                    YT.toast(r.message || (shielding ? '已屏蔽' : '已解除屏蔽'));
+                    // 重新拉一次评论：等后端把屏蔽过滤接上后，被屏蔽者的评论会在这里自然消失
+                    loadComments();
+                } else {
+                    YT.toast((r && r.message) || (shielding ? '屏蔽失败' : '解除屏蔽失败'));
+                }
+            } catch (e) {
+                YT.toast((shielding ? '屏蔽失败：' : '解除屏蔽失败：') + (e.message || '网络错误'));
+            }
+            return;
+        }
+
         if (cid.toggle) {
             const root = t.closest('.comment');
             const box = root.querySelector(`:scope > .body > [data-replies="${CSS.escape(cid.toggle)}"]`);

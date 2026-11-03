@@ -188,7 +188,6 @@ public interface VideoMapper {
     SELECT vc.comment_id, vc.video_id, vc.user_id, vc.contents, vc.parent_id, vc.create_time,
            u.nickname AS commenter, u.avatar AS commenter_avatar,
            (SELECT COUNT(*) FROM comment_like cl WHERE cl.comment_id = vc.comment_id) AS like_count,
-           -- 加上这一行，判断当前用户有没有赞过
            (SELECT COUNT(*) FROM comment_like cl WHERE cl.comment_id = vc.comment_id AND cl.user_id = #{userId}) AS my_liked
     FROM video_comment vc
     LEFT JOIN user_information u ON vc.user_id = u.user_id

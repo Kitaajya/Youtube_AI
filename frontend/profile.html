@@ -8,7 +8,7 @@
     <script>(function(){try{var s=localStorage.getItem('yt-theme');var d=s==='dark'||(s!=='light'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
     <link rel="stylesheet" href="css/dark.css">
     <link rel="stylesheet" href="css/style.css?v=3">
-    <link rel="stylesheet" href="css/channel.css?v=6">
+    <link rel="stylesheet" href="css/channel.css?v=7">
 </head>
 <body>
     <div id="app-header"></div>
@@ -59,6 +59,8 @@
             <button class="ch-tab" data-tab="videos">视频</button>
             <button class="ch-tab" data-tab="plays">收藏夹</button>
             <button class="ch-tab" data-tab="social">关注与粉丝</button>
+            <!-- 仅「自己的频道」可见：由 profile.js 在 isMine 时取消 display:none -->
+            <button class="ch-tab" data-tab="shield" id="tab-shield" style="display:none;">屏蔽名单</button>
         </div>
         <div class="ch-tab-line"></div>
 
@@ -94,6 +96,22 @@
                 </div>
             </div>
         </div>
+
+        <!-- 屏蔽名单：只有自己的频道才看得到（tab 按钮也是 isMine 时才显示） -->
+        <div class="ch-panel" id="panel-shield" style="display:none;">
+            <div class="ch-col-title" id="sh-title">屏蔽名单</div>
+            <div class="sh-tip" id="sh-tip">
+                被屏蔽的用户，其评论不会出现在你发布的视频下面。
+            </div>
+            <div class="sh-toolbar" id="sh-toolbar" style="display:none;">
+                <label class="sh-selall">
+                    <input type="checkbox" id="sh-check-all">
+                    <span>全选</span>
+                </label>
+                <button class="btn sm" id="sh-unshield" type="button" disabled>解除屏蔽</button>
+            </div>
+            <div id="sh-list"></div>
+        </div>
     </div>
 
     <!-- 生日设置弹窗 -->
@@ -112,7 +130,7 @@
     </div>
 
     <script src="js/theme.js?v=1"></script>
-    <script src="js/common.js?v=14"></script>
-    <script src="js/profile.js?v=15"></script>
+    <script src="js/common.js?v=18"></script>
+    <script src="js/profile.js?v=16"></script>
 </body>
 </html>

@@ -278,3 +278,49 @@
 @media (max-width: 700px) {
     .ch-bday { justify-content: center; flex-wrap: wrap; }
 }
+
+/* ---------- 屏蔽名单（仅"我的频道"显示） ---------- */
+/* 注意：这里刻意不复用 .user-card。profile.js 有一个 document 级委托，
+   点击 .user-card 会跳转到那个人的频道；屏蔽卡片上有勾选框和按钮，
+   复用会导致点按钮时被抢跳走，所以用独立的 .sh-card。 */
+.sh-tip { margin: 0 0 16px; font-size: 13px; line-height: 1.6; color: var(--text-secondary); }
+.sh-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+}
+.sh-selall { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; user-select: none; }
+.sh-selall input { cursor: pointer; }
+#sh-list { display: flex; flex-direction: column; gap: 6px; }
+.sh-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+}
+.sh-card:hover { background: var(--surface-hover); }
+.sh-card > input[type="checkbox"] { flex: none; cursor: pointer; }
+.sh-card .avatar {
+    width: 40px; height: 40px;
+    font-size: 16px;
+    border-radius: 50%;
+    background: var(--surface-2);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+.sh-card .avatar img { width: 100%; height: 100%; object-fit: cover; }
+.sh-card .uc-txt { min-width: 0; flex: 1; }
+.sh-card .uc-name { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sh-card .btn { flex: none; }
+@media (max-width: 720px) {
+    .sh-toolbar { flex-wrap: wrap; }
+}

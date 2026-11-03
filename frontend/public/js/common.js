@@ -13,6 +13,18 @@ const YT = (() => {
         return s;
     }
 
+    // 后端大量接口用 @RequestParam List<String>（如批量屏蔽 /api/video/obscure/users），
+    // 这种参数必须「同名 key 重复出现」，即 userIds=a&userIds=b。
+    // URLSearchParams.append 遇到数组会隐式 toString() 变成 "a,b"——虽然 Spring 默认
+    // 也会按逗号拆分，但这里显式展开：语义准确，且不依赖 Spring 的隐式转换行为。
+    function appendParam(q, k, v) {
+        if (Array.isArray(v)) {
+            for (const it of v) if (it !== undefined && it !== null) q.append(k, String(it));
+        } else {
+            q.append(k, String(v));
+        }
+    }
+
     async function request(method, path, params) {
         let url = path, opts = { method };
 
@@ -24,12 +36,12 @@ const YT = (() => {
         else if (method === 'GET' || method === 'DELETE') {
             if (params) {
                 const q = new URLSearchParams();
-                for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null) q.append(k, v);
+                for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null) appendParam(q, k, v);
                 url = path + '?' + q.toString();
             }
         } else {
             const q = new URLSearchParams();
-            for (const [k, v] of Object.entries(params || {})) if (v !== undefined && v !== null) q.append(k, String(v));
+            for (const [k, v] of Object.entries(params || {})) if (v !== undefined && v !== null) appendParam(q, k, v);
             opts.headers = { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' };
             opts.body = q.toString();
         }
