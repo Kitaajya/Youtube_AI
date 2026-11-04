@@ -87,8 +87,9 @@ public class VideoController {
 
     //查看某人的视频，根据用户id
     @GetMapping("/select")
-    public Result<List<Map<String, Object>>> selectVideo(@RequestParam String userId) {
-        return Result.success(vs.selectVideo(userId));
+    public Result<List<Map<String, Object>>> selectVideo(@RequestParam String userId,
+                                                         @RequestParam(required = false, defaultValue = "") String viewerId) {
+        return Result.success(vs.selectVideo(userId, viewerId));
     }
 
     //按照视频标题查询视频
