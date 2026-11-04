@@ -377,8 +377,10 @@ public class VideoController {
      *
      */
     @PostMapping("/obscure/users")
-    public Result<Map<String,Object>> obscureMyVideo(@RequestParam String upId,@RequestParam List<String> userIds){
-        return vs.obscureMyVideo(upId,userIds);
+    public Result<Map<String,Object>> obscureMyVideo(@RequestParam String upId,
+                                                     @RequestParam long videoId,
+                                                     @RequestParam List<String> userIds){
+        return vs.obscureMyVideo(upId, videoId, userIds);
     }
     /**
      * 解除屏蔽，批量解除
