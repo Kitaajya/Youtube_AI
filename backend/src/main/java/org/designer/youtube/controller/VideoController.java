@@ -372,8 +372,8 @@ public class VideoController {
     }
 
     /**
-     * 我的视频屏蔽某些人，这些人不需要我任何条件就可以被我屏蔽 屏蔽：INSERT IGNORE 幂等，重复屏蔽不报主键冲突
-     *
+     * 我的某个视频屏蔽某些人（视频级屏蔽）
+     * 必传 videoId：只对这个视频生效，不会再让被屏蔽的人看不到我其它视频
      *
      */
     @PostMapping("/obscure/users")
