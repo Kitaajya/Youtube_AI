@@ -118,8 +118,9 @@ public class VideoController {
 
     //按视频 ID 查询单个视频详情
     @GetMapping("/select/video/single/infor")
-    public Result<List<Map<String, Object>>> selectVideoById(@RequestParam long id) {
-        return Result.success(vs.selectVideoById(id));
+    public Result<List<Map<String, Object>>> selectVideoById(@RequestParam long id,
+                                                             @RequestParam(required = false, defaultValue = "") String viewerId) {
+        return Result.success(vs.selectVideoById(id, viewerId));
     }
 
     //模糊搜索
