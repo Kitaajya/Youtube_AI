@@ -109,7 +109,9 @@
             if (kw) {
                 res = await YT.api.get('/api/video/select/like', { keyword: kw });
             } else {
-                res = await YT.api.get('/api/video/select/videos/upinfor');
+                res = await YT.api.get('/api/video/select/videos/upinfor', {
+                    viewerId: u ? u.userId : ''
+                });
             }
             const list = Array.isArray(res.data) ? res.data : [];
             if (!list.length) {
