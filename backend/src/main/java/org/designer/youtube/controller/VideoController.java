@@ -396,7 +396,8 @@ public class VideoController {
      *
      * **/
     @GetMapping("/select/my/obscured/user")
-    public Result<List<Map<String,Object>>> selectObscuredUsersInformation(@RequestParam String upId){
+    public Result<List<Map<String,Object>>> selectObscuredUsersInformation(@RequestParam String upId,
+                                                                          @RequestParam(required = false) Long videoId){
         log.info("屏蔽的人共有{}",vs.countHowManyPeopleIObscured(upId));
         return vs.selectObscuredUsersInformation(upId);
     }
