@@ -1,7 +1,4 @@
-/* 上传页
- * POST /api/video/upload/file   multipart：userId, title, file   —— 文件真正落盘（首选）
- * POST /api/video/upload        urlencoded：userId, title, videoPath —— 仅登记路径（备用）
- */
+/* 上传页 */
 (async function () {
     const me = YT.user();
     if (!me) {
@@ -15,6 +12,76 @@
     const tip = $('#tip'), submit = $('#submit'), fileIn = $('#file');
     const drop = $('#drop-zone'), prog = $('#prog'), fill = $('#prog-fill'), ptxt = $('#prog-txt');
 
+    // 获取 @ 功能的元素
+    const shieldInput = $('#shield-ids');
+    const dropdown = $('#user-dropdown');
+
+    // ================= 1. 绑定 @ 搜索功能 =================
+    if (shieldInput && dropdown) {
+        let searchTimer = null;
+
+        shieldInput.addEventListener('input', function() {
+            const val = this.value;
+            const match = val.match(/@([^\s,，]*)$/);
+            if (match) {
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(() => fetchUsers(match[1].trim()), 300);
+            } else {
+                dropdown.style.display = 'none';
+            }
+        });
+
+        async function fetchUsers(keyword) {
+            try {
+                const res = await YT.api.get('/api/user/search', { keyword });
+                const list = res.data || [];
+
+                if (list.length === 0) {
+                    dropdown.innerHTML = '<div style="padding:10px; color:var(--text-secondary); text-align:center;">未找到用户</div>';
+                } else {
+                    dropdown.innerHTML = list.map(u => {
+                        const uid = YT.pick(u, 'userId') || YT.pick(u, 'user_id');
+                        const nick = YT.pick(u, 'nickname') || YT.pick(u, 'username') || uid;
+                        return `
+                        <div class="user-item" data-id="${uid}" data-name="${YT.esc(nick)}" 
+                             style="padding:10px 14px; cursor:pointer; display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--divider);">
+                            <span class="avatar" style="width:24px; height:24px; font-size:12px; background:var(--link); color:#fff; border-radius:50%; display:inline-flex; justify-content:center; align-items:center;">
+                                ${YT.esc(nick.slice(0,1).toUpperCase())}
+                            </span>
+                            <div>
+                                <div style="font-size:14px; color:var(--text-primary);">${YT.esc(nick)}</div>
+                                <div style="font-size:12px; color:var(--text-tertiary);">ID: ${YT.esc(uid)}</div>
+                            </div>
+                        </div>`;
+                    }).join('');
+                }
+                dropdown.style.display = 'block';
+            } catch (e) {
+                console.error("搜索用户失败", e);
+            }
+        }
+
+        // 用 mousedown 防止下拉框提前消失，并把选中的用户ID填入输入框
+        dropdown.addEventListener('mousedown', function(e) {
+            const item = e.target.closest('.user-item');
+            if (!item) return;
+            e.preventDefault();
+
+            const uid = item.dataset.id;
+            // 关键：把 "@xxx" 替换成 "对方的ID, "
+            shieldInput.value = shieldInput.value.replace(/@([^\s,，]*)$/, uid + ', ');
+            dropdown.style.display = 'none';
+            shieldInput.focus();
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!dropdown.contains(e.target) && e.target !== shieldInput) {
+                dropdown.style.display = 'none';
+            }
+        });
+    }
+
+    // ================= 2. 上传表单逻辑 =================
     const OK = /\.(mp4|webm|mov|m4v|ogv|ogg)$/i;
 
     function show(msg, ok) { tip.textContent = msg; tip.className = 'tip ' + (ok ? 'ok' : 'err'); }
@@ -52,10 +119,6 @@
         } catch (e) { /* 缓存失败不影响主流程 */ }
     }
 
-    /* 服务器上没有 ffprobe 时，探测时长会失败并把视频当成 0 秒长视频，
-     * 导致 60 秒以内的短视频进不了 Shorts。这里上传前先在浏览器里读出来，
-     * 随文件一起发给后端做兜底；读不出来（浏览器不支持该编码）就传 -1，
-     * 后端仍按 ffprobe 结果处理。 */
     function probeByBrowser(f, timeoutMs) {
         return new Promise(resolve => {
             const v = document.createElement('video');
@@ -82,6 +145,7 @@
         });
     }
 
+    // ================= 3. 点击上传并处理屏蔽 =================
     submit.onclick = async () => {
         tip.textContent = ''; tip.className = 'tip';
         const title = $('#title').value.trim();
@@ -104,9 +168,9 @@
         prog.style.display = 'block'; fill.style.width = '0%';
         ptxt.textContent = `上传中… 0%（共 ${(f.size / 1048576).toFixed(1)} MB）`;
 
-        // 用 XHR 而不是 fetch：只有它能拿到上传进度事件
         const xhr = new XMLHttpRequest();
         xhr.open('POST', '/api/video/upload/file');
+
         xhr.upload.onprogress = e => {
             if (!e.lengthComputable) return;
             const pct = Math.round(e.loaded / e.total * 100);
@@ -115,11 +179,40 @@
                 ? `上传中… ${pct}%（${(e.loaded / 1048576).toFixed(1)} / ${(e.total / 1048576).toFixed(1)} MB）`
                 : '上传完成，服务器处理中…';
         };
-        xhr.onload = () => {
+
+        // 🚨 核心修复：onload 变成了 async，并且用 await 等待后端保存完毕
+        xhr.onload = async () => {
             let r = {};
             try { r = JSON.parse(xhr.responseText); } catch (e) { /* 非 JSON 响应 */ }
             const data = r.data || {};
+
             if (r.success && data.videoId) {
+                // ====== 处理屏蔽名单 ======
+                if (shieldInput && shieldInput.value.trim()) {
+                    // 如果输入框里有内容，按逗号或空格拆分成数组
+                    const ids = shieldInput.value.split(/[,\s]+/).map(id => id.trim()).filter(id => id);
+
+                    if (ids.length > 0) {
+                        ptxt.textContent = '视频已发布，正在应用屏蔽设置…';
+                        try {
+                            // 注意这里加了 await，确保网络请求发完并拿到结果，再去执行 setTimeout 跳转
+                            const res = await YT.api.post('/api/video/obscure/users', {
+                                upId: me.userId,
+                                userIds: ids
+                            });
+                            if (!res.success) {
+                                YT.toast('部分用户屏蔽失败：' + (res.message || '未知错误'));
+                            } else {
+                                YT.toast(`已成功限制 ${ids.length} 位用户`);
+                            }
+                        } catch (err) {
+                            console.error('屏蔽请求失败', err);
+                            YT.toast('屏蔽设置网络异常');
+                        }
+                    }
+                }
+                // ==========================
+
                 fill.style.width = '100%';
                 ptxt.textContent = '发布成功，正在跳转…';
                 show('发布成功！', true);
@@ -127,9 +220,11 @@
                 setTimeout(() => location.href = 'watch.html?id=' + data.videoId, 900);
                 return;
             }
+
             show(data.message || r.message || ('上传失败（HTTP ' + xhr.status + '）'), false);
             reset();
         };
+
         xhr.onerror = () => {
             show('网络错误，上传中断。大文件上传失败也可能是超过了服务器的大小上限', false);
             reset();
@@ -143,19 +238,22 @@
         }
     };
 
-    // 备用：只登记路径，不传文件本体
-    $('#old-submit').onclick = async () => {
-        const title = $('#title').value.trim();
-        const videoPath = $('#old-path').value.trim();
-        if (!title || !videoPath) return show('标题和路径都要填', false);
-        const r = await YT.api.post('/api/video/upload', { userId: me.userId, title, videoPath });
-        const data = r.data || {};
-        if (r.success && data.videoId) {
-            show('登记成功，视频 ID：' + data.videoId, true);
-            remember(data.videoId, title, videoPath);
-            setTimeout(() => location.href = 'watch.html?id=' + data.videoId, 900);
-        } else {
-            show(data.message || r.message || '登记失败', false);
-        }
-    };
+    // ================= 4. 兼容旧的上传路径功能（如果 HTML 里没有就跳过）=================
+    const oldSubmit = $('#old-submit');
+    if (oldSubmit) {
+        oldSubmit.onclick = async () => {
+            const title = $('#title').value.trim();
+            const videoPath = $('#old-path').value.trim();
+            if (!title || !videoPath) return show('标题和路径都要填', false);
+            const r = await YT.api.post('/api/video/upload', { userId: me.userId, title, videoPath });
+            const data = r.data || {};
+            if (r.success && data.videoId) {
+                show('登记成功，视频 ID：' + data.videoId, true);
+                remember(data.videoId, title, videoPath);
+                setTimeout(() => location.href = 'watch.html?id=' + data.videoId, 900);
+            } else {
+                show(data.message || r.message || '登记失败', false);
+            }
+        };
+    }
 })();

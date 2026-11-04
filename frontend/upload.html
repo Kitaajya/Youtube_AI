@@ -33,14 +33,16 @@
 
 
                 <!-- 选择限制用户（屏蔽） -->
-                <div class="field" style="margin-top: 18px;">
+                <div class="field" style="margin-top: 18px; position: relative;">
                     <label for="shield-ids">
-                        限制以下用户观看/评论 <span style="color: var(--text-tertiary); font-weight: 400;">（可选）</span>
+                        限制以下用户观看/评论 <span style="color: var(--text-tertiary); font-weight: 400;">（输入 @ 可搜索用户）</span>
                     </label>
-                    <input type="text" id="shield-ids" placeholder="输入要屏蔽的用户 ID，多个 ID 用逗号隔开"
+                    <input type="text" id="shield-ids" placeholder="输入 @ 搜索用户，或直接输入用户 ID"
                            style="width: 100%; height: 44px; padding: 0 14px; border: 1px solid var(--input-border); border-radius: 8px; background: var(--input-bg); color: var(--text-primary);">
-                    <div class="hint" style="margin-top: 6px; font-size: 12px; color: var(--text-tertiary);">
-                        被屏蔽的用户将无法在你的视频下发表评论，建议直接在视频播放页评论区拉黑。
+
+                    <!--新增：下拉浮层 -->
+                    <div id="user-dropdown" style="display:none; position:absolute; left:0; right:0; top:75px; background:var(--surface); border:1px solid var(--border); border-radius:8px; box-shadow:var(--shadow-menu); max-height:200px; overflow-y:auto; z-index:100;">
+                        <!-- 列表项由 JS 动态生成 -->
                     </div>
                 </div>
 

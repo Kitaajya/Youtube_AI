@@ -140,5 +140,15 @@ public interface UserInformationMapper {
         AND DATE_FORMAT(birthday, '%m-%d') = DATE_FORMAT(CURDATE(), '%m-%d')
      """)
       List<Map<String, Object>> selectTodayBirthdayUsers();
+
+    /** 根据用户名或昵称模糊搜索（最多返回 10 条）**/
+    @Select("""
+    SELECT user_id AS userId, nickname, username 
+    FROM user_information 
+    WHERE nickname LIKE CONCAT('%', #{keyword}, '%') 
+       OR username LIKE CONCAT('%', #{keyword}, '%')
+    LIMIT 10
+    """)
+    List<Map<String, Object>> searchUsers(@Param("keyword") String keyword);
 }
 

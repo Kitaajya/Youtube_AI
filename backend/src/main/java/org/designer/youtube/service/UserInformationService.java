@@ -177,4 +177,11 @@ public class UserInformationService {
     public List<Map<String,Object>> selectTodayBirthdayUsers(){
         return userInformationMapper.selectTodayBirthdayUsers();
     }
+
+    /**
+     * 模糊搜索用户
+     * **/
+    public Result<List<Map<String, Object>>> searchUsers(String keyword){
+        return Result.success(userInformationMapper.searchUsers(keyword));
+    }
 }
