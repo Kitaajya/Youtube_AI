@@ -187,7 +187,7 @@
             const data = r.data || {};
 
             if (r.success && data.videoId) {
-                // ====== 处理屏蔽名单 ======
+                // ====== 处理屏蔽名单（只对刚发布的这个视频生效） ======
                 if (shieldInput && shieldInput.value.trim()) {
                     // 如果输入框里有内容，按逗号或空格拆分成数组
                     const ids = shieldInput.value.split(/[,\s]+/).map(id => id.trim()).filter(id => id);
@@ -195,15 +195,17 @@
                     if (ids.length > 0) {
                         ptxt.textContent = '视频已发布，正在应用屏蔽设置…';
                         try {
+                            // 必须带上 videoId：屏蔽只作用于这条视频，不会再把这些人挡在你的所有视频外
                             // 注意这里加了 await，确保网络请求发完并拿到结果，再去执行 setTimeout 跳转
                             const res = await YT.api.post('/api/video/obscure/users', {
                                 upId: me.userId,
+                                videoId: data.videoId,
                                 userIds: ids
                             });
                             if (!res.success) {
                                 YT.toast('部分用户屏蔽失败：' + (res.message || '未知错误'));
                             } else {
-                                YT.toast(`已成功限制 ${ids.length} 位用户`);
+                                YT.toast(`已限制 ${ids.length} 位用户观看该视频`);
                             }
                         } catch (err) {
                             console.error('屏蔽请求失败', err);

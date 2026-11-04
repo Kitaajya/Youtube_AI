@@ -1,0 +1,458 @@
+/* ===== 私信页（message.html）===== 全部颜色走主题变量，深色模式自适应 */
+.pm-wrap {
+    display: flex;
+    gap: 16px;
+    padding: 16px 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+    height: calc(100vh - 56px - 32px);
+    min-height: 420px;
+}
+
+/* ---------- 左栏 ---------- */
+.pm-side {
+    width: 300px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+.pm-side-head {
+    font-size: 16px;
+    font-weight: 500;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--divider);
+    /* 修复头部 flex 布局和按钮被挤压的问题 */
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+}
+#btn-create-group {
+    flex-shrink: 0;
+}
+
+.pm-peers { flex: 1; overflow-y: auto; padding: 6px 0; }
+.pm-peer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 16px;
+    border: none;
+    background: none;
+    color: var(--text-primary);
+    text-align: left;
+    cursor: pointer;
+}
+.pm-peer:hover { background: var(--surface-hover); }
+.pm-peer.active { background: var(--surface-2); }
+.pm-peer .avatar { flex-shrink: 0; }
+.pm-peer .p-txt { min-width: 0; flex: 1; }
+.pm-peer .p-name {
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.pm-peer .p-sub {
+    font-size: 12px;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-top: 2px;
+}
+.pm-peer .p-badge {
+    flex-shrink: 0;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: var(--danger);
+    color: #fff;
+    font-size: 11px;
+    line-height: 18px;
+    text-align: center;
+}
+.pm-peer .p-del {
+    border: none;
+    background: none;
+    color: var(--text-tertiary);
+    font-size: 14px;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 4px;
+}
+.pm-peer .p-del:hover { color: var(--danger); }
+.pm-empty-peers { padding: 20px 16px; font-size: 13px; color: var(--text-secondary); text-align: center; }
+
+/* ---------- 右栏 ---------- */
+.pm-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+.pm-chat-head {
+    padding: 14px 16px;
+    font-size: 15px;
+    font-weight: 500;
+    border-bottom: 1px solid var(--divider);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 49px;
+}
+.pm-chat-head b { color: var(--text-primary); font-weight: 500; }
+.pm-chat-head .w-stats { font-weight: 400; }
+
+.pm-msgs {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: var(--bg);
+}
+.pm-msg {
+    max-width: 70%;
+    align-self: flex-start;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+}
+.pm-msg.me { align-self: flex-end; align-items: flex-end; }
+
+/* 基础气泡 */
+.pm-msg .bubble {
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;  /* 防止长链接撑破 */
+    width: fit-content;       /* 核心：让气泡大小紧贴内容 */
+    max-width: 100%;
+    background: var(--surface-2);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+}
+.pm-msg.me .bubble {
+    background: var(--link);
+    border-color: var(--link);
+    color: var(--on-primary);
+}
+.pm-msg .m-time { font-size: 11px; color: var(--text-tertiary); padding: 0 4px; }
+
+/* 图片/视频消息 */
+.pm-msg .bubble.media {
+    width: fit-content;
+    max-width: 100%;
+    padding: 3px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+.pm-msg .bubble.media img,
+.pm-msg .bubble.media video {
+    display: block;
+    max-width: 320px;
+    max-height: 360px;
+    border-radius: 8px;
+    object-fit: contain;
+    background: #000;
+}
+.pm-msg.me .bubble.media { background: var(--surface-2); border-color: var(--border); }
+
+/* 表情消息 */
+.pm-msg .bubble.emoji {
+    width: fit-content;
+    max-width: 100%;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: 0;
+}
+.pm-msg .bubble.emoji img {
+    display: block;
+    width: 120px;
+    height: 120px;
+    object-fit: contain;
+}
+
+/* 表情选择面板 */
+.pm-emoji-panel {
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 10px 16px;
+    border-top: 1px solid var(--divider);
+    background: var(--surface);
+}
+.pm-emoji-cells { display: flex; flex-wrap: wrap; gap: 6px; }
+.pm-emoji {
+    width: 72px;
+    height: 72px;
+    padding: 2px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: none;
+    cursor: pointer;
+}
+.pm-emoji:hover { background: var(--surface-2); border-color: var(--border); }
+.pm-emoji img { width: 100%; height: 100%; object-fit: contain; }
+.pm-empty-emoji { font-size: 13px; color: var(--text-secondary); text-align: center; padding: 12px; cursor: pointer; }
+
+/* 输入区工具按钮 */
+.pm-tools { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+.pm-tool {
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-2);
+    color: var(--text-secondary);
+    font-size: 17px;
+    line-height: 1;
+    cursor: pointer;
+}
+.pm-tool:hover { border-color: var(--focus-ring); color: var(--text-primary); }
+.pm-tool.on { border-color: var(--focus-ring); color: var(--text-primary); background: var(--surface-2); }
+.pm-tool:disabled { opacity: .5; cursor: not-allowed; }
+
+/* 撤回提示 & 操作按钮 */
+.pm-msg.withdrawn { align-self: center; max-width: 100%; align-items: center; }
+.pm-msg.withdrawn.me { align-items: center; }
+.pm-msg.withdrawn .bubble {
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    font-size: 12px;
+    padding: 2px 6px;
+}
+.m-ops { display: flex; gap: 6px; padding: 0 4px; visibility: hidden; }
+.pm-msg:hover .m-ops { visibility: visible; }
+.m-op {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-secondary);
+    font-size: 11px;
+    line-height: 1;
+    padding: 3px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.m-op:hover { color: var(--danger); border-color: var(--danger); }
+
+/* 居中时间标签 */
+.pm-day {
+    align-self: center;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    background: var(--surface-2);
+    border-radius: 10px;
+    padding: 3px 10px;
+    margin: 6px 0;
+}
+
+/* 输入区 */
+.pm-input {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    padding: 12px 16px;
+    border-top: 1px solid var(--divider);
+    background: var(--surface);
+}
+.pm-input textarea {
+    flex: 1;
+    resize: none;
+    min-height: 42px;
+    max-height: 120px;
+    padding: 10px 12px;
+    border: 1px solid var(--input-border);
+    border-radius: 10px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+}
+.pm-input textarea:focus { border-color: var(--focus-ring); box-shadow: 0 0 0 1px var(--focus-ring); }
+.pm-input textarea::placeholder { color: var(--text-tertiary); }
+.pm-input .btn { height: 42px; border-radius: 21px; padding: 0 22px; flex-shrink: 0; }
+
+/* ---------- 群聊微信极简样式 ---------- */
+.pm-group-msg-wrap {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    max-width: 75%;
+    align-self: flex-start;
+    margin-bottom: 16px;
+}
+.pm-group-msg-wrap.me {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+}
+.pm-group-avatar {
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-top: 2px; /* 微微向下偏移，对齐名字和气泡的顶部 */
+}
+.pm-group-avatar .avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    background: var(--surface-3);
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    border: none;
+}
+.pm-group-msg-body {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    /* 移除 min-width: 0，防止 flex 容器挤压气泡 */
+}
+.pm-group-msg-wrap.me .pm-group-msg-body {
+    align-items: flex-end;
+}
+.pm-group-name {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+/* 群聊内部的气泡 */
+.pm-group-msg-body .pm-msg {
+    max-width: 100%;
+    align-self: auto;
+}
+.pm-group-msg-body .bubble {
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    width: fit-content;
+    background: var(--surface-2);
+    color: var(--text-primary);
+    border: none;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+.pm-group-msg-wrap.me .pm-group-msg-body .bubble {
+    background: #95ec69; /* 自己的消息绿底 */
+    color: #000;
+}
+.pm-group-msg-body .m-time {
+    display: none;
+}
+
+/* 锁定的按钮置灰 */
+#pm-send:disabled, .pm-tool:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 窄屏 */
+@media (max-width: 860px) {
+    .pm-wrap { flex-direction: column; height: auto; }
+    .pm-side { width: 100%; }
+    .pm-main { height: 60vh; }
+}
+/* ---------- 生日祝福：输入区上方按钮 ---------- */
+.pm-bday-bar {
+    padding: 8px 16px;
+    border-top: 1px solid var(--divider);
+    background: var(--surface);
+}
+.pm-bday-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 16px;
+    border: none;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #ff5f6d, #ffc371);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(255, 95, 109, .35);
+    transition: transform .15s ease, box-shadow .15s ease;
+}
+.pm-bday-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(255, 95, 109, .45); }
+.pm-bday-btn:active { transform: translateY(0) scale(.98); }
+.pm-bday-btn:disabled { opacity: .6; cursor: not-allowed; }
+
+/* ---------- 生日祝福：消息气泡 ---------- */
+.pm-msg .bubble.bday-bubble {
+    min-width: 190px;
+    padding: 14px 18px 12px;
+    border: none;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #ffe6f0, #fff6d9 55%, #e8f4ff);
+    color: #8a2c5a;
+    text-align: center;
+    white-space: normal;
+    box-shadow: 0 6px 20px rgba(255, 120, 160, .25);
+    animation: pm-bday-pop .35s cubic-bezier(.2, 1.4, .5, 1);
+}
+.pm-msg.me .bubble.bday-bubble {
+    background: linear-gradient(135deg, #ffd9e6, #fff3c4 55%, #d9ecff);
+}
+[data-theme="dark"] .pm-msg .bubble.bday-bubble {
+    background: linear-gradient(135deg, #4a1d30, #3d3216 55%, #16324a);
+    color: #ffd7e6;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, .45);
+}
+.bday-bubble .bday-cake {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 4px;
+    animation: pm-bday-bounce 1.6s ease-in-out infinite;
+}
+.bday-bubble .bday-title { font-size: 16px; font-weight: 700; letter-spacing: 2px; }
+.bday-bubble .bday-sub { margin-top: 2px; font-size: 12px; opacity: .75; }
+
+@keyframes pm-bday-pop {
+    from { opacity: 0; transform: scale(.85) translateY(6px); }
+    to   { opacity: 1; transform: none; }
+}
+@keyframes pm-bday-bounce {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-4px); }
+}
+
+/* ---------- 生日彩带 ---------- */
+.pm-confetti { position: fixed; inset: 0; pointer-events: none; z-index: 3000; overflow: hidden; }
+.pm-confetti i {
+    position: absolute;
+    top: -14px;
+    width: 8px;
+    height: 12px;
+    border-radius: 2px;
+    opacity: .95;
+    animation: pm-confetti-fall 1.9s cubic-bezier(.2, .6, .4, 1) forwards;
+}
+@keyframes pm-confetti-fall {
+    to { transform: translateY(106vh) rotate(720deg); opacity: .85; }
+}

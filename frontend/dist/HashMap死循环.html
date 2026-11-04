@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HashMap 并发扩容死循环 · 教科书式圆圈链表演示</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: #f5f7fa;
+            color: #2c3e50;
+            margin: 0;
+            padding: 24px;
+            line-height: 1.6;
+        }
+        h1 {
+            font-size: 22px;
+            color: #1a3a5c;
+            margin: 0 0 4px;
+            font-weight: 700;
+        }
+        .subtitle {
+            color: #7a8a9a;
+            font-size: 13px;
+            margin-bottom: 22px;
+        }
+        .layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 22px;
+            max-width: 1180px;
+        }
+        @media (max-width: 880px) {
+            .layout { grid-template-columns: 1fr; }
+        }
+        .panel {
+            background: #ffffff;
+            border: 1px solid #dce3ea;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .panel h2 {
+            font-size: 15px;
+            margin: 0 0 14px;
+            color: #1a3a5c;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .panel h2 .tag {
+            font-size: 11px;
+            background: #eef2f6;
+            color: #7a8a9a;
+            padding: 2px 9px;
+            border-radius: 10px;
+            font-weight: 400;
+        }
+
+        /* 链表画布 */
+        .chain-canvas {
+            position: relative;
+            min-height: 90px;
+            padding: 10px 0 6px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0;
+        }
+        .chain-canvas.vertical {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+        }
+
+        /* 圆圈节点 */
+        .circle-node {
+            width: 54px;
+            height: 54px;
+            border-radius: 50%;
+            border: 2.5px solid #5b7ea0;
+            background: #eaf1f8;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 15px;
+            color: #1a3a5c;
+            position: relative;
+            transition: all 0.35s ease;
+            flex-shrink: 0;
+            z-index: 1;
+        }
+        .circle-node .mini-ptr {
+            font-size: 8px;
+            font-weight: 400;
+            color: #7a8a9a;
+            margin-top: 1px;
+            letter-spacing: 0.3px;
+        }
+        .circle-node.t1-touched {
+            border-color: #d97706;
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .circle-node.t2-touched {
+            border-color: #059669;
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .circle-node.ring-node {
+            border-color: #dc2626;
+            background: #fee2e2;
+            color: #991b1b;
+            animation: ringPulse 1.3s infinite;
+        }
+        .circle-node.reversed {
+            border-color: #7c3aed;
+            background: #ede9fe;
+            color: #5b21b6;
+        }
+        @keyframes ringPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.45); }
+            55% { box-shadow: 0 0 0 10px rgba(220,38,38,0); }
+        }
+
+        /* 箭头 */
+        .arrow-line {
+            width: 40px;
+            height: 2.5px;
+            background: #8aa3b8;
+            position: relative;
+            margin: 0 3px;
+            flex-shrink: 0;
+            transition: all 0.3s;
+            border-radius: 2px;
+        }
+        .arrow-line::after {
+            content: '';
+            position: absolute;
+            right: -1px;
+            top: -5px;
+            border-left: 8px solid #8aa3b8;
+            border-top: 6px solid transparent;
+            border-bottom: 6px solid transparent;
+        }
+        .arrow-line.dashed {
+            background: repeating-linear-gradient(90deg, #8aa3b8 0 6px, transparent 6px 11px);
+            height: 2px;
+        }
+        .arrow-line.dashed::after {
+            border-left-color: #8aa3b8;
+        }
+        .arrow-line.ring-arrow {
+            background: #dc2626;
+            height: 3px;
+        }
+        .arrow-line.ring-arrow::after { border-left-color: #dc2626; }
+        .arrow-line.to-null {
+            background: linear-gradient(90deg, #8aa3b8 55%, transparent 55%);
+        }
+        .arrow-line.to-null::after { display: none; }
+
+        .null-mark {
+            color: #9aaab8;
+            font-size: 12px;
+            font-family: 'Consolas', monospace;
+            padding: 0 6px;
+            font-style: italic;
+        }
+
+        /* 自环（指向自己）的弧形箭头 */
+        .self-loop {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 2.5px solid #dc2626;
+            border-radius: 50%;
+            border-left-color: transparent;
+            border-bottom-color: transparent;
+            transform: rotate(-45deg);
+            top: -18px;
+            right: -14px;
+            z-index: 2;
+        }
+        .self-loop::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: -4px;
+            border-top: 8px solid #dc2626;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            transform: rotate(45deg);
+        }
+
+        /* 步骤说明 */
+        .step-info {
+            margin-top: 16px;
+            padding: 12px 16px;
+            background: #f8fafc;
+            border-left: 4px solid #3b82f6;
+            border-radius: 6px;
+            font-size: 13.5px;
+            color: #334155;
+            min-height: 50px;
+        }
+        .step-info strong { color: #1d4ed8; }
+        .step-info.warn {
+            border-left-color: #dc2626;
+            background: #fef2f2;
+        }
+        .step-info.warn strong { color: #b91c1c; }
+        .step-info.ok {
+            border-left-color: #059669;
+            background: #f0fdf4;
+        }
+        .step-info.ok strong { color: #047857; }
+
+        /* 控制按钮 */
+        .controls {
+            margin-top: 18px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 9px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        button:hover:not(:disabled) { background: #1d4ed8; transform: translateY(-1px); }
+        button:disabled { background: #cbd5e1; color: #94a3b8; cursor: not-allowed; }
+        button.secondary { background: #64748b; }
+        button.secondary:hover:not(:disabled) { background: #475569; }
+        button.danger { background: #dc2626; }
+        button.danger:hover:not(:disabled) { background: #b91c1c; }
+
+        /* 线程卡片 */
+        .threads {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 4px;
+        }
+        .thread-card {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 12px 14px;
+            border: 1px solid #e2e8f0;
+        }
+        .thread-card .name {
+            font-size: 12.5px;
+            font-weight: 700;
+            margin-bottom: 7px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .thread-card .name .dot {
+            width: 9px; height: 9px; border-radius: 50%;
+        }
+        .t1 .dot { background: #d97706; }
+        .t2 .dot { background: #059669; }
+        .thread-card .state {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12.5px;
+            color: #475569;
+            line-height: 1.9;
+            min-height: 56px;
+        }
+        .thread-card .state .hl-t1 { color: #b45309; font-weight: 700; }
+        .thread-card .state .hl-t2 { color: #047857; font-weight: 700; }
+        .thread-card .state .hl-null { color: #94a3b8; }
+        .thread-card .state .hl-ring { color: #dc2626; font-weight: 700; }
+
+        .badge {
+            display: inline-block;
+            font-size: 10.5px;
+            padding: 1px 8px;
+            border-radius: 9px;
+            margin-left: 6px;
+            font-weight: 600;
+            vertical-align: middle;
+        }
+        .badge.pending { background: #fef3c7; color: #92400e; }
+        .badge.done { background: #d1fae5; color: #065f46; }
+        .badge.paused { background: #fee2e2; color: #991b1b; }
+
+        /* 代码块 */
+        pre.code-box {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 14px 16px;
+            border-radius: 10px;
+            font-size: 12px;
+            line-height: 1.75;
+            font-family: 'Consolas', 'Monaco', monospace;
+            margin: 14px 0 0;
+            overflow-x: auto;
+        }
+        pre.code-box .cmt { color: #94a3b8; }
+        pre.code-box .kw { color: #93c5fd; }
+
+        /* 图例 */
+        .legend {
+            margin-top: 16px;
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap;
+            font-size: 12px;
+            color: #64748b;
+        }
+        .legend span { display: flex; align-items: center; gap: 6px; }
+        .legend .swatch {
+            width: 16px; height: 16px; border-radius: 50%; border: 2.5px solid;
+        }
+
+        /* 进度条 */
+        .progress-bar {
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 2px;
+            margin-top: 14px;
+            overflow: hidden;
+        }
+        .progress-bar .fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2563eb, #60a5fa);
+            width: 0%;
+            transition: width 0.4s ease;
+            border-radius: 2px;
+        }
+
+        .summary {
+            max-width: 1180px;
+            margin-top: 22px;
+            padding: 16px 20px;
+            background: #ffffff;
+            border: 1px solid #dce3ea;
+            border-radius: 12px;
+            font-size: 13.5px;
+            color: #334155;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .summary h3 { margin: 0 0 10px; font-size: 14.5px; color: #1a3a5c; }
+        .summary code {
+            background: #f1f5f9;
+            padding: 1px 7px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            color: #b45309;
+            font-size: 12.5px;
+        }
+        .chain-label {
+            font-size: 11.5px;
+            color: #94a3b8;
+            margin: 4px 0 2px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>JDK 1.7 HashMap 并发扩容 · 环形链表死循环</h1>
+<div class="subtitle">教科书式圆圈链表 · 两个线程同时执行 transfer() 扩容同一个桶</div>
+
+<div class="layout">
+
+    <!-- 左：链表 -->
+    <div class="panel">
+        <h2>链表状态 <span class="tag" id="tableTag">table 视图</span></h2>
+
+        <div class="chain-label">旧桶（扩容前）</div>
+        <div class="chain-canvas" id="oldChain"></div>
+
+        <div class="chain-label" style="margin-top:14px;">新桶（扩容后，头插法会反转顺序）</div>
+        <div class="chain-canvas" id="newChain"></div>
+
+        <div class="step-info" id="stepInfo">
+            点击「开始演示」，逐步观察两个线程如何交错执行。
+        </div>
+
+        <div class="progress-bar"><div class="fill" id="progressFill"></div></div>
+
+        <div class="controls">
+            <button id="btnStart" onclick="startDemo()">▶ 开始演示</button>
+            <button id="btnStep" class="secondary" onclick="nextStep()" disabled>下一步 →</button>
+            <button id="btnReset" class="secondary" onclick="resetDemo()">⟲ 重置</button>
+            <button id="btnAuto" class="danger" onclick="toggleAuto()" disabled>⏵ 自动播放</button>
+        </div>
+
+        <div class="legend">
+            <span><span class="swatch" style="border-color:#d97706;background:#fef3c7;"></span>T1 处理过</span>
+            <span><span class="swatch" style="border-color:#059669;background:#d1fae5;"></span>T2 处理过</span>
+            <span><span class="swatch" style="border-color:#dc2626;background:#fee2e2;"></span>成环</span>
+            <span><span class="swatch" style="border-color:#7c3aed;background:#ede9fe;"></span>反转后</span>
+        </div>
+    </div>
+
+    <!-- 右：线程 -->
+    <div class="panel">
+        <h2>线程执行状态</h2>
+        <div class="threads">
+            <div class="thread-card t1">
+                <div class="name"><span class="dot"></span>线程 T1 <span class="badge pending" id="t1Badge">等待</span></div>
+                <div class="state" id="t1State">e = null<br>next = null</div>
+            </div>
+            <div class="thread-card t2">
+                <div class="name"><span class="dot"></span>线程 T2 <span class="badge pending" id="t2Badge">等待</span></div>
+                <div class="state" id="t2State">e = null<br>next = null</div>
+            </div>
+        </div>
+
+        <pre class="code-box"><span class="cmt">// JDK 1.7 HashMap.transfer() 核心循环</span>
+<span class="kw">while</span> (e != <span class="kw">null</span>) {
+    next = e.next;          <span class="cmt">// ① 记下下一个</span>
+    e.next = newTable[i];   <span class="cmt">// ② 头插</span>
+    newTable[i] = e;        <span class="cmt">// ③ 更新桶头</span>
+    e = next;               <span class="cmt">// ④ 前进</span>
+}</pre>
+
+        <div class="step-info ok" id="statusInfo" style="margin-top:14px;">
+            准备就绪。两个线程将同时扩容同一个桶。
+        </div>
+    </div>
+
+</div>
+
+<div class="summary">
+    <h3>为什么会成环？</h3>
+    <p style="margin:0;">
+        T2 先完成扩容，用头插法把 <code>A→B</code> 迁移成了 <code>B→A</code>（A.next 变 null，B.next 指向 A）。
+        T1 还拿着旧快照 <code>e=A, next=B</code> 继续走：它把 A 放到新表头后 <code>e=B</code>，再读 <code>B.next</code> 得到 <code>A</code>，
+        于是把 B 插到 A 前面并令 <code>B.next=A</code>，最后 <code>e=A</code> 又读 <code>A.next</code>……
+        两个节点的 next 互相指向对方，环形成。之后 <code>get()</code> 若 key 不在环上，<code>e=e.next</code> 将永远循环，CPU 打满。
+    </p>
+</div>
+
+<script>
+    // ============ 步骤定义 ============
+    const STEPS = [
+        {
+            title: '初始状态',
+            desc: '旧桶链表为 <strong>A → B → null</strong>。T1 和 T2 同时触发扩容，都从旧桶头节点 A 开始。',
+            warn: false,
+            oldChain: ['A','B'],
+            newChain: [],
+            t1: { e: 'A', next: null, badge: '运行中', badgeClass: 'pending', state: 'e = A<br>next = <span class="hl-null">null</span>' },
+            t2: { e: 'A', next: null, badge: '运行中', badgeClass: 'pending', state: 'e = A<br>next = <span class="hl-null">null</span>' },
+            ring: false,
+            ringNodes: [],
+        },
+        {
+            title: 'T1 读取 next = e.next',
+            desc: 'T1 执行 <code>next = e.next</code>，记下下一个节点是 <strong>B</strong>。此时 T1 被 CPU 调度挂起（时间片用完）。',
+            warn: false,
+            oldChain: ['A','B'],
+            newChain: [],
+            t1: { e: 'A', next: 'B', badge: '已挂起', badgeClass: 'paused', state: 'e = A<br>next = <span class="hl-t1">B</span> <span style="color:#dc2626;">← T1 在此暂停</span>' },
+            t2: { e: 'A', next: null, badge: '运行中', badgeClass: 'pending', state: 'e = A<br>next = <span class="hl-null">null</span>' },
+            ring: false,
+            ringNodes: [],
+        },
+        {
+            title: 'T2 完成整个扩容（头插法反转）',
+            desc: 'T2 一路执行到底。头插法把 <code>A→B</code> 迁移到新桶后变成 <strong>B → A → null</strong>。注意：<code>A.next</code> 已变成 null，<code>B.next</code> 指向 A。',
+            warn: false,
+            oldChain: ['A','B'],
+            newChain: ['B','A'],
+            t1: { e: 'A', next: 'B', badge: '已挂起', badgeClass: 'paused', state: 'e = A<br>next = <span class="hl-t1">B</span>' },
+            t2: { e: 'B', next: null, badge: '已完成', badgeClass: 'done', state: 'e = B<br>next = <span class="hl-null">null</span><br><span style="color:#059669;">迁移完成 ✓</span>' },
+            ring: false,
+            ringNodes: [],
+        },
+        {
+            title: 'T1 恢复：A.next = newTable[i]',
+            desc: 'T1 醒来，继续执行 <code>e.next = newTable[i]</code>。此时新桶头是 B，于是 <strong>A.next = B</strong>。接着 T1 把 A 放到桶头，新桶变成 A→B→A…（B.next 仍指向 A）。',
+            warn: false,
+            oldChain: ['A','B'],
+            newChain: ['A','B','A'],
+            t1: { e: 'A', next: 'B', badge: '运行中', badgeClass: 'pending', state: 'e = A<br>next = <span class="hl-t1">B</span><br><span style="color:#b45309;">A.next = B</span>' },
+            t2: { e: 'B', next: null, badge: '已完成', badgeClass: 'done', state: 'e = B<br>next = <span class="hl-null">null</span>' },
+            ring: false,
+            ringNodes: [],
+        },
+        {
+            title: 'T1 前进：e = next = B',
+            desc: 'T1 执行 <code>e = next</code>，现在 <code>e = B</code>。B 的 next 已经在 T2 的迁移中被改成指向 <strong>A</strong>。',
+            warn: false,
+            oldChain: ['A','B'],
+            newChain: ['A','B','A'],
+            t1: { e: 'B', next: 'B', badge: '运行中', badgeClass: 'pending', state: 'e = <span class="hl-t1">B</span><br>next = B' },
+            t2: { e: 'B', next: null, badge: '已完成', badgeClass: 'done', state: 'e = B<br>next = <span class="hl-null">null</span>' },
+            ring: false,
+            ringNodes: [],
+        },
+        {
+            title: '⚠ 环形成：B.next = A，A.next = B',
+            desc: 'T1 处理 B：<code>B.next = newTable[i]</code>（新桶头是 A），于是 <strong>B.next = A</strong>。再 <code>e = next</code>…… 但 next 读出来仍是 A，因为 <code>B.next</code> 现在指向 A！A.next 又指向 B，两个节点互相指向，<strong>环形成</strong>。',
+            warn: true,
+            oldChain: ['A','B'],
+            newChain: ['A','B'],
+            t1: { e: 'A', next: 'A', badge: '死循环', badgeClass: 'paused', state: 'e = A<br>next = <span class="hl-ring">A</span><br><span class="hl-ring">B.next = A ⟳</span>' },
+            t2: { e: 'B', next: null, badge: '已完成', badgeClass: 'done', state: 'e = B<br>next = <span class="hl-null">null</span>' },
+            ring: true,
+            ringNodes: ['A','B'],
+        },
+        {
+            title: '💥 死循环：get() 永远转不出去',
+            desc: '环形成后，后续任何 <code>get()</code> 操作若 key 不在环上，就会在 <code>e = e.next</code> 中无限循环，CPU 打满。这就是 JDK 1.7 HashMap 的经典并发死循环问题。',
+            warn: true,
+            oldChain: ['A','B'],
+            newChain: ['A','B'],
+            t1: { e: 'A', next: 'A', badge: '死循环', badgeClass: 'paused', state: 'e = A → B → A → B …' },
+            t2: { e: 'B', next: null, badge: '已完成', badgeClass: 'done', state: 'e = B<br>next = <span class="hl-null">null</span>' },
+            ring: true,
+            ringNodes: ['A','B'],
+        },
+    ];
+
+    let currentStep = -1;
+    let autoTimer = null;
+    let autoPlaying = false;
+
+    // ============ 渲染工具 ============
+    function getPtrText(key, step) {
+        // 根据步骤返回节点当前 next 指向的文字
+        if (key === 'A') {
+            if (step >= 5) return 'next→B';
+            if (step >= 3) return 'next→B';
+            return 'next→B';
+        }
+        if (key === 'B') {
+            if (step >= 5) return 'next→A';
+            if (step >= 2) return 'next→A';
+            return 'next→null';
+        }
+        return 'next→null';
+    }
+
+    function buildChain(nodes, opts = {}) {
+        const { ring = false, ringNodes = [], threadMap = {}, step = 0 } = opts;
+        let html = '';
+        if (!nodes || nodes.length === 0) {
+            return '<div class="null-mark">null</div>';
+        }
+        for (let i = 0; i < nodes.length; i++) {
+            const key = nodes[i];
+            let cls = '';
+            if (threadMap[key] === 'T1') cls = 't1-touched';
+            else if (threadMap[key] === 'T2') cls = 't2-touched';
+            if (ring && ringNodes.includes(key)) cls = 'ring-node';
+
+            let selfLoop = '';
+            // 如果 ring 且是最后一个节点，画自环
+            if (ring && i === nodes.length - 1 && nodes.length > 1) {
+                // 最后一个节点指回第一个（或指向上一个）
+                // 这里简单处理：如果 nodes 是 ['A','B']，B 指向 A，画一个弯箭头从 B 回到 A
+            }
+
+            html += `<div class="circle-node ${cls}" data-key="${key}">
+      <span>${key}</span>
+      <span class="mini-ptr">${getPtrText(key, step)}</span>
+    </div>`;
+
+            if (i < nodes.length - 1) {
+                const isRingArrow = ring && ringNodes.includes(nodes[i]) && ringNodes.includes(nodes[i+1]);
+                html += `<div class="arrow-line ${isRingArrow ? 'ring-arrow' : ''}"></div>`;
+            } else {
+                // 最后一个
+                if (ring && nodes.length > 1) {
+                    // 环：用一段弧线表示回到开头
+                    html += `<div class="arrow-line ring-arrow"></div>
+                 <div class="null-mark" style="color:#dc2626;font-weight:700;">↺ 回到 ${nodes[0]}</div>`;
+                } else {
+                    html += `<div class="arrow-line to-null"></div><div class="null-mark">null</div>`;
+                }
+            }
+        }
+        return html;
+    }
+
+    function renderStep(step) {
+        const s = STEPS[step];
+
+        // 旧桶
+        document.getElementById('oldChain').innerHTML = buildChain(s.oldChain, { step });
+
+        // 新桶：线程着色
+        const threadMap = {};
+        if (step >= 1) threadMap['A'] = 'T1';
+        if (step >= 2) threadMap['B'] = 'T2';
+        // 新桶里反转后的节点高亮
+        document.getElementById('newChain').innerHTML = buildChain(s.newChain, {
+            ring: s.ring,
+            ringNodes: s.ringNodes,
+            threadMap,
+            step
+        });
+
+        // 步骤说明
+        const info = document.getElementById('stepInfo');
+        info.className = 'step-info' + (s.warn ? ' warn' : '');
+        info.innerHTML = `<strong>步骤 ${step + 1}/${STEPS.length}：${s.title}</strong><br>${s.desc}`;
+
+        // 线程状态
+        document.getElementById('t1State').innerHTML = s.t1.state;
+        document.getElementById('t2State').innerHTML = s.t2.state;
+
+        const t1Badge = document.getElementById('t1Badge');
+        t1Badge.textContent = s.t1.badge;
+        t1Badge.className = 'badge ' + s.t1.badgeClass;
+
+        const t2Badge = document.getElementById('t2Badge');
+        t2Badge.textContent = s.t2.badge;
+        t2Badge.className = 'badge ' + s.t2.badgeClass;
+
+        // 进度
+        document.getElementById('progressFill').style.width = ((step + 1) / STEPS.length * 100) + '%';
+
+        // 状态栏
+        const status = document.getElementById('statusInfo');
+        if (step >= STEPS.length - 1) {
+            status.className = 'step-info warn';
+            status.innerHTML = '<strong>💥 死循环已形成！</strong> 两个节点的 next 互相指向，get() 将永远循环。JDK 1.8 改用尾插法，避免了顺序反转。';
+        } else if (s.ring) {
+            status.className = 'step-info warn';
+            status.innerHTML = '<strong>⚠ 环已形成。</strong> A.next = B 且 B.next = A，遍历将无限循环。';
+        } else {
+            status.className = 'step-info ok';
+            status.innerHTML = '继续点击「下一步」，观察 T1 和 T2 的交错执行。';
+        }
+
+        document.getElementById('btnStep').disabled = (step >= STEPS.length - 1);
+        document.getElementById('btnAuto').disabled = (step >= STEPS.length - 1);
+        if (step >= STEPS.length - 1 && autoPlaying) stopAuto();
+    }
+
+    // ============ 控制 ============
+    function startDemo() {
+        currentStep = 0;
+        renderStep(0);
+        document.getElementById('btnStart').disabled = true;
+        document.getElementById('btnStep').disabled = false;
+        document.getElementById('btnAuto').disabled = false;
+    }
+
+    function nextStep() {
+        if (currentStep < STEPS.length - 1) {
+            currentStep++;
+            renderStep(currentStep);
+        }
+    }
+
+    function resetDemo() {
+        stopAuto();
+        currentStep = -1;
+        // 初始渲染
+        document.getElementById('oldChain').innerHTML = buildChain(['A','B'], { step: -1 });
+        document.getElementById('newChain').innerHTML = '<div class="null-mark">null</div>';
+        document.getElementById('stepInfo').className = 'step-info';
+        document.getElementById('stepInfo').innerHTML = '点击「开始演示」，逐步观察两个线程如何交错执行。';
+        document.getElementById('t1State').innerHTML = 'e = null<br>next = null';
+        document.getElementById('t2State').innerHTML = 'e = null<br>next = null';
+        document.getElementById('t1Badge').textContent = '等待';
+        document.getElementById('t1Badge').className = 'badge pending';
+        document.getElementById('t2Badge').textContent = '等待';
+        document.getElementById('t2Badge').className = 'badge pending';
+        document.getElementById('statusInfo').className = 'step-info ok';
+        document.getElementById('statusInfo').innerHTML = '准备就绪。两个线程将同时扩容同一个桶。';
+        document.getElementById('progressFill').style.width = '0%';
+        document.getElementById('btnStart').disabled = false;
+        document.getElementById('btnStep').disabled = true;
+        document.getElementById('btnAuto').disabled = true;
+        document.getElementById('btnAuto').textContent = '⏵ 自动播放';
+    }
+
+    function toggleAuto() {
+        if (autoPlaying) { stopAuto(); return; }
+        if (currentStep >= STEPS.length - 1) return;
+        autoPlaying = true;
+        document.getElementById('btnAuto').textContent = '⏸ 暂停';
+        autoTimer = setInterval(() => {
+            if (currentStep < STEPS.length - 1) nextStep();
+            else stopAuto();
+        }, 2000);
+    }
+
+    function stopAuto() {
+        autoPlaying = false;
+        if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+        document.getElementById('btnAuto').textContent = '⏵ 自动播放';
+    }
+
+    // 初始化
+    window.addEventListener('load', () => {
+        resetDemo();
+        setTimeout(startDemo, 500);
+    });
+</script>
+
+</body>
+</html>

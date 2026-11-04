@@ -294,6 +294,56 @@
 }
 .sh-selall { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; user-select: none; }
 .sh-selall input { cursor: pointer; }
+
+/* 给某个视频添加屏蔽：视频下拉 + 用户搜索 + 添加按钮 */
+.sh-add {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+}
+.sh-add select,
+.sh-add input {
+    height: 36px;
+    padding: 0 10px;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--text-primary);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
+    outline: none;
+}
+.sh-add select { max-width: 300px; }
+.sh-add-user { position: relative; flex: 1; min-width: 220px; }
+.sh-add-user input { width: 100%; }
+.sh-add-drop {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 40px;
+    z-index: 30;
+    max-height: 240px;
+    overflow-y: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow-menu);
+}
+.sh-add-drop .item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    font-size: 13px;
+    cursor: pointer;
+}
+.sh-add-drop .item:hover { background: var(--surface-hover); }
 #sh-list { display: flex; flex-direction: column; gap: 6px; }
 .sh-card {
     display: flex;
@@ -321,6 +371,31 @@
 .sh-card .uc-txt { min-width: 0; flex: 1; }
 .sh-card .uc-name { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sh-card .btn { flex: none; }
+
+/* 视频分组：一个视频一个区块（标题 + 该视频屏蔽人数 + 一键解除） */
+.sh-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
+.sh-group-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 4px 2px 8px;
+    border-bottom: 1px dashed var(--border);
+}
+.sh-group-title {
+    max-width: 62%;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.sh-group-title:hover { color: var(--link); text-decoration: underline; }
+.sh-group-head .btn { flex: none; margin-left: auto; }
+
 @media (max-width: 720px) {
     .sh-toolbar { flex-wrap: wrap; }
+    .sh-group-title { max-width: 100%; }
 }

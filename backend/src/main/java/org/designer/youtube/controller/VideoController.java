@@ -85,7 +85,7 @@ public class VideoController {
         return Result.success(vs.selectVideoTitle());
     }
 
-    //查看某人的视频，根据用户id
+    //查看某人的视频，根据用户id；viewerId=看的人（视频级屏蔽过滤用，不传=不过滤）
     @GetMapping("/select")
     public Result<List<Map<String, Object>>> selectVideo(@RequestParam String userId,
                                                          @RequestParam(required = false, defaultValue = "") String viewerId) {
@@ -118,6 +118,7 @@ public class VideoController {
     }
 
     //按视频 ID 查询单个视频详情
+    //viewerId=正在看的人：如果这个视频把他屏蔽了，返回空数组，播放页会提示不可见
     @GetMapping("/select/video/single/infor")
     public Result<List<Map<String, Object>>> selectVideoById(@RequestParam long id,
                                                              @RequestParam(required = false, defaultValue = "") String viewerId) {
@@ -188,7 +189,7 @@ public class VideoController {
     @GetMapping("/select/like/count")
     public Result<Map<String,Object>> selectLikeQuantity(@RequestParam long id,
                                                          @RequestParam(required = false) String userId) {
-        if (vs.selectVideoById(id).isEmpty()) return Result.fail("视频不存在或已被删除");
+        if (vs.selectVideoById(id, "").isEmpty()) return Result.fail("视频不存在或已被删除");
         Map<String, Object> data = new HashMap<>();
         data.put("like_count", vs.selectLikeQuantity(id));
         data.put("liked", userId != null && !userId.isBlank() && vs.isLiked(id, userId));
@@ -384,6 +385,7 @@ public class VideoController {
     }
     /**
      * 解除屏蔽，批量解除
+     * videoId 可选：不传=解除我全部视频里对这些人的屏蔽；传=只解除这个视频下的屏蔽
      * **/
     @PostMapping("/cancel/obscure")
     public Result<Map<String,Object>> cancelShieldBatch(@RequestParam String upId,
@@ -393,13 +395,13 @@ public class VideoController {
     }
     /**
      * 查看我屏蔽的人的信息，同时传递我屏蔽的人数
-     *
+     * videoId 可选：不传=我所有视频的屏蔽名单；传=只看这个视频的
      * **/
     @GetMapping("/select/my/obscured/user")
     public Result<List<Map<String,Object>>> selectObscuredUsersInformation(@RequestParam String upId,
                                                                           @RequestParam(required = false) Long videoId){
         log.info("屏蔽的人共有{}",vs.countHowManyPeopleIObscured(upId));
-        return vs.selectObscuredUsersInformation(upId);
+        return vs.selectObscuredUsersInformation(upId, videoId);
     }
 
 }

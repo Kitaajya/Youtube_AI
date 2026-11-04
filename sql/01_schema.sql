@@ -170,6 +170,26 @@ CREATE TABLE IF NOT EXISTS private_message(
 -- 想确认实际结构，跑这句：
 -- SHOW CREATE TABLE private_message;
 
+-- ---------- 9. 视频屏蔽表（视频级屏蔽） ----------
+-- 一行 = 某个视频（video_id）屏蔽某个人（user_id），由 up_id 记下是谁屏蔽的。
+-- 视频级：同一个人在 A 视频被屏蔽不影响 B 视频；旧的全站屏蔽结构由 03_video_shield_per_video.sql 迁移。
+-- 如果库里已有旧结构（只有 up_id/user_id），请执行 03 号脚本，不要只靠这里的 CREATE IF NOT EXISTS。
+CREATE TABLE IF NOT EXISTS video_shield(
+    up_id       VARCHAR(13) NOT NULL,                -- 谁的视频（UP 主 user_id）
+    video_id    BIGINT      NOT NULL,                -- 哪个视频
+    user_id     VARCHAR(13) NOT NULL,                -- 被屏蔽的人
+    create_time DATETIME    DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (video_id, user_id),                 -- 一个视频对同一个人只留一条
+    KEY idx_vs_up (up_id),                           -- 按 UP 主查屏蔽名单
+    KEY idx_vs_user (user_id, up_id),                -- 判断"这个人被哪些视频屏蔽"
+    CONSTRAINT fk_vs_video FOREIGN KEY (video_id)
+        REFERENCES video(id) ON DELETE CASCADE,      -- 删视频，屏蔽记录跟着清
+    CONSTRAINT fk_vs_up FOREIGN KEY (up_id)
+        REFERENCES user_information(user_id) ON DELETE CASCADE,
+    CONSTRAINT fk_vs_user FOREIGN KEY (user_id)
+        REFERENCES user_information(user_id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
 -- =====================================================================
 -- 执行完后自查：所有外键两端的类型是否逐字一致
 -- COLUMN_TYPE 必须同为 varchar(13)、字符集与排序规则完全相同

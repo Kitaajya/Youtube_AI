@@ -1,0 +1,103 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    min-height: 100vh;
+    background: var(--bg);
+    font-family: "Roboto", -apple-system, "Microsoft YaHei", sans-serif;
+    color: var(--text-primary);
+    display: flex;
+    flex-direction: column;
+}
+
+/* 顶栏 */
+.yt-header {
+    height: 56px;
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+}
+.yt-logo { display: flex; align-items: center; gap: 4px; }
+.yt-logo-text {
+    font-size: 20px;
+    font-weight: 500;
+    letter-spacing: -0.5px;
+    color: var(--text-primary);
+}
+
+/* 主体 */
+.yt-main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 16px;
+}
+.yt-card {
+    width: 400px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 40px 40px 32px;
+    background: var(--surface);
+}
+.yt-card h1 {
+    font-size: 24px;
+    font-weight: 400;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+.yt-sub {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 28px;
+}
+
+/* 表单 */
+.field { margin-bottom: 18px; }
+.field label {
+    display: block;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+.field .req { color: var(--danger); }
+.field input {
+    width: 100%;
+    height: 44px;
+    padding: 0 14px;
+    border: 1px solid var(--input-border);
+    border-radius: 4px;
+    font-size: 15px;
+    outline: none;
+    transition: border-color .15s;
+    background: var(--input-bg);
+    color: var(--text-primary);
+}
+.field input::placeholder { color: var(--text-tertiary); }
+.field input:focus { border-color: var(--focus-ring); box-shadow: 0 0 0 1px var(--focus-ring); }
+
+/* 注册按钮：YouTube 红 */
+#submitBtn {
+    width: 100%;
+    height: 44px;
+    margin-top: 8px;
+    border: none;
+    border-radius: 4px;
+    background: var(--cta-bg);
+    color: var(--on-danger);
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background .15s;
+}
+#submitBtn:hover { background: var(--cta-hover); }
+#submitBtn:disabled { background: var(--cta-disabled); cursor: not-allowed; }
+
+.tip {
+    margin-top: 14px;
+    font-size: 13px;
+    text-align: center;
+    min-height: 18px;
+}
+.tip.ok { color: var(--ok); }
+.tip.err { color: var(--danger); }

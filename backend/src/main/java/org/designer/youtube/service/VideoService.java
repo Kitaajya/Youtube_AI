@@ -99,9 +99,9 @@ public class VideoService {
     public List<Map<String,Object>> selectVideoTitle(){
         return vm.selectVideoTitle();
     }
-    //查看某人的视频，根据用户id
-    public List<Map<String,Object>> selectVideo(String userId){
-        return vm.selectVideo(userId);
+    //查看某人的视频，根据用户id（viewerId 非空时按视频级屏蔽过滤）
+    public List<Map<String,Object>> selectVideo(String userId, String viewerId){
+        return vm.selectVideo(userId, viewerId == null ? "" : viewerId);
     }
     //按照视频标题查询视频
     public List<Map<String,Object>> selectVideoByTitle(String title){
@@ -119,9 +119,9 @@ public class VideoService {
     public List<Map<String,Object>> selectAllVideo(){
         return vm.selectAllVideo();
     }
-    //按视频 ID 查询单个视频详情
-    public List<Map<String,Object>> selectVideoById(long id){
-        return vm.selectVideoById(id);
+    //按视频 ID 查询单个视频详情（viewerId 被这个视频屏蔽时返回空，播放页据此提示不可见）
+    public List<Map<String,Object>> selectVideoById(long id, String viewerId){
+        return vm.selectVideoById(id, viewerId == null ? "" : viewerId);
     }
     //模糊搜索
     public List<Map<String, Object>> searchVideo(String keyword){
@@ -164,6 +164,10 @@ public class VideoService {
     }
     /**对video_id为videoId的视频增添我的评论（parentId 传 null 表示一级评论）**/
     public Result<Map<String,Object>> addComment(String commentId,long videoId,String userId,String content,String parentId){
+        // 视频级屏蔽：被这个视频屏蔽的人不能在这里评论（只影响该视频，不影响 UP 主的其它视频）
+        if (userId != null && !userId.isBlank() && vm.countShieldByVideoAndUser(videoId, userId) > 0) {
+            return Result.fail("你已被 UP 主限制，无法评论该视频");
+        }
         int k=vm.addComment(commentId, videoId, userId, content, parentId);
         if(k==0) return Result.fail("评论失败");
 
@@ -857,41 +861,43 @@ public class VideoService {
         }
     }
     /**
-     * 我的视频屏蔽某些人，这些人不需要我任何条件就可以被我屏蔽 屏蔽：INSERT IGNORE 幂等，重复屏蔽不报主键冲突
-     *
-     *
+     * 我的某个视频屏蔽某些人（视频级屏蔽，不是全站屏蔽）
+     * 一条记录 = (up_id, video_id, user_id)，只影响 videoId 这一个视频。
      */
-    public Result<Map<String,Object>> obscureMyVideo(String upId,List<String> userIds){
+    public Result<Map<String,Object>> obscureMyVideo(String upId, long videoId, List<String> userIds){
         if (userIds == null || userIds.isEmpty()) return Result.fail("请选择要屏蔽的用户");
-        int k=vm.obscureMyVideoBatch(upId,userIds);
+        if (vm.countVideoOwner(videoId, upId) == 0) return Result.fail("只能屏蔽自己发布的视频");
+        int k=vm.obscureMyVideoBatch(upId, videoId, userIds);
         if(k==0) return Result.fail("屏蔽失败！");
-        return Result.success("屏蔽成功！",Map.of("upId",upId,"userId",userIds));
+        return Result.success("屏蔽成功！",Map.of("upId",upId,"videoId",videoId,"userId",userIds));
     }
     /**
      * 取消我的屏蔽，批量操作
+     * videoId 传 null = 解除我所有视频里对这些人的屏蔽；传具体视频 = 只解除这个视频下的屏蔽
      */
-    public Result<Map<String,Object>> cancelShieldBatch(String upId, List<String> userIds){
+    public Result<Map<String,Object>> cancelShieldBatch(String upId, Long videoId, List<String> userIds){
         if (userIds == null || userIds.isEmpty())
             return Result.fail("请选择要取消屏蔽的用户");
         // upId由Controller从session取好后传入，此处不再校验来源
-        int affected = vm.cancelShieldBatch(upId, userIds);
-        return Result.success("解屏成功！", Map.of(
-                "upId", upId,
-                "userIds", userIds,
-                "affected", affected
-        ));
+        int affected = vm.cancelShieldBatch(upId, videoId, userIds);
+        Map<String,Object> data = new HashMap<>();
+        data.put("upId", upId);
+        data.put("videoId", videoId);
+        data.put("userIds", userIds);
+        data.put("affected", affected);
+        return Result.success("解屏成功！", data);
     }
     /**
-     * 查看我屏蔽了多少人
+     * 查看我屏蔽了多少人（按人去重）
      *
      * **/
     public int countHowManyPeopleIObscured(String upId){
         return vm.countHowManyPeopleIObscured(upId);
     }
     /**
-     * 查看我屏蔽的人的信息
+     * 查看我屏蔽的人的信息（视频级；videoId 传 null 查全部视频）
      * **/
-    public Result<List<Map<String,Object>>> selectObscuredUsersInformation(String upId){
-        return Result.success(vm.selectObscuredUsersInformation(upId));
+    public Result<List<Map<String,Object>>> selectObscuredUsersInformation(String upId, Long videoId){
+        return Result.success(vm.selectObscuredUsersInformation(upId, videoId));
     }
 }

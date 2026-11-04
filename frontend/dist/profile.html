@@ -1,0 +1,148 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>频道 - YouTube</title>
+    <link rel="stylesheet" href="/css/vars.css">
+    <script>(function(){try{var s=localStorage.getItem('yt-theme');var d=s==='dark'||(s!=='light'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
+    <link rel="stylesheet" href="/css/dark.css">
+    <link rel="stylesheet" href="/css/style.css?v=3">
+    <link rel="stylesheet" href="/css/channel.css?v=9">
+</head>
+<body>
+    <div id="app-header"></div>
+
+    <div class="ch-wrap">
+        <!-- 横幅 -->
+        <div class="ch-banner" id="ch-banner"></div>
+
+        <!-- 频道头部：居中头像 + 名称/订阅数/简介/关注按钮 -->
+        <div class="ch-head">
+            <span class="ch-avatar" id="ch-av"></span>
+            <div class="ch-meta">
+                <h1 class="ch-title" id="ch-name">加载中…</h1>
+                <div class="ch-sub" id="ch-stats"></div>
+                <div class="ch-bio" id="ch-bio"></div>
+                <div class="ch-actions">
+                    <button class="btn ch-follow" id="ch-follow" style="display:none;">关注</button>
+                    <a href="#" class="btn sm" id="ch-pm" style="display:none;">✉️ 私信</a>
+                    <a href="upload.html" class="btn red sm" id="ch-upload" style="display:none;">&#8679; 上传视频</a>
+                </div>
+                <div class="ch-mini" id="ch-id"></div>
+                <div class="ch-bday" id="ch-bday" style="display:none;">
+                    <svg class="bday-ic" viewBox="0 0 24 24" width="16" height="16" fill="none"
+                         stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+                         aria-hidden="true">
+                        <!-- 火苗 -->
+                        <path d="M12 2.2c1.3 1.2 1.8 2.1 1.8 2.8a1.8 1.8 0 0 1-3.6 0c0-.7.5-1.6 1.8-2.8z"
+                              fill="currentColor" stroke="none"/>
+                        <!-- 蜡烛 -->
+                        <path d="M12 6.7v4.5"/>
+                        <!-- 奶油上沿 -->
+                        <path d="M4 11.2a2 2 0 0 1 4 0 2 2 0 0 1 4 0 2 2 0 0 1 4 0 2 2 0 0 1 4 0"/>
+                        <!-- 蛋糕体 -->
+                        <path d="M4 11.2v5.6c0 1 .8 1.8 1.8 1.8h12.4c1 0 1.8-.8 1.8-1.8v-5.6"/>
+                        <!-- 盘子 -->
+                        <path d="M2.6 20.4h18.8"/>
+                    </svg>
+                    <span>生日</span>
+                    <span id="ch-bday-val" class="bday-empty">未设置</span>
+                    <button class="btn sm" id="ch-bday-edit" type="button">设置</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 标签栏：首页 / 视频 / 收藏夹 / 关注与粉丝 -->
+        <div class="ch-tabs">
+            <button class="ch-tab active" data-tab="home">首页</button>
+            <button class="ch-tab" data-tab="videos">视频</button>
+            <button class="ch-tab" data-tab="plays">收藏夹</button>
+            <button class="ch-tab" data-tab="social">关注与粉丝</button>
+            <!-- 仅「自己的频道」可见：由 profile.js 在 isMine 时取消 display:none -->
+            <button class="ch-tab" data-tab="shield" id="tab-shield" style="display:none;">屏蔽名单</button>
+        </div>
+        <div class="ch-tab-line"></div>
+
+        <!-- 首页：精选一条大卡 + 其余网格 -->
+        <div class="ch-panel" id="panel-home">
+            <div id="ch-feature"></div>
+            <div class="ch-grid" id="ch-grid"></div>
+            <div class="empty" id="empty" style="display:none;"></div>
+        </div>
+
+        <!-- 视频：列表视图（保留原操作按钮） -->
+        <div class="ch-panel" id="panel-videos" style="display:none;">
+            <div class="vlist" id="vlist"></div>
+        </div>
+
+        <!-- 收藏夹：卡片网格，点击展开该夹内的视频 -->
+        <div class="ch-panel" id="panel-plays" style="display:none;">
+            <div class="ch-grid" id="pl-grid"></div>
+            <div class="empty" id="pl-empty" style="display:none;"></div>
+            <div id="pl-detail" style="margin-top:24px;"></div>
+        </div>
+
+        <!-- 关注与粉丝 -->
+        <div class="ch-panel" id="panel-social" style="display:none;">
+            <div class="ch-social">
+                <div>
+                    <div class="ch-col-title" id="sc-follow-title">关注</div>
+                    <div id="sc-follow"></div>
+                </div>
+                <div>
+                    <div class="ch-col-title" id="sc-fans-title">粉丝</div>
+                    <div id="sc-fans"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 屏蔽名单：只有自己的频道才看得到（tab 按钮也是 isMine 时才显示） -->
+        <div class="ch-panel" id="panel-shield" style="display:none;">
+            <div class="ch-col-title" id="sh-title">屏蔽名单</div>
+            <div class="sh-tip" id="sh-tip">
+                屏蔽是「按视频」的：你只在某个视频下屏蔽 TA，TA 仍然能看到你其它的视频。
+            </div>
+
+            <!-- 给某个视频添加屏蔽：不依赖评论区，对方没评论过也能屏蔽 -->
+            <div class="sh-add" id="sh-add">
+                <select id="sh-add-video" aria-label="选择要屏蔽的视频"></select>
+                <div class="sh-add-user">
+                    <input type="text" id="sh-add-input" autocomplete="off"
+                           placeholder="搜索昵称，或直接输入用户 ID" aria-label="要屏蔽的用户">
+                    <div class="sh-add-drop" id="sh-add-drop" style="display:none;"></div>
+                </div>
+                <button class="btn sm primary" id="sh-add-btn" type="button">加入屏蔽名单</button>
+            </div>
+
+            <div class="sh-toolbar" id="sh-toolbar" style="display:none;">
+                <label class="sh-selall">
+                    <input type="checkbox" id="sh-check-all">
+                    <span>全选</span>
+                </label>
+                <button class="btn sm" id="sh-unshield" type="button" disabled>解除屏蔽</button>
+            </div>
+            <div id="sh-list"></div>
+        </div>
+    </div>
+
+    <!-- 生日设置弹窗 -->
+    <div class="bday-modal" id="bday-modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="bday-title">
+        <div class="bday-box">
+            <div class="bday-head" id="bday-title">设置生日</div>
+            <div class="bday-body">
+                <input type="date" id="bday-input" aria-label="生日">
+                <div class="bday-tip">生日只用于个人资料展示，保存后可随时修改。</div>
+            </div>
+            <div class="bday-foot">
+                <button class="btn sm" id="bday-cancel" type="button">取消</button>
+                <button class="btn primary sm" id="bday-save" type="button">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/theme.js?v=1"></script>
+    <script src="/js/common.js?v=18"></script>
+    <script src="/js/profile.js?v=18"></script>
+</body>
+</html>

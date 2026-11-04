@@ -1,0 +1,152 @@
+/* 短视频页样式：竖屏滑动流，配色走主题变量 */
+.sf-wrap {
+    height: calc(100vh - 56px);
+    overflow-y: scroll;
+    scroll-snap-type: y mandatory;
+    scrollbar-width: none;
+}
+.sf-wrap::-webkit-scrollbar { display: none; }
+
+.sf-item {
+    position: relative;
+    height: calc(100vh - 56px);
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    display: flex; align-items: center; justify-content: center;
+    background: #000;
+}
+.sf-item video {
+    max-width: 100%; max-height: 100%;
+    width: auto; height: 100%;
+    display: block;
+}
+/* 横屏素材在竖屏流里左右留黑，避免拉伸 */
+.sf-item.landscape video { width: 100%; height: auto; }
+
+/* 底部信息（标题 / UP主 / 时间） */
+.sf-info {
+    position: absolute; left: 0; right: 84px; bottom: 22px;
+    padding: 0 20px;
+    color: #fff;
+    z-index: 3;
+    text-shadow: 0 1px 6px rgba(0,0,0,.7);
+    pointer-events: none;
+}
+.sf-info a { pointer-events: auto; }
+.sf-title { font-size: 15px; line-height: 1.45; margin-bottom: 6px; word-break: break-word; }
+.sf-sub { font-size: 13px; color: rgba(255,255,255,.75); }
+.sf-sub .sf-up { color: #fff; font-weight: 500; text-decoration: none; }
+.sf-sub .sf-up:hover { text-decoration: underline; }
+
+/* 右侧操作栏 */
+.sf-bar {
+    position: absolute; right: 12px; bottom: 22px; z-index: 3;
+    display: flex; flex-direction: column; align-items: center; gap: 20px;
+}
+.sf-act {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    color: #fff; background: none; border: 0; cursor: pointer;
+    font-size: 12px; padding: 0;
+}
+.sf-act .sf-ic {
+    width: 44px; height: 44px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,.15);
+}
+.sf-act:hover .sf-ic { background: rgba(255,255,255,.28); }
+.sf-act.on .sf-ic { background: rgba(255,255,255,.34); }
+.sf-act svg { width: 24px; height: 24px; }
+.sf-act.on svg { fill: #fff; }
+.sf-avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 2px solid #fff; object-fit: cover; background: var(--surface-3);
+}
+.sf-avatar-wrap { margin-bottom: 4px; }
+
+/* 静音按钮与进度条 */
+.sf-mute {
+    position: absolute; right: 12px; top: 14px; z-index: 3;
+    width: 38px; height: 38px; border-radius: 50%;
+    border: 0; cursor: pointer;
+    background: rgba(0,0,0,.45); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+}
+.sf-mute:hover { background: rgba(0,0,0,.7); }
+.sf-prog {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 3px; z-index: 4;
+    background: rgba(255,255,255,.25);
+}
+.sf-prog i { display: block; height: 100%; width: 0; background: #ff0033; }
+
+/* 中央播放/暂停提示 */
+.sf-playhint {
+    position: absolute; inset: 0; z-index: 2;
+    display: flex; align-items: center; justify-content: center;
+    color: rgba(255,255,255,.85); pointer-events: none;
+    opacity: 0; transition: opacity .2s;
+}
+.sf-playhint.show { opacity: 1; }
+.sf-playhint svg { width: 62px; height: 62px; }
+
+.sf-loading {
+    position: fixed; inset: 56px 0 0 0; z-index: 5;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-secondary); font-size: 14px; background: var(--bg);
+}
+.sf-tip {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 6;
+    height: 40px; display: flex; align-items: center; justify-content: center;
+    color: rgba(255,255,255,.85); font-size: 13px;
+    text-shadow: 0 1px 4px rgba(0,0,0,.8);
+    pointer-events: none;
+}
+.sf-end {
+    height: 92px; display: flex; align-items: center; justify-content: center;
+    color: rgba(255,255,255,.6); font-size: 13px; background: #000;
+}
+
+/* ---------- 评论抽屉 ---------- */
+.sf-mask {
+    position: fixed; inset: 0; z-index: 120;
+    background: rgba(0,0,0,.55);
+    display: none;
+}
+.sf-mask.open { display: block; }
+.sf-drawer {
+    position: fixed; top: 56px; right: 0; bottom: 0; z-index: 121;
+    width: min(380px, 92vw);
+    background: var(--bg); border-left: 1px solid var(--border);
+    display: none; flex-direction: column;
+}
+.sf-drawer.open { display: flex; }
+.sf-dh {
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+    font-size: 15px; font-weight: 500;
+    display: flex; align-items: center; justify-content: space-between;
+}
+.sf-dh button { background: none; border: 0; color: var(--text-secondary); font-size: 20px; cursor: pointer; line-height: 1; }
+.sf-dlist { flex: 1; overflow-y: auto; padding: 12px 16px; }
+.sf-cmt { display: flex; gap: 10px; margin-bottom: 16px; }
+.sf-cmt img, .sf-cmt .sf-cav {
+    width: 34px; height: 34px; border-radius: 50%; object-fit: cover;
+    background: var(--surface-3); flex-shrink: 0;
+}
+.sf-cbody { flex: 1; min-width: 0; }
+.sfcname { font-size: 13px; color: var(--text-secondary); margin-bottom: 2px; }
+.sfctext { font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+.sf-dfoot {
+    border-top: 1px solid var(--border); padding: 10px 12px;
+    display: flex; gap: 8px; align-items: flex-end;
+}
+.sf-dfoot textarea {
+    flex: 1; resize: none; height: 38px; max-height: 120px;
+    padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--text-primary); font-size: 14px; font-family: inherit;
+}
+.sf-dfoot textarea:focus { outline: none; border-color: var(--text-secondary); }
+.sf-dfoot .btn { flex-shrink: 0; }
+
+@media (max-width: 700px) {
+    .sf-info { right: 72px; padding: 0 12px; }
+    .sf-bar { right: 8px; gap: 16px; }
+}

@@ -11,7 +11,8 @@
 
     // ---------- 视频详情 ----------
     try {
-        const res = await YT.api.get('/api/video/select/video/single/infor', { id });
+        // 带上 viewerId：如果 UP 主在这个视频下屏蔽了我，后端返回空数组，下面会提示不可见
+        const res = await YT.api.get('/api/video/select/video/single/infor', { id, viewerId: currentUserId });
         video = (res.data || [])[0];
     } catch (e) { YT.toast('详情加载失败：' + e.message); }
 
@@ -29,14 +30,14 @@
     // 所以这里另起一个不冲突的名字，避免在 item()/opBtns() 里拿到错误的值。
     const isUpOwner = !!currentUserId && currentUserId === upId;
 
-    // 我是 UP 主时，先把自己屏蔽过的人拉下来：
+    // 我是 UP 主时，先把自己在这个视频下屏蔽过的人拉下来（按 videoId 过滤，只针对本视频）：
     // 1) 评论按钮才能正确渲染成"已屏蔽" 2) 支持在评论区就地解除屏蔽
     // 用 shieldReady 保证 loadComments 首次渲染前它已经就绪，否则会出现按钮状态闪烁/错位。
     // 这块必须声明得很靠前：上面 runSilentAudit 的 2 秒定时器里也会调 loadComments()，
     // 而 loadComments 里有 `await shieldReady`——const 存在暂时性死区，声明晚了会抛 ReferenceError。
     const shieldedIds = new Set();
     const shieldReady = isUpOwner
-        ? YT.api.get('/api/video/select/my/obscured/user', { upId: currentUserId })
+        ? YT.api.get('/api/video/select/my/obscured/user', { upId: currentUserId, videoId: id })
             .then(r => {
                 ((r && r.data) || []).forEach(u => {
                     const uid = String(YT.pick(u, 'user_id'));
@@ -432,7 +433,7 @@
         const icon = myLiked ? cmtSvgLiked : cmtSvgLike;
 
         // 屏蔽按钮：只有「我是这个视频的 UP 主」且「评论不是我自己的」才显示。
-        // 后端是 upId 屏蔽 userId 的关系表，所以按钮语义跟着 shieldedIds 切换。
+        // 后端是 (up_id, video_id, user_id) 的视频级关系表，所以这里按「本视频」的 shieldedIds 切换。
         const uid = YT.esc(commentUid);
         let shieldBtn = '';
         if (isUpOwner && commentUid && !isMine) {
@@ -656,6 +657,7 @@
 
         // 2.0 屏蔽 / 解除屏蔽（按钮只有视频 UP 主才看得到）
         // data-shield-user="xxx" → 屏蔽此人；data-unshield-user="xxx" → 已屏蔽，点了解除
+        // 视频级屏蔽：请求必须带 videoId，只影响当前这个视频，不会再把 TA 挡在其它视频外面
         if (cid.shieldUser || cid.unshieldUser) {
             if (!isUpOwner) return;
             const uid = String(cid.shieldUser || cid.unshieldUser);
@@ -663,12 +665,12 @@
             const shielding = !!cid.shieldUser;
             const nm = cid.shieldName || uid;
             if (!confirm(shielding
-                ? `确定屏蔽 @${nm}？屏蔽后 TA 的评论将不再出现在你的视频下。`
-                : `确定解除对 @${nm} 的屏蔽？解除后 TA 的评论会重新显示。`)) return;
+                ? `确定屏蔽 @${nm}？屏蔽后 TA 将看不到这个视频，TA 的评论也不会出现在这个视频下（你其它视频不受影响）。`
+                : `确定解除对 @${nm} 的屏蔽？解除后 TA 又能看到这个视频并在这里评论。`)) return;
             try {
                 const r = await YT.api.post(
                     shielding ? '/api/video/obscure/users' : '/api/video/cancel/obscure',
-                    { upId: currentUserId, userIds: [uid] }
+                    { upId: currentUserId, videoId: id, userIds: [uid] }
                 );
                 if (r && r.success) {
                     if (shielding) shieldedIds.add(uid); else shieldedIds.delete(uid);

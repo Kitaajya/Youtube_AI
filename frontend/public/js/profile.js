@@ -269,7 +269,8 @@
 
     let list = [];
     try {
-        const r = await YT.api.get('/api/video/select', { userId });
+        // viewerId 传当前看的人：视频级屏蔽时，被这个视频屏蔽的人在这里也看不到它
+        const r = await YT.api.get('/api/video/select', { userId, viewerId: me ? me.userId : '' });
         list = r.data || [];
     } catch (e) {
         listBox.innerHTML = '';
@@ -365,23 +366,22 @@
         });
     }
 
-    // ---------- 屏蔽名单模块（后端 /api/video/*obscure*） ----------
-    // GET  /api/video/select/my/obscured/user?upId=   我屏蔽的人（列表）
-    // POST /api/video/cancel/obscure   (upId, userIds[]) 批量解除屏蔽
-    // POST /api/video/obscure/users    (upId, userIds[]) 批量屏蔽（入口在播放页评论区）
+    // ---------- 屏蔽名单模块（视频级） ----------
+    // 一行 = 一个视频屏蔽一个人，所以同一个人可能出现在多个视频分组里
+    // GET  /api/video/select/my/obscured/user?upId=&videoId=   我屏蔽的人（带 video_id / video_title）
+    // POST /api/video/cancel/obscure   (upId, videoId, userIds[]) 解除屏蔽（带 videoId = 只解除该视频的）
+    // POST /api/video/obscure/users    (upId, videoId, userIds[]) 屏蔽（入口在播放页评论区 / 上传页）
     const shList = $('#sh-list');
     const shTitle = $('#sh-title');
     const shToolbar = $('#sh-toolbar');
     const shCheckAll = $('#sh-check-all');
     const shUnshield = $('#sh-unshield');
-    let shields = [];      // 后端原始返回
+    let shields = [];      // 后端原始返回，一行一个 (video_id, user_id)
     let shieldBusy = false;
     let shieldLoaded = false;
 
-    // 后端 selectObscuredUsersInformation 目前是 `SELECT * FROM video_shield`，
-    // 只有 up_id / user_id / create_time，【没有 nickname 和 avatar】。
-    // 这里做降级：能从已加载的关注/粉丝列表里查到昵称就用，查不到就退回显示 user_id，
-    // 并在提示条里说明原因。要让这里稳定显示昵称头像，需改后端那条 SQL 去 JOIN user_information。
+    // 后端这条 SQL 已经 JOIN 了 user_information 和 video，正常能拿到 nickname/avatar/video_title；
+    // 查不到昵称时退回关注/粉丝列表或直接显示 user_id，保证老数据也不至于空白。
     function shieldName(u) {
         const uid = String(YT.pick(u, 'user_id'));
         const direct = String(YT.pick(u, 'nickname') || '').trim();
@@ -398,18 +398,50 @@
         return !!String(YT.pick(u, 'nickname') || '').trim();
     }
 
+    // 一行屏蔽记录：勾选框的 value 用 "videoId|userId" 保证同一个人在不同视频下不会被混成一条
     function shieldCard(u) {
         const uid = String(YT.pick(u, 'user_id'));
+        const vid = String(YT.pick(u, 'video_id') || '');
         const nm = shieldName(u);
         return `
-        <div class="sh-card" data-uid="${YT.esc(uid)}">
-            <input type="checkbox" data-sh-check="${YT.esc(uid)}" aria-label="选择 ${YT.esc(nm)}">
+        <div class="sh-card" data-uid="${YT.esc(uid)}" data-video-id="${YT.esc(vid)}">
+            <input type="checkbox" data-sh-check="${YT.esc(vid)}|${YT.esc(uid)}" aria-label="选择 ${YT.esc(nm)}">
             <span class="avatar">${shieldAvatar(u)}</span>
             <div class="uc-txt">
                 <div class="uc-name">${YT.esc(nm)}</div>
                 <div class="w-stats">ID: ${YT.esc(uid)}${YT.pick(u, 'create_time') ? ' · 屏蔽于 ' + YT.timeAgo(YT.pick(u, 'create_time')) : ''}</div>
             </div>
-            <button class="btn sm" data-unshield="${YT.esc(uid)}" type="button">解除屏蔽</button>
+            <button class="btn sm" data-unshield="${YT.esc(uid)}" data-video-id="${YT.esc(vid)}" type="button">解除屏蔽</button>
+        </div>`;
+    }
+
+    // 按视频分组：一个视频一个区块，区块头显示视频标题 + 该视频屏蔽了多少人
+    function groupByVideo(rows) {
+        const map = new Map();
+        rows.forEach(u => {
+            const vid = String(YT.pick(u, 'video_id') || '');
+            if (!map.has(vid)) {
+                map.set(vid, {
+                    videoId: vid,
+                    title: String(YT.pick(u, 'video_title') || ('视频 #' + vid)),
+                    rows: [],
+                });
+            }
+            map.get(vid).rows.push(u);
+        });
+        return Array.from(map.values());
+    }
+
+    function renderGroup(g) {
+        return `
+        <div class="sh-group" data-group-video="${YT.esc(g.videoId)}">
+            <div class="sh-group-head">
+                <a class="sh-group-title" href="watch.html?id=${encodeURIComponent(g.videoId)}"
+                   title="${YT.esc(g.title)}">${YT.esc(g.title)}</a>
+                <span class="w-stats">#${YT.esc(g.videoId)} · 已屏蔽 ${g.rows.length} 人</span>
+                <button class="btn sm" type="button" data-unshield-video="${YT.esc(g.videoId)}">解除该视频全部</button>
+            </div>
+            ${g.rows.map(shieldCard).join('')}
         </div>`;
     }
 
@@ -418,15 +450,22 @@
         if (!tip) return;
         const needJoin = shields.length > 0 && !shields.every(hasProfile);
         tip.textContent = needJoin
-            ? '被屏蔽的用户，其评论不会出现在你发布的视频下面。（注：后端未返回昵称头像，下方部分条目显示为用户ID）'
-            : '被屏蔽的用户，其评论不会出现在你发布的视频下面。';
+            ? '屏蔽是「按视频」的：只在某个视频下屏蔽 TA，TA 仍然能看你其它视频。下方部分条目因缺少昵称只显示用户 ID。'
+            : '屏蔽是「按视频」的：只在某个视频下屏蔽 TA，TA 仍然能看你其它视频。';
     }
 
-    function checkedUids() {
-        return Array.from(shList.querySelectorAll('input[data-sh-check]:checked')).map(i => i.dataset.shCheck);
+    // 勾选框 value 形如 "视频ID|用户ID"
+    function checkedPairs() {
+        return Array.from(shList.querySelectorAll('input[data-sh-check]:checked'))
+            .map(i => String(i.dataset.shCheck || ''))
+            .filter(v => v.includes('|'))
+            .map(v => {
+                const [videoId, uid] = v.split('|');
+                return { videoId, uid };
+            });
     }
     function syncToolbar() {
-        const n = checkedUids().length;
+        const n = checkedPairs().length;
         shUnshield.disabled = n === 0 || shieldBusy;
         shUnshield.textContent = n > 0 ? `解除屏蔽（${n}）` : '解除屏蔽';
         const boxes = shList.querySelectorAll('input[data-sh-check]');
@@ -435,11 +474,14 @@
     }
 
     function renderShields() {
-        shTitle.textContent = `屏蔽名单 · ${shields.length}`;
+        const groups = groupByVideo(shields);
+        shTitle.textContent = shields.length
+            ? `屏蔽名单 · ${groups.length} 个视频 / ${shields.length} 条`
+            : '屏蔽名单';
         shToolbar.style.display = shields.length ? 'flex' : 'none';
         shList.innerHTML = shields.length
-            ? shields.map(shieldCard).join('')
-            : '<div class="w-stats">你还没有屏蔽任何人。在自己视频的评论区点「屏蔽此人」即可屏蔽。</div>';
+            ? groups.map(renderGroup).join('')
+            : '<div class="w-stats">你还没有屏蔽任何人。在自己视频的评论区点「屏蔽此人」，屏蔽只对那条视频生效。</div>';
         paintShieldTip();
         syncToolbar();
     }
@@ -461,34 +503,135 @@
         }
     }
 
-    // 解除屏蔽（单个按钮 + 批量勾选都走这里）
-    async function doUnshield(uids) {
-        if (!uids.length || shieldBusy) return;
-        if (!confirm(`确定解除这 ${uids.length} 位用户的屏蔽？解除后他们的评论会重新出现在你的视频下。`)) return;
+    // 解除屏蔽（单个按钮 / 视频分组按钮 / 批量勾选都走这里）
+    // pairs: [{videoId, uid}] —— 后端一次只接受一个 videoId，所以按视频分组后并发提交
+    async function doUnshield(pairs) {
+        if (!pairs.length || shieldBusy) return;
+        const n = pairs.length;
+        if (!confirm(`确定解除这 ${n} 条屏蔽？解除后 TA 又能看到对应视频（只影响这些视频，其它视频下的屏蔽保留）。`)) return;
         shieldBusy = true;
         shUnshield.disabled = true;
         try {
-            const r = await YT.api.post('/api/video/cancel/obscure', { upId: me.userId, userIds: uids });
-            if (r && r.success) {
-                YT.toast(r.message || '已解除屏蔽');
-                const set = new Set(uids.map(String));
-                shields = shields.filter(u => !set.has(String(YT.pick(u, 'user_id'))));
+            const byVideo = new Map();
+            pairs.forEach(p => {
+                const vid = String(p.videoId);
+                if (!byVideo.has(vid)) byVideo.set(vid, []);
+                byVideo.get(vid).push(String(p.uid));
+            });
+            const results = await Promise.all(Array.from(byVideo.entries()).map(([videoId, uids]) =>
+                YT.api.post('/api/video/cancel/obscure', { upId: me.userId, videoId, userIds: uids })
+            ));
+            const bad = results.find(r => !(r && r.success));
+            if (!bad) {
+                YT.toast(`已解除 ${n} 条屏蔽`);
+                const done = new Set(pairs.map(p => `${p.videoId}|${p.uid}`));
+                shields = shields.filter(u => !done.has(`${YT.pick(u, 'video_id')}|${YT.pick(u, 'user_id')}`));
                 renderShields();
             } else {
-                YT.toast((r && r.message) || '解除屏蔽失败');
-                shUnshield.disabled = false;
+                YT.toast((bad && bad.message) || '解除屏蔽失败');
             }
         } catch (e) {
             YT.toast('解除屏蔽失败：' + (e.message || '网络错误'));
-            shUnshield.disabled = false;
         } finally {
             shieldBusy = false;
+            shUnshield.disabled = false;
+            syncToolbar();
+        }
+    }
+
+    // ---- 给「某个视频」添加屏蔽：不依赖评论区，对方没评论过也能屏蔽 ----
+    // 入口在屏蔽名单顶部：先选视频，再搜人（或直接填用户 ID），最后提交
+    const shAddSel = $('#sh-add-video');
+    const shAddInput = $('#sh-add-input');
+    const shAddDrop = $('#sh-add-drop');
+    const shAddBtn = $('#sh-add-btn');
+    let shAddPicked = null;   // 从搜索下拉里点中的用户 {userId, nickname}
+
+    function fillShieldVideoSelect() {
+        if (!shAddSel) return;
+        shAddSel.innerHTML = list.map(v =>
+            `<option value="${YT.esc(YT.pick(v, 'id'))}">${YT.esc(YT.pick(v, 'title'))}</option>`
+        ).join('');
+    }
+
+    async function addShield() {
+        if (!me || shieldBusy) return;
+        const videoId = shAddSel && shAddSel.value;
+        const typed = ((shAddInput && shAddInput.value) || '').trim();
+        const uid = shAddPicked ? String(shAddPicked.userId) : typed;
+        if (!videoId) return YT.toast('请选择要屏蔽的视频');
+        if (!uid) return YT.toast('请选择或输入要屏蔽的用户');
+        shieldBusy = true;
+        shAddBtn.disabled = true;
+        let ok = false;
+        try {
+            const r = await YT.api.post('/api/video/obscure/users', {
+                upId: me.userId, videoId, userIds: [uid],
+            });
+            ok = !!(r && r.success);
+            if (ok) {
+                YT.toast('已加入屏蔽名单：TA 看不到这个视频');
+                shAddInput.value = '';
+                shAddPicked = null;
+            } else {
+                YT.toast((r && r.message) || '屏蔽失败');
+            }
+        } catch (e) {
+            YT.toast('屏蔽失败：' + (e.message || '网络错误'));
+        } finally {
+            shieldBusy = false;
+            if (shAddBtn) shAddBtn.disabled = false;
+        }
+        // 必须等 shieldBusy 放开后再刷，否则 loadShields 会直接 return
+        if (ok) {
+            shieldLoaded = false;
+            await loadShields(true);
         }
     }
 
     if (isMine) {
         const tabShield = $('#tab-shield');
         if (tabShield) tabShield.style.display = '';
+
+        // 添加屏蔽：视频下拉 + 用户搜索 / 直接输入 ID
+        if (shAddSel && shAddInput && shAddDrop && shAddBtn) {
+            fillShieldVideoSelect();
+            let searchTimer = null;
+            shAddInput.addEventListener('input', () => {
+                shAddPicked = null;
+                const kw = shAddInput.value.trim();
+                clearTimeout(searchTimer);
+                if (!kw) { shAddDrop.style.display = 'none'; return; }
+                searchTimer = setTimeout(async () => {
+                    try {
+                        const r = await YT.api.get('/api/user/search', { keyword: kw });
+                        const users = (r.data || []).slice(0, 8);
+                        shAddDrop.innerHTML = users.length
+                            ? users.map(u => {
+                                const uid = YT.pick(u, 'userId') || YT.pick(u, 'user_id');
+                                const nm = YT.pick(u, 'nickname') || uid;
+                                return `<div class="item" data-uid="${YT.esc(uid)}" data-name="${YT.esc(nm)}">${YT.esc(nm)}<span class="w-stats">ID: ${YT.esc(uid)}</span></div>`;
+                            }).join('')
+                            : '<div class="item" style="color:var(--text-tertiary);cursor:default;">没有找到用户，可直接输入用户 ID</div>';
+                        shAddDrop.style.display = 'block';
+                    } catch (e) {
+                        shAddDrop.style.display = 'none';
+                    }
+                }, 300);
+            });
+            shAddDrop.addEventListener('mousedown', e => {
+                const it = e.target.closest('.item[data-uid]');
+                if (!it) return;
+                e.preventDefault();
+                shAddPicked = { userId: it.dataset.uid, nickname: it.dataset.name };
+                shAddInput.value = it.dataset.name;
+                shAddDrop.style.display = 'none';
+            });
+            document.addEventListener('click', e => {
+                if (!shAddDrop.contains(e.target) && e.target !== shAddInput) shAddDrop.style.display = 'none';
+            });
+            shAddBtn.addEventListener('click', addShield);
+        }
 
         shCheckAll.addEventListener('change', () => {
             shList.querySelectorAll('input[data-sh-check]').forEach(i => { i.checked = shCheckAll.checked; });
@@ -497,10 +640,21 @@
         shList.addEventListener('change', e => {
             if (e.target.dataset.shCheck !== undefined) syncToolbar();
         });
-        shUnshield.addEventListener('click', () => doUnshield(checkedUids()));
+        shUnshield.addEventListener('click', () => doUnshield(checkedPairs()));
         shList.addEventListener('click', e => {
-            const uid = e.target.dataset && e.target.dataset.unshield;
-            if (uid) doUnshield([uid]);
+            const t = e.target;
+            if (!t.dataset) return;
+            // 视频分组头：解除这个视频下的全部屏蔽
+            if (t.dataset.unshieldVideo) {
+                const vid = String(t.dataset.unshieldVideo);
+                const rows = shields.filter(u => String(YT.pick(u, 'video_id')) === vid);
+                doUnshield(rows.map(u => ({ videoId: vid, uid: String(YT.pick(u, 'user_id')) })));
+                return;
+            }
+            // 单条：解除某人在某个视频下的屏蔽
+            if (t.dataset.unshield) {
+                doUnshield([{ videoId: String(t.dataset.videoId || ''), uid: String(t.dataset.unshield) }]);
+            }
         });
     }
 

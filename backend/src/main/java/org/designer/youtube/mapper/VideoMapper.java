@@ -62,37 +62,49 @@ public interface VideoMapper {
     """)
     List<Map<String,Object>> selectVideoTitle();
     //查看某人的视频，根据用户id（附带点赞数，供个人主页展示）
+    //viewerId：看的人。非空时把"这个视频屏蔽了 viewerId"的视频过滤掉（视频级屏蔽，不再整站隐藏）
     @Select("""
+    <script>
     SELECT v.*,
            (SELECT COUNT(*) FROM video_like vl WHERE vl.video_id = v.id) AS like_count
     FROM video v
     WHERE v.user_id=#{userId}
+    <if test="viewerId != null and viewerId != ''">
+        AND NOT EXISTS (
+            SELECT 1 FROM video_shield vs
+            WHERE vs.video_id = v.id
+              AND vs.user_id = #{viewerId}
+        )
+    </if>
     ORDER BY v.create_time DESC
+    </script>
     """)
-    List<Map<String,Object>> selectVideo(@Param("userId") String userId);
+    List<Map<String,Object>> selectVideo(@Param("userId") String userId,
+                                         @Param("viewerId") String viewerId);
     //按照视频标题查询视频
     @Select("""
     SELECT * FROM video WHERE title=#{title}
     """)
     List<Map<String,Object>> selectVideoByTitle(@Param("title") String title);
     // 查全部视频+UP主信息（包含了屏蔽过滤）
+    // 视频级屏蔽：只藏"被这个视频屏蔽"的那条，不再因为屏蔽一个人就藏掉他的全部视频
     @Select("""
+            <script>
             SELECT v.id, v.user_id, v.title, v.video_path, v.create_time, v.view_count,
                    (SELECT COUNT(*) FROM video_like vl WHERE vl.video_id = v.id) AS like_count,
                    u.nickname AS uploader, u.avatar AS uploader_avatar
             FROM video v
             LEFT JOIN user_information u ON v.user_id = u.user_id
-            WHERE (
-                -- 情况1：游客没登录，viewerId是空的，直接放行所有视频
-                #{viewerId} IS NULL OR #{viewerId} = ''
-            ) OR (
-                -- 情况2：有登录，走严格的屏蔽过滤
-                #{viewerId} IS NOT NULL AND #{viewerId} != '' 
-                AND NOT EXISTS (
-                    SELECT 1 FROM video_shield vs 
-                    WHERE vs.up_id = v.user_id AND vs.user_id = #{viewerId}
-                )
-            )
+            <where>
+                <if test="viewerId != null and viewerId != ''">
+                    AND NOT EXISTS (
+                        SELECT 1 FROM video_shield vs
+                        WHERE vs.video_id = v.id
+                          AND vs.user_id = #{viewerId}
+                    )
+                </if>
+            </where>
+            </script>
             """)
     List<Map<String,Object>> selectVideoAndUpInformation(@Param("viewerId") String viewerId);
     //显示全部视频
@@ -123,14 +135,24 @@ public interface VideoMapper {
    // """)
    // List<Map<String,Object>> selectVideoById(@Param("id")long id);
     @Select("""
+    <script>
     SELECT v.id, v.user_id, v.title, v.video_path, v.cover_path, v.create_time, v.view_count,
            (SELECT COUNT(*) FROM video_like vl WHERE vl.video_id = v.id) AS like_count,
            u.nickname AS uploader, u.avatar AS uploader_avatar
     FROM video v
     LEFT JOIN user_information u ON v.user_id = u.user_id
     WHERE v.id=#{id}
+    <if test="viewerId != null and viewerId != ''">
+        AND NOT EXISTS (
+            SELECT 1 FROM video_shield vs
+            WHERE vs.video_id = v.id
+              AND vs.user_id = #{viewerId}
+        )
+    </if>
+    </script>
     """)
-    List<Map<String,Object>> selectVideoById(@Param("id") long id);
+    List<Map<String,Object>> selectVideoById(@Param("id") long id,
+                                             @Param("viewerId") String viewerId);
     //模糊搜索
     @Select("""
     SELECT v.id, v.user_id, v.title, v.video_path, v.create_time, v.view_count,
@@ -204,7 +226,7 @@ public interface VideoMapper {
     WHERE vc.video_id=#{videoId}
       AND NOT EXISTS (
           SELECT 1 FROM video_shield vs
-          WHERE vs.up_id = (SELECT user_id FROM video WHERE id = vc.video_id)
+          WHERE vs.video_id = vc.video_id
             AND vs.user_id = vc.user_id
       )
 """)
@@ -772,32 +794,36 @@ public interface VideoMapper {
     List<Map<String,Object>> selectHotVideos();
 
     /**
-     * 我的视频屏蔽某些人，这些人不需要我任何条件就可以被我屏蔽
-     屏蔽：INSERT IGNORE 幂等，重复屏蔽不报主键冲突。
-     注：是把upId屏蔽userId。
-    批量屏蔽：upId 一次屏蔽 userIds 里的所有人
-    ON DUPLICATE KEY UPDATE 保证重复屏蔽幂等，不报主键冲突
+     * 我的某个视频屏蔽某些人（视频级屏蔽）：
+     *   video_shield 一行 = (up_id, video_id, user_id)，即"这个视频不给这个人看"。
+     *   同一个人可以在 A 视频被屏蔽、在 B 视频照常可见——这是和旧版全站屏蔽的本质区别。
+     * 屏蔽：批量插入，ON DUPLICATE KEY UPDATE 保证重复屏蔽幂等，不报主键冲突。
      */
     @Insert("""
     <script>
-    INSERT INTO video_shield (up_id, user_id) VALUES
+    INSERT INTO video_shield (up_id, video_id, user_id) VALUES
     <foreach collection="userIds" item="uid" separator=",">
-        (#{upId}, #{uid})
+        (#{upId}, #{videoId}, #{uid})
     </foreach>
     ON DUPLICATE KEY UPDATE create_time = create_time
     </script>
     """)
     int obscureMyVideoBatch(@Param("upId") String upId,
+                            @Param("videoId") long videoId,
                             @Param("userIds") List<String> userIds);
 
     /**
-     * 取消我的屏蔽，批量操作
-     *
+     * 取消我的屏蔽，批量操作。
+     * videoId 传 null = 解除这个 UP 主名下所有视频对这些人的屏蔽（个人主页批量清人用）；
+     * 传具体视频 ID = 只解除这个视频下的屏蔽。
      * **/
     @Delete("""
     <script>
     DELETE FROM video_shield
     WHERE up_id = #{upId}
+    <if test="videoId != null">
+        AND video_id = #{videoId}
+    </if>
       AND user_id IN
     <foreach collection="userIds" item="uid" open="(" separator="," close=")">
         #{uid}
@@ -805,25 +831,55 @@ public interface VideoMapper {
     </script>
     """)
     int cancelShieldBatch(@Param("upId")    String upId,
+                          @Param("videoId") Long videoId,
                           @Param("userIds") List<String> userIds);
+
     /**
-     * 查看我屏蔽了多少人
+     * 查看我屏蔽了多少人（按人去重：同一个人被我在 3 个视频屏蔽，只算 1 个人）
      * **/
     @Select("""
-    SELECT COUNT(*) FROM video_shield WHERE up_id = #{upId}
+    SELECT COUNT(DISTINCT user_id) FROM video_shield WHERE up_id = #{upId}
     """)
     int countHowManyPeopleIObscured(@Param("upId") String upId);
+
     /**
-     * 查看我屏蔽的人的信息
-     *
+     * 查看我屏蔽的人的信息（视频级）
+     * 返回 video_id / video_title，前端按视频分组展示；videoId 传 null 表示查全部视频。
      * **/
     @Select("""
-    SELECT vs.up_id, vs.user_id, vs.create_time, u.nickname, u.avatar
+    <script>
+    SELECT vs.up_id, vs.video_id, vs.user_id, vs.create_time,
+           u.nickname, u.avatar, v.title AS video_title
     FROM video_shield vs
     LEFT JOIN user_information u ON vs.user_id = u.user_id
+    LEFT JOIN video v ON vs.video_id = v.id
     WHERE vs.up_id = #{upId}
+    <if test="videoId != null">
+        AND vs.video_id = #{videoId}
+    </if>
+    ORDER BY vs.video_id DESC, vs.create_time DESC
+    </script>
     """)
-    List<Map<String,Object>> selectObscuredUsersInformation(@Param("upId") String upId);
+    List<Map<String,Object>> selectObscuredUsersInformation(@Param("upId") String upId,
+                                                            @Param("videoId") Long videoId);
+
+    /**
+     * 这个人是否被这个视频屏蔽了（评论前校验、播放页判定"不可见"都用它）
+     * **/
+    @Select("""
+    SELECT COUNT(*) FROM video_shield WHERE video_id = #{videoId} AND user_id = #{userId}
+    """)
+    int countShieldByVideoAndUser(@Param("videoId") long videoId,
+                                  @Param("userId") String userId);
+
+    /**
+     * 这个视频是不是这个 UP 主的（屏蔽前校验，防止拿别人的视频 ID 乱屏蔽）
+     * **/
+    @Select("""
+    SELECT COUNT(*) FROM video WHERE id = #{videoId} AND user_id = #{userId}
+    """)
+    int countVideoOwner(@Param("videoId") long videoId,
+                        @Param("userId") String userId);
 
 
 }
