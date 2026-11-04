@@ -168,5 +168,8 @@ public class UserInformationController {
         }
         return Result.successMessage("生日祝福发送完毕，共处理 " + count + " 人");
     }
-
+    @GetMapping("/search")
+    public Result<List<Map<String, Object>>> searchUsers(@RequestParam String keyword) {
+        return userInformationService.searchUsers(keyword);
+    }
 }
