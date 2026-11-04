@@ -30,6 +30,22 @@
             <div class="field">
                 <label>视频标题 <span class="req">*</span></label>
                 <input type="text" id="title" maxlength="200" placeholder="给视频起个标题">
+
+
+                <!-- 选择限制用户（屏蔽） -->
+                <div class="field" style="margin-top: 18px;">
+                    <label for="shield-ids">
+                        限制以下用户观看/评论 <span style="color: var(--text-tertiary); font-weight: 400;">（可选）</span>
+                    </label>
+                    <input type="text" id="shield-ids" placeholder="输入要屏蔽的用户 ID，多个 ID 用逗号隔开"
+                           style="width: 100%; height: 44px; padding: 0 14px; border: 1px solid var(--input-border); border-radius: 8px; background: var(--input-bg); color: var(--text-primary);">
+                    <div class="hint" style="margin-top: 6px; font-size: 12px; color: var(--text-tertiary);">
+                        被屏蔽的用户将无法在你的视频下发表评论，建议直接在视频播放页评论区拉黑。
+                    </div>
+                </div>
+
+
+
             </div>
 
             <div class="prog" id="prog" style="display:none;">
