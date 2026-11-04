@@ -108,8 +108,8 @@ public class VideoService {
         return vm.selectVideoByTitle(title);
     }
     //查全部视频+UP主信息
-    public List<Map<String,Object>> selectVideoAndUpInformation(){
-        return vm.selectVideoAndUpInformation();
+    public List<Map<String,Object>> selectVideoAndUpInformation(String viewerId){
+        return vm.selectVideoAndUpInformation(viewerId);
     }
     //根据up主的昵称查询他的所有视频
     public List<Map<String,Object>> selectVideosByUpName(String userId){

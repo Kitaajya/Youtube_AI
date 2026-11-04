@@ -75,16 +75,26 @@ public interface VideoMapper {
     SELECT * FROM video WHERE title=#{title}
     """)
     List<Map<String,Object>> selectVideoByTitle(@Param("title") String title);
-    //查全部视频+UP主信息
-    String SELECT_WITH_UPLOADER = """
+    // 查全部视频+UP主信息（包含了屏蔽过滤）
+    @Select("""
             SELECT v.id, v.user_id, v.title, v.video_path, v.create_time, v.view_count,
                    (SELECT COUNT(*) FROM video_like vl WHERE vl.video_id = v.id) AS like_count,
                    u.nickname AS uploader, u.avatar AS uploader_avatar
             FROM video v
             LEFT JOIN user_information u ON v.user_id = u.user_id
-            """;
-    @Select(SELECT_WITH_UPLOADER)
-    List<Map<String,Object>> selectVideoAndUpInformation();
+            WHERE (
+                -- 情况1：游客没登录，viewerId是空的，直接放行所有视频
+                #{viewerId} IS NULL OR #{viewerId} = ''
+            ) OR (
+                -- 情况2：有登录，走严格的屏蔽过滤
+                #{viewerId} IS NOT NULL AND #{viewerId} != '' 
+                AND NOT EXISTS (
+                    SELECT 1 FROM video_shield vs 
+                    WHERE vs.up_id = v.user_id AND vs.user_id = #{viewerId}
+                )
+            )
+            """)
+    List<Map<String,Object>> selectVideoAndUpInformation(@Param("viewerId") String viewerId);
     //显示全部视频
     @Select("""
     SELECT * FROM video
@@ -814,4 +824,6 @@ public interface VideoMapper {
     WHERE vs.up_id = #{upId}
     """)
     List<Map<String,Object>> selectObscuredUsersInformation(@Param("upId") String upId);
+
+
 }

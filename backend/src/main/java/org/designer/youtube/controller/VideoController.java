@@ -97,12 +97,13 @@ public class VideoController {
         return Result.success(vs.selectVideoByTitle(title));
     }
 
-    //查全部视频+UP主信息
+    // 查全部视频+UP主信息
     @GetMapping("/select/videos/upinfor")
-    public Result<List<Map<String, Object>>> selectVideoAndUpInformation() {
-        return Result.success(vs.selectVideoAndUpInformation());
+    public Result<List<Map<String, Object>>> selectVideoAndUpInformation(
+            @RequestParam(required = false, defaultValue = "") String viewerId) {
+        // viewerId 是当前看视频的人，如果没登录就是空
+        return Result.success(vs.selectVideoAndUpInformation(viewerId));
     }
-
     //根据up主的昵称查询他的所有视频
     @GetMapping("/select/videos/upname")
     public Result<List<Map<String, Object>>> selectVideosByUpName(@RequestParam String userId) {
