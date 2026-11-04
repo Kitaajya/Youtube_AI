@@ -386,8 +386,10 @@ public class VideoController {
      * 解除屏蔽，批量解除
      * **/
     @PostMapping("/cancel/obscure")
-    public Result<Map<String,Object>> cancelShieldBatch(@RequestParam String upId,@RequestParam List<String> userIds){
-        return vs.cancelShieldBatch(upId,userIds);
+    public Result<Map<String,Object>> cancelShieldBatch(@RequestParam String upId,
+                                                        @RequestParam(required = false) Long videoId,
+                                                        @RequestParam List<String> userIds){
+        return vs.cancelShieldBatch(upId, videoId, userIds);
     }
     /**
      * 查看我屏蔽的人的信息，同时传递我屏蔽的人数
