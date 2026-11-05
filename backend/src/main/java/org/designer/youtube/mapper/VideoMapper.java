@@ -883,7 +883,7 @@ public interface VideoMapper {
     /**
      * @since 2026/11/05/16:57
      * @author Kitaajya/Conan Doyle
-     * @功能 禁止某人评论我的视频，但是可以看我的视频。
+     * @功能 禁止某人评论我的视频，但是可以看我的视频。半拉黑功能
      * **/
     @Insert("""
     INSERT INTO user_block (user_id, blocked_user_id) VALUES (#{userId}, #{blockedUserId})
