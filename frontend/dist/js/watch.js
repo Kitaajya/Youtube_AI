@@ -514,7 +514,7 @@
     async function loadComments() {
         list.innerHTML = '<div class="empty" style="padding:20px;">加载评论…</div>';
         // 我是 UP 主时，先等屏蔽名单到位再渲染，否则"屏蔽/已屏蔽"按钮会先画错再闪一次
-        await shieldReady;
+        await Promise.all([shieldReady, banReady]);
         let data = [];
         try {
             // 加上 currentUserId 传给后端
