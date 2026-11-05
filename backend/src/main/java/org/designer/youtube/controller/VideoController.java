@@ -403,5 +403,19 @@ public class VideoController {
         log.info("屏蔽的人共有{}",vs.countHowManyPeopleIObscured(upId));
         return vs.selectObscuredUsersInformation(upId, videoId);
     }
-
+    /**
+     * @since 2026/11/05/16:57
+     * @author Kitaajya/Conan Doyle
+     * @功能 禁止某人评论我的视频，但是可以看我的视频。
+     * **/
+    @PostMapping("/ban/comment")
+    public Result<Map<String,Object>> blockUser(@RequestParam String upId,
+                                                  @RequestParam String userId){
+        return vs.blockUser(upId, userId);
+    }
+    @PostMapping("/unban/comment")
+    public Result<Map<String,Object>> unblockUser(@RequestParam String upId,
+                                                  @RequestParam String userId){
+        return vs.unblockUser(upId, userId);
+    }
 }
