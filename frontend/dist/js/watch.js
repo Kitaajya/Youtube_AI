@@ -46,6 +46,18 @@
             })
             .catch(() => { /* 拉不到就当没屏蔽过，不影响正常看评论 */ })
         : Promise.resolve();
+        // 新增：已禁止评论的用户ID集合
+        const blockedCommentIds = new Set();
+        const banReady = isUpOwner
+            ? YT.api.get('/api/video/select/my/blocked/users', { upId: currentUserId })
+                .then(r => {
+                    ((r && r.data) || []).forEach(u => {
+                        const uid = String(YT.pick(u, 'blocked_user_id') || YT.pick(u, 'user_id'));
+                        if (uid) blockedCommentIds.add(uid);
+                    });
+                })
+                .catch(() => { /* 拉不到就当没禁止过 */ })
+            : Promise.resolve();
 
     document.title = title + ' - YouTube';
     $('#w-title').textContent = title;
