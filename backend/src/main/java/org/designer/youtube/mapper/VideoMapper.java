@@ -229,6 +229,11 @@ public interface VideoMapper {
           WHERE vs.video_id = vc.video_id
             AND vs.user_id = vc.user_id
       )
+      AND NOT EXISTS (
+          SELECT 1 FROM user_block ub
+          WHERE ub.blocked_user_id = vc.user_id
+            AND ub.user_id = (SELECT user_id FROM video WHERE id = vc.video_id)
+      )
 """)
     List<Map<String,Object>> selectCommentsById(@Param("videoId") long videoId, @Param("userId") String userId);
     //删除我的评论
