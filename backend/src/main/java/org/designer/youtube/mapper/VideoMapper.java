@@ -896,5 +896,12 @@ public interface VideoMapper {
     """)
     int unblockUser(@Param("userId") String userId,
                     @Param("blockedUserId") String blockedUserId);
+    @Select("""
+    SELECT blocked_user_id, create_time, u.nickname, u.avatar
+    FROM user_block ub
+    LEFT JOIN user_information u ON ub.blocked_user_id = u.user_id
+    WHERE ub.user_id = #{upId}
+    """)
+    List<Map<String,Object>> selectBlockedUsers(@Param("upId") String upId);
 
 }
