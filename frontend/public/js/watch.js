@@ -686,6 +686,31 @@
             return;
         }
 
+        // 新增：禁止/解除禁止评论
+        if (cid.banUser || cid.unbanUser) {
+            if (!isUpOwner) return;
+            const uid = String(cid.banUser || cid.unbanUser);
+            if (!uid) return;
+            const banning = !!cid.banUser;
+            const nm = cid.banName || uid;
+            if (!confirm(banning
+                ? `确定禁止 @${nm} 评论你的视频吗？TA 仍可以观看视频，但无法发表评论。`
+                : `确定解除对 @${nm} 的禁言吗？解除后 TA 可以重新评论。`)) return;
+            try {
+                const res = banning
+                    ? await blockUserFromComment(currentUserId, uid)
+                    : await unblockUserFromComment(currentUserId, uid);
+                if (res && res.success) {
+                    if (banning) blockedCommentIds.add(uid); else blockedCommentIds.delete(uid);
+                    YT.toast(res.message || (banning ? '已禁止评论' : '已解除禁言'));
+                    loadComments();
+                }
+            } catch (e) {
+                YT.toast((banning ? '禁止失败：' : '解除禁言失败：') + (e.message || '网络错误'));
+            }
+            return;
+        }
+
         if (cid.toggle) {
             const root = t.closest('.comment');
             const box = root.querySelector(`:scope > .body > [data-replies="${CSS.escape(cid.toggle)}"]`);
