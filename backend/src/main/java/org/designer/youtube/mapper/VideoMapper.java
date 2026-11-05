@@ -880,6 +880,21 @@ public interface VideoMapper {
     """)
     int countVideoOwner(@Param("videoId") long videoId,
                         @Param("userId") String userId);
-
+    /**
+     * @since 2026/11/05/16:57
+     * @author Kitaajya/Conan Doyle
+     * @功能 禁止某人评论我的视频，但是可以看我的视频。
+     * **/
+    @Insert("""
+    INSERT INTO user_block (user_id, blocked_user_id) VALUES (#{userId}, #{blockedUserId})
+    ON DUPLICATE KEY UPDATE create_time = create_time
+    """)
+    int blockUser(@Param("userId") String userId,
+                  @Param("blockedUserId") String blockedUserId);
+    @Delete("""
+    DELETE FROM user_block WHERE user_id = #{userId} AND blocked_user_id = #{blockedUserId}
+    """)
+    int unblockUser(@Param("userId") String userId,
+                    @Param("blockedUserId") String blockedUserId);
 
 }
