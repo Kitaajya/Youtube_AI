@@ -900,4 +900,21 @@ public class VideoService {
     public Result<List<Map<String,Object>>> selectObscuredUsersInformation(String upId, Long videoId){
         return Result.success(vm.selectObscuredUsersInformation(upId, videoId));
     }
+    /**
+     * @since 2026/11/05/16:57
+     * @author Kitaajya/Conan Doyle
+     * @功能 禁止某人评论我的视频，但是可以看我的视频。
+     * **/
+    public Result<Map<String,Object>> blockUser(String upId, String userId) {
+        int rows = vm.blockUser(upId, userId);
+        if(rows == 0)
+            return Result.fail("你已经禁止过这个用户了！");
+        return Result.success("禁止成功！", Map.of("upId", upId, "userId", userId));
+    }
+    public Result<Map<String,Object>> unblockUser(String upId, String userId) {
+        int rows = vm.unblockUser(upId, userId);
+        if(rows == 0)
+            return Result.fail("你已经解禁过这个用户了！");
+        return Result.success("解禁成功！", Map.of("upId", upId, "userId", userId));
+    }
 }
