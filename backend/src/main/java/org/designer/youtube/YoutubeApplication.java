@@ -7,7 +7,10 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
- * 2026/11/02/10:20,前后端分离
+ *
+ * @author Kitaajya/Conan Doyle
+ *
+ * @since 2026/11/02/10:20,前后端分离
  *
  *
  *

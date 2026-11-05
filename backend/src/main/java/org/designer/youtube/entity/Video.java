@@ -4,6 +4,15 @@ import lombok.Data;
 
 import java.io.File;
 
+
+/**
+ * @since 2026/10/11
+ * @author Kitaajya/Conan Doyle
+ *
+ *
+ * **/
+
+
 @Data
 public class Video{
     //视频标题

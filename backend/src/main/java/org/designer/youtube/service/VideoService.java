@@ -774,8 +774,8 @@ public class VideoService {
 
     /**
      *
-     * 2026/10/30/17:20
-     *
+     * @since 2026/10/30/17:20
+     * @author Kitaajya/Conan Doyle
      *
      * **/
     public Flux<String> detectCommentsIsHaveAtDeepSeek(ChatClient client, long videoId) {

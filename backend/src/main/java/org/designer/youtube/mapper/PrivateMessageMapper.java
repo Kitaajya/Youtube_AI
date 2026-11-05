@@ -133,16 +133,10 @@ public interface PrivateMessageMapper {
     """)
     List<Map<String,Object>> getPrivateMessageEmojiForDeepSeek();
     /**
-     * 建立一个三人以上的群聊
-     * 2026/10/23/20:53
      *
-     * 群聊数据库：
-     *  chat_group
-            字段名	     类型	     作用	            设计亮点
-            group_id	VARCHAR(13)	群号（主键）	延续了你项目 13 位随机字符串的规范，比自增数字更安全，防爬防遍历。
-            group_name	VARCHAR(50)	群名称	限制 50 字符，防止有人起超长名字把前端 UI 撑爆。
-            owner_id	VARCHAR(13)	群主ID	记录这个群是谁建的，方便后续做“解散群”、“踢人”等权限控制。
-            create_time	DATETIME	建群时间	默认当前时间，方便按建群时间倒序排列“我最近加了什么群”。
+     * @since 2026/10/23/20:53
+     * @描述 建立一个三人以上的群聊
+     * @数据表 chat_group
      * **/
     //建群
     @Insert("""
@@ -286,8 +280,8 @@ public interface PrivateMessageMapper {
     """)
     int findProhibitedWords(@Param("content") String content);
     /**
-     * 2026/10/31/19:08
-     * 如果今天是我的生日，那么DeepSeek也得主动私信我为我祝福。
+     * @since  2026/10/31/19:08
+     * @描述 如果今天是我的生日，那么DeepSeek也得主动私信我为我祝福。
      * 本接口主要实现DeepSeek主动发送私信的功能
      * **/
     @Insert("""
@@ -310,4 +304,24 @@ public interface PrivateMessageMapper {
       AND DATE(create_time) = CURDATE()
     """)
     int countTodayAiBdayMsg(@Param("userId") String userId);
+
+    /**
+     * @since 2026/11/05/20:21
+     * @author Kitaajya/Conan Doyle
+     * @功能: 私信屏蔽
+     * @table: private_message_block
+     * **/
+    @Insert("""
+    INSERT INTO private_message_block (user_id, blocked_user_id) VALUES (#{userId}, #{blockedUserId})
+    ON DUPLICATE KEY UPDATE create_time = create_time
+    """)
+    //私信屏蔽
+    int blockUserInPrivateMessage(@Param("userId") String userId,
+                                  @Param("blockedUserId") String blockedUserId);
+    //解除私信屏蔽
+    @Delete("""
+    DELETE FROM private_message_block WHERE user_id = #{userId} AND blocked_user_id = #{blockedUserId}
+    """)
+    int unblockUserInPrivateMessage(@Param("userId") String userId,
+                                    @Param("blockedUserId") String blockedUserId);
 }

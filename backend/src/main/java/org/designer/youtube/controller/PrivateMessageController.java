@@ -17,19 +17,19 @@ import java.util.Map;
 
 /**
  *
- * 私信控制层代码
- *
- *
- * 2026/10/11/16:05
  *
  *
  *
- *
- * 截止2026/10/16/8:34，我已经修复了通知红点bug，
+ * @since  2026/10/11/16:05
+ * @author Kitaajya/Conan Doyle
+ * @说明 截止2026/10/16/8:34，我已经修复了通知红点bug，前端部分进行了重构，使之与原YouTube更相似。
  * 以上的红点bug注释作废.前端部分进行了重构，使之与原YouTube更相似。
- * 新增了历史功能->查询与自动插入观看历史。2026/10/17/11:00短视频模块搭建完成。
+ * 新增了历史功能->查询与自动插入观看历史。
+ * @自:  2026/10/17/11:00
+ *
+ * 短视频模块搭建完成。
  * 短视频原本默认无声，现在改成了有声。新增搜索栏的语音功能
- * 私信新增群聊功能于2026/10/23/23:00
+ * @自: 2026/10/23/23:00 私信新增群聊功能上线
  *
  *
  *
@@ -177,9 +177,21 @@ public class PrivateMessageController {
     public Result<List<Map<String, Object>>>selectMemberInformation(@RequestParam String groupId){
         return privateMessageService.selectMemberInformation(groupId);
     }
-    /**
-     * DeepSeek自动给我发送生日祝福
-     *
-     * **/
 
+    /**
+     * @since 2026/11/05/20:21
+     * @author Kitaajya/Conan Doyle
+     * @功能: 私信屏蔽
+     * @table: private_message_block
+     * **/
+    @PostMapping("/block/pm")
+    public Result<Map<String,Object>> blockUserForPrivateMessage(@RequestParam String upId,
+                                                                 @RequestParam String userId){
+        return privateMessageService.blockUserInPrivateMessage(upId, userId);
+    }
+    @PostMapping("/unblock/pm")
+    public Result<Map<String,Object>> unblockUserForPrivateMessage(@RequestParam String upId,
+                                                                   @RequestParam String userId){
+        return privateMessageService.unblockUserInPrivateMessage(upId, userId);
+    }
 }

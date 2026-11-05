@@ -24,15 +24,14 @@ import java.util.Random;
 
 /**
  *
- * 私信业务代码
  *
  *
- * 2026/10/11/15:51
+ * @since  2026/10/11/15:51
+ * @author Kitaajya/Conan Doyle
  *
+ * @描述 截止2026/10/26/09:26，仍有bug未被修复：群主拉人进群，被拉者无法得知自己在群中，且群众有人发消息时，其余人也无法获取红点通知。
  *
- * 截止2026/10/26/09:26，仍有bug未被修复：群主拉人进群，被拉者无法得知自己在群中，且群众有人发消息时，其余人也无法获取红点通知
- *
- *
+ * 现在bug已经修复了，可以正常使用
  *
  *
  *
@@ -176,16 +175,10 @@ public class PrivateMessageService {
         return client.prompt().system(systemPrompt).user(finalQuestion).stream().content();
     }
     /**
-     * 建立一个三人以上的群聊
-     * 2026/10/23/20:53
      *
-     * 群聊数据库：
-     *  chat_group
-     字段名	         类型	     作用	            设计亮点
-     group_id	    VARCHAR(13)	群号（主键）	延续了你项目 13 位随机字符串的规范，比自增数字更安全，防爬防遍历。
-     group_name	    VARCHAR(50)	群名称	    限制 50 字符，防止有人起超长名字把前端 UI 撑爆。
-     owner_id	    VARCHAR(13)	群主ID	    记录这个群是谁建的，方便后续做“解散群”、“踢人”等权限控制。
-     create_time	DATETIME	建群时间	    默认当前时间，方便按建群时间倒序排列“我最近加了什么群”。
+     * @since 2026/10/23/20:53
+     * @描述 建立一个三人以上的群聊
+     *
      * **/
     // 建立群聊（这里只负责建群并拉群主，拉别人可以再写个方法）
     public Result<Map<String,Object>> establishGroup(String groupId, String groupName, String ownerId){
@@ -250,7 +243,13 @@ public class PrivateMessageService {
         return privateMessageMapper.selectGroupMessage(groupId);
     }
     /**
-     * 向群中发消息
+     * @描述 向群中发消息。
+     * @param msgId 消息ID
+     * @param groupId 群号
+     * @param fromUser 发送者
+     * @param contents 消息内容
+     * @param msgType 消息类型
+     * @param mediaPath 媒体路径
      * 附带敏感词查询，prohibit_words是敏感词表
      * **/
     public Result<Map<String,Object>> sendMessageToGroup(String msgId,String groupId,
@@ -267,17 +266,6 @@ public class PrivateMessageService {
     public List<Map<String, Object>> selectMyGroups(String me) {
         return privateMessageMapper.selectMyGroups(me);
     }
-    //把群聊信息插入DeepSeek里
-    /**
-     *     SELECT gm.msg_id, gm.group_id, gm.from_user, gm.contents, gm.msg_type, gm.media_path,
-     *            DATE_FORMAT(gm.create_time, '%Y-%m-%d %H:%i:%s') AS create_time,
-     *            u.nickname AS senderName, u.avatar AS senderAvatar
-     *     FROM group_message gm
-     *     LEFT JOIN user_information u ON gm.from_user = u.user_id
-     *     WHERE gm.group_id = #{groupId}
-     *     ORDER BY gm.create_time ASC
-     *
-     * **/
     //把群聊信息插入DeepSeek里
     public Flux<String> selectGroupMessageForDeepSeek(ChatClient client, String groupId, String question) {
         //将阻塞查询包装进 Mono
@@ -329,7 +317,8 @@ public class PrivateMessageService {
         });
     }
     /**
-     * 寻找新的群主候选人（排除当前要退出的群主，并且绝对排除 AI_BOT）
+     * @描述
+     *    寻找新的群主候选人（排除当前要退出的群主，并且绝对排除 AI_BOT）
      *    关于查找群主id的Mapper方法：String selectGroupOwner(String groupId)
      * **/
     // 退出群聊
@@ -379,13 +368,10 @@ public class PrivateMessageService {
         return Result.success(privateMessageMapper.selectMemberInformation(groupId));
     }
     /**
-     * message敏感词查询
      *
      *
-     *      List<Map<String, Object>> findProhibitedWords(@Param("groupId") String groupId);
-     *
-     *
-     *           SELECT message FROM prohibit_words;
+     * @since 2026/10/27/10:11
+     * @描述 message敏感词查询
      *
      **/
 
@@ -394,11 +380,10 @@ public class PrivateMessageService {
         return justify > 0;
     }
     /**
-     * 把成员信息塞给DeepSeek 2026/10/27/10:21
      *
+     * @since 2026/10/27/10:21
+     * @描述 把成员信息塞给DeepSeek
      *
-     *
-     * List<Map<String,Object>> selectMemberInformation
      */
     public Flux<String> selectGroupMemberForDeepSeek(ChatClient client,String groupId,String question){
         List<Map<String,Object>> list=privateMessageMapper.selectMemberInformation(groupId);
@@ -462,5 +447,25 @@ public class PrivateMessageService {
         } catch (Exception e) {
             log.error("给用户 {} 发送生日祝福失败", userId, e);
         }
+    }
+    /**
+     * @since 2026/11/05/20:21
+     * @author Kitaajya/Conan Doyle
+     * @功能: 私信屏蔽
+     * @table: private_message_block
+     * **/
+    //私信屏蔽
+    public Result<Map<String,Object>> blockUserInPrivateMessage(String upId, String userId) {
+        int rows = privateMessageMapper.blockUserInPrivateMessage(upId, userId);
+        if(rows == 0)
+            return Result.fail("你已经禁止过这个用户私信了！");
+        return Result.success("禁止成功！", Map.of("upId", upId, "userId", userId));
+    }
+    //解除私信屏蔽
+    public Result<Map<String,Object>> unblockUserInPrivateMessage(String upId, String userId) {
+        int rows = privateMessageMapper.unblockUserInPrivateMessage(upId, userId);
+        if(rows == 0)
+            return Result.fail("你已经解禁过这个用户私信了！");
+        return Result.success("解禁成功！", Map.of("upId", upId, "userId", userId));
     }
 }

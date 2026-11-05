@@ -19,7 +19,9 @@ package org.designer.youtube.controller;
  *
  *
  *
- *
+ * 截止2026/11/04/11:59，我自己都不知道怎么改视频屏蔽功能，一屏蔽某人或某些人，他/他们就完全看不到我的所有视频，但这不是我想要的，
+ * 我想要的是对于我发布的某个视频或某些视频，拥有对某人或某些人的屏蔽功能，而不是一下子对他/他们屏蔽我所有的视频。这个bug我至今都改不了。
+ * 根据DeepSeek的启示，在屏蔽表里添加视频id，否则被屏蔽者会看不到我的所有视频
  *
  *
  *
@@ -49,6 +51,14 @@ import reactor.core.publisher.Flux;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+/**
+ * @since 2026/10/11/11:00
+ * @author Kitaajya/Conan Doyle
+ *
+ *
+ * **/
+
 
 @RestController
 @RequiredArgsConstructor
@@ -336,7 +346,14 @@ public class VideoController {
     public Result<Map<String,Object>> toggleCommentLike(@RequestParam String me,@RequestParam String commentId){
         return vs.toggleCommentLike(me, commentId);
     }
-    /**关于审查视频标题**/
+    /**
+     * @since 2026/10/27/10:55
+     * @author Kitaajya/Conan Doyle
+     * @功能  审查视频标题
+     * 关于审查视频标题
+     *
+     *
+     * **/
     @PostMapping("/check/video/title")
     public Result<Map<String,Object>> checkTitle(@RequestParam long videoId){
         boolean isPass=vs.checkTitle(videoId);
@@ -362,8 +379,10 @@ public class VideoController {
     }
 
     /**
-     *    2026/11/02/10:55
-     *     获取全站视频热榜 热度算法：播放量 * 0.3 + 点赞量 * 0.7 (通过联表统计点赞数)
+     *   @since  2026/11/02/10:55
+     *   @author Kitaajya/Conan Doyle
+     *
+     *   @功能  获取全站视频热榜 热度算法：播放量 * 0.3 + 点赞量 * 0.7 (通过联表统计点赞数)
      *
      *
      */
@@ -395,7 +414,7 @@ public class VideoController {
     }
     /**
      * 查看我屏蔽的人的信息，同时传递我屏蔽的人数
-     * videoId 可选：不传=我所有视频的屏蔽名单；传=只看这个视频的
+     * @param videoId 可选：不传=我所有视频的屏蔽名单；传=只看这个视频的
      * **/
     @GetMapping("/select/my/obscured/user")
     public Result<List<Map<String,Object>>> selectObscuredUsersInformation(@RequestParam String upId,

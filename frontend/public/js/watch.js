@@ -425,21 +425,25 @@
     function opBtns(c, isMine, commentUid) {
         const cid = YT.esc(YT.pick(c, 'comment_id'));
         const cLikeCount = Number(c.like_count || 0);
-        // 读取后端的 my_liked，如果是 1 就是已赞
         const myLiked = Number(c.my_liked || 0) > 0;
 
-        // 根据状态决定颜色和图标
         const color = myLiked ? 'var(--link)' : 'var(--text-secondary)';
         const icon = myLiked ? cmtSvgLiked : cmtSvgLike;
 
-        // 屏蔽按钮：只有「我是这个视频的 UP 主」且「评论不是我自己的」才显示。
-        // 后端是 (up_id, video_id, user_id) 的视频级关系表，所以这里按「本视频」的 shieldedIds 切换。
         const uid = YT.esc(commentUid);
         let shieldBtn = '';
         if (isUpOwner && commentUid && !isMine) {
             shieldBtn = shieldedIds.has(String(commentUid))
                 ? `<span class="op-btn" data-unshield-user="${uid}">已屏蔽</span>`
                 : `<span class="op-btn" data-shield-user="${uid}" data-shield-name="${YT.esc(YT.pick(c, 'commenter') || commentUid)}">屏蔽此人</span>`;
+        }
+
+        // 新增：禁止评论按钮（与屏蔽按钮独立，可以同时存在）
+        let banBtn = '';
+        if (isUpOwner && commentUid && !isMine) {
+            banBtn = blockedCommentIds.has(String(commentUid))
+                ? `<span class="op-btn ban-btn" data-unban-user="${uid}" style="color:var(--danger);">已禁言</span>`
+                : `<span class="op-btn ban-btn" data-ban-user="${uid}" data-ban-name="${YT.esc(YT.pick(c, 'commenter') || commentUid)}">禁止评论</span>`;
         }
 
         return `<div class="ops">
@@ -451,9 +455,58 @@
             ${isMine ? `<span class="op-btn" data-edit="${cid}">修改</span>
                        <span class="op-btn" style="color:var(--danger);" data-del="${cid}">删除</span>` : ''}
             ${shieldBtn}
+            ${banBtn}
         </div>`;
     }
+    /**
+     * @param {string} upId
+     * @param {string} blockedUserId
+     * @since 2026/11/05/17:16
+     * 视频评论区禁言操作
+     * @功能 禁止某人评论我的视频与解除禁言
+     *
+     *
+     *
+     * **/
 
+    async function blockUserFromComment(upId, blockedUserId) {
+        try {
+            const res = await YT.api.post('/api/video/ban/comment', {
+                upId: upId,
+                userId: blockedUserId
+            });
+
+            if (res.success) {
+                YT.toast('已禁止该用户评论你的视频');
+            } else {
+                YT.toast(res.message || '操作失败');
+            }
+            return res;
+        } catch (err) {
+            console.error('禁止评论失败:', err);
+            YT.toast('网络错误，请稍后重试');
+        }
+    }
+
+    // 取消禁止
+    async function unblockUserFromComment(upId, blockedUserId) {
+        try {
+            const res = await YT.api.post('/api/video/unban/comment', {
+                upId: upId,
+                userId: blockedUserId
+            });
+
+            if (res.success) {
+                YT.toast('已恢复该用户评论权限');
+            } else {
+                YT.toast(res.message || '操作失败');
+            }
+            return res;
+        } catch (err) {
+            console.error('取消禁止失败:', err);
+            YT.toast('网络错误，请稍后重试');
+        }
+    }
     function item(c, isReply) {
         const cid = String(YT.pick(c, 'comment_id'));
         const who = String(YT.pick(c, 'commenter') || YT.pick(c, 'user_id') || '匿名用户');
