@@ -917,4 +917,8 @@ public class VideoService {
             return Result.fail("你已经解禁过这个用户了！");
         return Result.success("解禁成功！", Map.of("upId", upId, "userId", userId));
     }
+    //查询我屏蔽了谁
+    public List<Map<String,Object>> selectBlockedUsers(String upId) {
+        return vm.selectBlockedUsers(upId);
+    }
 }
