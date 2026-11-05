@@ -418,4 +418,9 @@ public class VideoController {
                                                   @RequestParam String userId){
         return vs.unblockUser(upId, userId);
     }
+    //查询我屏蔽了谁，同时传递我屏蔽的人数
+    @GetMapping("/select/my/blocked/users")
+    public Result<List<Map<String,Object>>> selectBlockedUsers(@RequestParam String upId) {
+        return Result.success(vs.selectBlockedUsers(upId));
+    }
 }
