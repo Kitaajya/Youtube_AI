@@ -57,13 +57,15 @@
         <div class="pm-chat-head" id="pm-chat-head" style="display:flex; justify-content:space-between;">
             <span id="pm-chat-title">选择左侧会话开始聊天</span>
             <div style="display:flex; gap:8px;">
+                <!-- 👇 新增：屏蔽私信按钮（默认隐藏） -->
+                <button class="btn sm" id="btn-block-user" style="display:none; color:var(--danger);" type="button">屏蔽此人</button>
+                <!-- 👆 新增结束 -->
+
                 <!-- 查看成员按钮 -->
                 <button class="btn sm" id="btn-view-members" style="display:none;">👥 成员列表</button>
                 <button class="btn sm" id="btn-exit-group" style="display:none; background:var(--danger); color:#fff;">退出群聊</button>
             </div>
-        </div>
-
-        <div class="pm-msgs" id="pm-msgs">
+        </div>        <div class="pm-msgs" id="pm-msgs">
             <div class="empty">还没有打开任何对话</div>
         </div>
         <div class="pm-emoji-panel" id="pm-emoji-panel" hidden></div>

@@ -114,8 +114,17 @@
             peersBox.innerHTML = '<div class="pm-empty-peers">暂无私信会话<br>收到私信后会显示在这里</div>';
             return;
         }
-        peersBox.innerHTML = arr.map(p => `
-            <div class="pm-peer ${current && current.userId === p.userId ? 'active' : ''}" data-peer="${YT.esc(p.userId)}">
+
+        // 将变量声明改为从缓存加载：
+        const blockedPeers = new Set(JSON.parse(localStorage.getItem('yt_pm_blocked_' + (YT.user()?.userId || '')) || '[]'));
+
+        // 在刚才的屏蔽按钮点击事件里，成功请求后加上：
+        localStorage.setItem('yt_pm_blocked_' + me.userId, JSON.stringify(Array.from(blockedPeers)));
+
+        peersBox.innerHTML = arr.map(p => {
+            const isBlocked = blockedPeers.has(p.userId); // 👈 新增：判断是否被屏蔽
+            return `
+            <div class="pm-peer ${current && current.userId === p.userId ? 'active' : ''} ${isBlocked ? 'blocked' : ''}" data-peer="${YT.esc(p.userId)}">
                 <span class="avatar">${YT.esc((p.name || p.userId).slice(0, 1).toUpperCase())}</span>
                 <div class="p-txt">
                     <div class="p-name">${YT.esc(p.name || p.userId)}</div>
@@ -123,9 +132,9 @@
                 </div>
                 ${p.unread > 0 ? `<span class="p-badge">${p.unread > 99 ? '99+' : p.unread}</span>` : ''}
                 <button class="p-del" title="从列表隐藏" data-remove="${YT.esc(p.userId)}">&#10005;</button>
-            </div>`).join('');
+            </div>`;
+        }).join('');
     }
-
     function renderMyGroups() {
         if (!groupsBox) return;
         const arr = getMyGroups();
@@ -369,15 +378,11 @@
     function renderHead() {
         const titleSpan = document.getElementById('pm-chat-title');
         const exitBtn = document.getElementById('btn-exit-group');
-        const viewBtn = document.getElementById('btn-view-members'); // 新增按钮
+        const viewBtn = document.getElementById('btn-view-members');
 
         if (currentGroup) {
-            titleSpan.innerHTML = `
-                <span class="avatar" style="background:var(--link);color:#fff;border-radius:8px;margin-right:8px;">群</span>
-                <b>${YT.esc(currentGroup.groupName)}</b>
-                <span class="w-stats">群号: ${YT.esc(currentGroup.groupId)}</span>`;
-            exitBtn.style.display = 'block';
-            viewBtn.style.display = 'block'; // 显示成员按钮
+            // ... 群聊逻辑保持不变 ...
+            if (btnBlockUser) btnBlockUser.style.display = 'none'; // 群聊隐藏屏蔽按钮
             return;
         }
 
@@ -385,6 +390,7 @@
             titleSpan.textContent = '选择左侧会话开始聊天';
             exitBtn.style.display = 'none';
             viewBtn.style.display = 'none';
+            if (btnBlockUser) btnBlockUser.style.display = 'none'; // 没选人时隐藏
             return;
         }
 
@@ -393,7 +399,16 @@
             <b>${YT.esc(current.name || '对方')}</b>
             <span class="w-stats">ID: ${YT.esc(current.userId)}</span>`;
         exitBtn.style.display = 'none';
-        viewBtn.style.display = 'none'; // 私信时隐藏成员按钮
+        viewBtn.style.display = 'none';
+
+        // 👇 新增：如果是私聊，显示屏蔽按钮并更新状态
+        if (btnBlockUser) {
+            btnBlockUser.style.display = '';
+            const isBlocked = blockedPeers.has(current.userId);
+            btnBlockUser.textContent = isBlocked ? '解除屏蔽' : '屏蔽此人';
+            btnBlockUser.style.color = isBlocked ? 'var(--ok)' : 'var(--danger)';
+        }
+        // 👆 新增结束
     }    function previewOf(m) {
         if (Number(m.isWithdrawn || 0) === 1) return '[已撤回]';
         const t = String(m.msgType || 'text').toLowerCase();
@@ -1248,6 +1263,45 @@
         const d = e.target.closest('[data-del]');
         if (d) { doDeleteFromMySide(d.dataset.del, d.closest('.pm-msg')); }
     });
+
+    //    私信屏蔽
+
+
+    // 新增：屏蔽/解除屏蔽事件
+    if (btnBlockUser) {
+        btnBlockUser.onclick = async () => {
+            if (!current) return;
+            const isBlocked = blockedPeers.has(current.userId);
+            const action = isBlocked ? '解除屏蔽' : '屏蔽';
+            const url = isBlocked ? '/api/private_message/unblock/pm' : '/api/private_message/block/pm';
+
+            if (!confirm(`确定要${action}【${current.name}】吗？\n${isBlocked ? '解除后对方可以继续给你发私信。' : '屏蔽后对方将无法给你发私信。'}`)) return;
+
+            btnBlockUser.disabled = true;
+            try {
+                // 注意：你的后端入参是 upId 和 userId
+                const r = await YT.api.post(url, { upId: me.userId, userId: current.userId });
+                if (r.success) {
+                    if (isBlocked) {
+                        blockedPeers.delete(current.userId);
+                        YT.toast('已解除屏蔽');
+                    } else {
+                        blockedPeers.add(current.userId);
+                        YT.toast('已屏蔽，对方无法再给你发私信');
+                    }
+                    renderHead();  // 刷新顶部按钮文字
+                    renderPeers(); // 刷新左侧列表样式
+                } else {
+                    YT.toast(r.message || '操作失败');
+                }
+            } catch (e) {
+                YT.toast('网络错误：' + e.message);
+            } finally {
+                btnBlockUser.disabled = false;
+            }
+        };
+    }
+
 
     ta.addEventListener('keydown', e => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }

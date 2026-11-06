@@ -456,3 +456,13 @@
 @keyframes pm-confetti-fall {
     to { transform: translateY(106vh) rotate(720deg); opacity: .85; }
 }
+/* ===== 私信屏蔽样式 ===== */
+.pm-peer.blocked .p-name {
+    color: var(--text-tertiary);
+    text-decoration: line-through;
+}
+.pm-peer.blocked .p-sub::before {
+    content: '⛔ 已屏蔽 · ';
+    color: var(--danger);
+    font-weight: 500;
+}

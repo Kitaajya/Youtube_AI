@@ -324,4 +324,11 @@ public interface PrivateMessageMapper {
     """)
     int unblockUserInPrivateMessage(@Param("userId") String userId,
                                     @Param("blockedUserId") String blockedUserId);
+
+    /**
+     * @since 2026/11/06/13:47
+     * @author Kitaajya/Conan Doyle
+     * @功能: 检查接收方是否屏蔽了发送方 (查询 private_message_block 表)**/
+    @Select("SELECT COUNT(*) FROM private_message_block WHERE user_id = #{toUser} AND blocked_user_id = #{fromUser}")
+    int checkBlockStatus(@Param("toUser") String toUser, @Param("fromUser") String fromUser);
 }
