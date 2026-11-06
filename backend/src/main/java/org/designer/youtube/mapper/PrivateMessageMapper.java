@@ -48,32 +48,21 @@ public interface PrivateMessageMapper {
     // 我的会话列表：每个对话一行（最后一条消息 + 对方昵称 + 未读数），MySQL 8 窗口函数
     // 时间用 DATE_FORMAT 输出字符串，避免 Map 返回时 Timestamp 被序列化成毫秒数
     @Select("""
-    SELECT t.peer AS peerId,
-           u.nickname AS peerName,
-           t.contents AS lastMsg,
-           DATE_FORMAT(t.create_time, '%Y-%m-%d %H:%i:%S') AS lastTime,
-           (SELECT COUNT(*) FROM private_message p2
-             WHERE p2.to_user=#{me} AND p2.from_user=t.peer AND p2.is_read=0 AND p2.is_withdrawn=0) AS unread
-    FROM (
-        SELECT CASE WHEN from_user=#{me} THEN to_user ELSE from_user END AS peer,
-               CASE WHEN is_withdrawn=1 THEN '[已撤回]'
-                    WHEN msg_type='image' THEN '[图片]'
-                    WHEN msg_type='video' THEN '[视频]'
-                    WHEN msg_type='emoji' THEN '[表情]'
-                    WHEN msg_type='birthday' THEN '[生日祝福]'
-                    ELSE contents END AS contents,
-               create_time,
-               ROW_NUMBER() OVER (PARTITION BY CASE WHEN from_user=#{me} THEN to_user ELSE from_user END
-                                 ORDER BY create_time DESC, msg_id DESC) AS rn
-        FROM private_message
-        WHERE (from_user=#{me} OR to_user=#{me})
-          AND NOT (from_user=#{me} AND from_deleted = 1)
-    ) t
-    LEFT JOIN user_information u ON u.user_id = t.peer
-    WHERE t.rn = 1
-    ORDER BY t.create_time DESC
-    """)
+    SELECT from_user AS fromUser, to_user AS toUser, contents, is_read AS isRead, 
+           is_withdrawn AS isWithdrawn, from_deleted AS fromDeleted, 
+           DATE_FORMAT(create_time, '%Y-%m-%d %H:%i:%S') AS createTime
+    FROM private_message
+    WHERE (from_user=#{me} OR to_user=#{me})
+      AND NOT (from_user=#{me} AND from_deleted = 1)
+    ORDER BY create_time DESC
+""")
     List<Map<String, Object>> selectInbox(@Param("me") String me);
+
+    // 查某个人发给我的未读消息数
+    @Select("SELECT COUNT(*) FROM private_message WHERE to_user=#{me} AND from_user=#{peer} AND is_read=0 AND is_withdrawn=0")
+    int countUnreadFromPeer(@Param("me") String me, @Param("peer") String peer);
+
+
     //从我这里删除发出的信息，但是对方依旧能看得到。因为这不是撤回操作，软删除
     @Update("""
     UPDATE private_message
@@ -331,4 +320,27 @@ public interface PrivateMessageMapper {
      * @功能: 检查接收方是否屏蔽了发送方 (查询 private_message_block 表)**/
     @Select("SELECT COUNT(*) FROM private_message_block WHERE user_id = #{toUser} AND blocked_user_id = #{fromUser}")
     int checkBlockStatus(@Param("toUser") String toUser, @Param("fromUser") String fromUser);
+
+    /**我屏蔽了谁：前端刷新页面后恢复屏蔽状态用**/
+    @Select("""
+    SELECT blocked_user_id FROM private_message_block WHERE user_id = #{userId}
+    """)
+    List<String> selectBlockedUserIdsInPrivateMessage(@Param("userId") String userId);
+
+    /**
+     * @deprecated
+     * */
+
+    @Select("""
+    SELECT from_user AS fromUser, to_user AS toUser, contents, is_read AS isRead, 
+           is_withdrawn AS isWithdrawn, from_deleted AS fromDeleted, 
+           DATE_FORMAT(create_time, '%Y-%m-%d %H:%i:%S') AS createTime
+    FROM private_message
+    WHERE (from_user=#{me} OR to_user=#{me})
+      AND NOT (from_user=#{me} AND from_deleted = 1)
+    ORDER BY create_time DESC
+    """)
+    List<Map<String, Object>> selectInbox_Duplicate(@Param("me") String me);
+
+
 }

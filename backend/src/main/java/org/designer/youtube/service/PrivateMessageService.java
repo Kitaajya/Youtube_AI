@@ -17,10 +17,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Random;
+import java.util.*;
 
 /**
  *
@@ -50,7 +47,51 @@ public class PrivateMessageService {
     // 我的收件箱：会话列表（每个对话最后一句 + 未读数 + 对方昵称）
     public List<Map<String, Object>> selectInbox(String me) {
         if (me == null || me.isEmpty()) return List.of();
-        return privateMessageMapper.selectInbox(me);
+        // 查所有消息
+        List<Map<String, Object>> allMsgs = privateMessageMapper.selectInbox(me);
+        // 用 LinkedHashMap 保持最新消息的顺序
+        Map<String, Map<String, Object>> latestMap = new LinkedHashMap<>();
+        for (Map<String, Object> msg : allMsgs) {
+            String fromUser = String.valueOf(msg.get("fromUser"));
+            String toUser = String.valueOf(msg.get("toUser"));
+
+            // 计算对话对象
+            String peer = fromUser.equals(me) ? toUser : fromUser;
+
+            if (!latestMap.containsKey(peer)) {
+                // 拷贝一份原数据，保持你原有的字段（fromUser, toUser, contents 等）
+                Map<String, Object> row = new HashMap<>(msg);
+
+                // 按照你前端要求的字段名塞进去
+                row.put("peerId", peer);
+
+                // 处理预览文字（替代原来 SQL 里的 CASE WHEN）
+                String msgType = String.valueOf(msg.get("msgType") == null ? "text" : msg.get("msgType"));
+                String contents = String.valueOf(msg.get("contents"));
+                int isWithdrawn = Integer.parseInt(String.valueOf(msg.get("isWithdrawn") == null ? 0 : msg.get("isWithdrawn")));
+
+                if (isWithdrawn == 1) {
+                    row.put("lastMsg", "[已撤回]");
+                } else if ("image".equals(msgType)) {
+                    row.put("lastMsg", "[图片]");
+                } else if ("video".equals(msgType)) {
+                    row.put("lastMsg", "[视频]");
+                } else if ("emoji".equals(msgType)) {
+                    row.put("lastMsg", "[表情]");
+                } else if ("birthday".equals(msgType)) {
+                    row.put("lastMsg", "[生日祝福]");
+                } else {
+                    row.put("lastMsg", contents.length() > 30 ? contents.substring(0, 30) : contents);
+                }
+                row.put("lastTime", msg.get("createTime"));
+                //对方的昵称（暂时先用 peer ID 代替，前端有缓存会覆盖显示）
+                row.put("peerName", peer);
+                int unreadCount = privateMessageMapper.countUnreadFromPeer(me, peer);
+                row.put("unread", unreadCount);
+                latestMap.put(peer, row);
+            }
+        }
+        return new ArrayList<>(latestMap.values());
     }
 
     // 别人发给我的未读总数
@@ -116,6 +157,9 @@ public class PrivateMessageService {
     public Result<Map<String,Object>> sendPictureOrVideo(PrivateMessage privateMessage){
         if (privateMessage.getFromUser() == null) return Result.fail("发件人不能为空");
         if (privateMessage.getToUser() == null) return Result.fail("目标人不能为空");
+        // 屏蔽要拦在所有发送入口上：只拦 send() 的话，被拉黑的人换成发图片/视频照样能发进来
+        int isBlocked = privateMessageMapper.checkBlockStatus(privateMessage.getToUser(), privateMessage.getFromUser());
+        if (isBlocked > 0) return Result.fail("对方已拒收你的消息");
         String mediaPath = privateMessage.getMediaPath();
         if (mediaPath == null || mediaPath.isEmpty()) return Result.fail("媒体文件不能为空");
 
@@ -139,6 +183,9 @@ public class PrivateMessageService {
     public Result<Map<String,Object>> sendEmoji(PrivateMessage privateMessage){
         if (privateMessage.getFromUser() == null) return Result.fail("发件人不能为空");
         if (privateMessage.getToUser() == null)   return Result.fail("目标人不能为空");
+        // 同上：表情包也是私信发送入口，被屏蔽的人不能靠它绕过屏蔽
+        int isBlocked = privateMessageMapper.checkBlockStatus(privateMessage.getToUser(), privateMessage.getFromUser());
+        if (isBlocked > 0) return Result.fail("对方已拒收你的消息");
         String fileName = privateMessage.getMediaPath();
         if (fileName == null || fileName.isEmpty()) return Result.fail("表情不能为空");
         // 白名单：只认 emoji_item 里登记过且未下架的文件
@@ -472,5 +519,11 @@ public class PrivateMessageService {
         if(rows == 0)
             return Result.fail("你已经解禁过这个用户私信了！");
         return Result.success("解禁成功！", Map.of("upId", upId, "userId", userId));
+    }
+    /**我屏蔽了谁（前端刷新/换浏览器后恢复"屏蔽/解除屏蔽"按钮状态用）**/
+    public List<String> selectBlockedUsersInPrivateMessage(String upId) {
+        if (upId == null || upId.isBlank()) return List.of();
+        List<String> ids = privateMessageMapper.selectBlockedUserIdsInPrivateMessage(upId);
+        return ids == null ? List.of() : ids;
     }
 }

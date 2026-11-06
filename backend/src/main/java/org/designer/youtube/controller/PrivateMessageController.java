@@ -194,4 +194,9 @@ public class PrivateMessageController {
                                                                    @RequestParam String userId){
         return privateMessageService.unblockUserInPrivateMessage(upId, userId);
     }
+    /**我屏蔽了谁：前端刷新/清缓存后靠它恢复屏蔽状态，不用只信 localStorage**/
+    @GetMapping("/block/list")
+    public Result<List<String>> selectBlockedUsersForPrivateMessage(@RequestParam String upId){
+        return Result.success(privateMessageService.selectBlockedUsersInPrivateMessage(upId));
+    }
 }

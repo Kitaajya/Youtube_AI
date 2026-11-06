@@ -16,6 +16,10 @@
     const emojiBtn = $('#pm-emoji-btn'), emojiPanel = $('#pm-emoji-panel');
     const bdayBar = $('#pm-bday-bar'), bdayBtn = $('#pm-bday-btn');
     const groupsBox = $('#pm-groups');
+    // 屏蔽私信按钮：必须先取到元素再使用。
+    // 之前只写了 if (btnBlockUser) 却没声明这个变量，浏览器会抛
+    // ReferenceError: btnBlockUser is not defined，整个脚本从这里中断。
+    const btnBlockUser = document.getElementById('btn-block-user');
 
     // ---------- 本地镜像 ----------
     const peerKey = 'yt_pm_peers_' + me.userId;
@@ -31,6 +35,18 @@
         try { return JSON.parse(localStorage.getItem(hiddenKey) || '[]'); } catch { return []; }
     };
     const setHidden = arr => localStorage.setItem(hiddenKey, JSON.stringify(arr));
+
+    // ---------- 私信屏蔽名单 ----------
+    // 以前这个 Set 定义在 renderPeers() 里面（const），函数外根本访问不到：
+    // renderHead() 一读 blockedPeers 就 ReferenceError，会话/群聊点了没反应。
+    // 现在改成模块级变量，谁都能用。
+    const blockedKey = 'yt_pm_blocked_' + me.userId;
+    let blockedPeers = (() => {
+        try { return new Set(JSON.parse(localStorage.getItem(blockedKey) || '[]')); } catch (e) { return new Set(); }
+    })();
+    const saveBlockedPeers = () => {
+        try { localStorage.setItem(blockedKey, JSON.stringify(Array.from(blockedPeers))); } catch (e) { }
+    };
     // 只保留这几个缓存键
     const groupKey = 'yt_my_groups_' + me.userId;
     const groupIdsKey = 'yt_my_group_ids_' + me.userId;
@@ -115,12 +131,7 @@
             return;
         }
 
-        // 将变量声明改为从缓存加载：
-        const blockedPeers = new Set(JSON.parse(localStorage.getItem('yt_pm_blocked_' + (YT.user()?.userId || '')) || '[]'));
-
-        // 在刚才的屏蔽按钮点击事件里，成功请求后加上：
-        localStorage.setItem('yt_pm_blocked_' + me.userId, JSON.stringify(Array.from(blockedPeers)));
-
+        // 屏蔽名单现在在模块级（blockedPeers），这里只负责显示状态
         peersBox.innerHTML = arr.map(p => {
             const isBlocked = blockedPeers.has(p.userId); // 👈 新增：判断是否被屏蔽
             return `
@@ -381,34 +392,43 @@
         const viewBtn = document.getElementById('btn-view-members');
 
         if (currentGroup) {
-            // ... 群聊逻辑保持不变 ...
-            if (btnBlockUser) btnBlockUser.style.display = 'none'; // 群聊隐藏屏蔽按钮
+            // 群聊：标题显示群名，右侧显示「成员列表 / 退出群聊」，屏蔽按钮不适用
+            // （之前的屏蔽改动把这一段截断了，只留了一句隐藏按钮就 return，
+            //  所以点群聊时头部完全没反应，看着就像"点不动"）
+            if (btnBlockUser) btnBlockUser.style.display = 'none';
+            if (titleSpan) {
+                titleSpan.innerHTML = `
+            <span class="avatar" style="background:var(--link);color:#fff;border-radius:8px;margin-right:8px;">群</span>
+            <b>${YT.esc(currentGroup.groupName || '群聊')}</b>
+            <span class="w-stats">群号: ${YT.esc(currentGroup.groupId)}</span>`;
+            }
+            if (exitBtn) exitBtn.style.display = 'block';
+            if (viewBtn) viewBtn.style.display = 'block';
             return;
         }
 
         if (!current) {
-            titleSpan.textContent = '选择左侧会话开始聊天';
-            exitBtn.style.display = 'none';
-            viewBtn.style.display = 'none';
+            if (titleSpan) titleSpan.textContent = '选择左侧会话开始聊天';
+            if (exitBtn) exitBtn.style.display = 'none';
+            if (viewBtn) viewBtn.style.display = 'none';
             if (btnBlockUser) btnBlockUser.style.display = 'none'; // 没选人时隐藏
             return;
         }
 
-        titleSpan.innerHTML = `
+        if (titleSpan) titleSpan.innerHTML = `
             <span class="avatar" style="margin-right:8px;">${YT.esc((current.name || current.userId).slice(0, 1).toUpperCase())}</span>
             <b>${YT.esc(current.name || '对方')}</b>
             <span class="w-stats">ID: ${YT.esc(current.userId)}</span>`;
-        exitBtn.style.display = 'none';
-        viewBtn.style.display = 'none';
+        if (exitBtn) exitBtn.style.display = 'none';
+        if (viewBtn) viewBtn.style.display = 'none';
 
-        // 👇 新增：如果是私聊，显示屏蔽按钮并更新状态
+        // 私聊：显示屏蔽按钮并更新状态
         if (btnBlockUser) {
             btnBlockUser.style.display = '';
             const isBlocked = blockedPeers.has(current.userId);
             btnBlockUser.textContent = isBlocked ? '解除屏蔽' : '屏蔽此人';
             btnBlockUser.style.color = isBlocked ? 'var(--ok)' : 'var(--danger)';
         }
-        // 👆 新增结束
     }    function previewOf(m) {
         if (Number(m.isWithdrawn || 0) === 1) return '[已撤回]';
         const t = String(m.msgType || 'text').toLowerCase();
@@ -464,10 +484,29 @@
     async function loadInbox() {
         try {
             const r = await YT.api.get('/api/private_message/select/inbox', { me: me.userId });
-            const rows = Array.isArray(r.data) ? r.data : [];
+            // 关键：请求失败（500/超时/返回的不是 Result）时 data 是 undefined，
+            // 以前会当成"服务端没有会话"→ applyInboxRows([]) 把本地会话缓存清空，
+            // 表现就是「私信列表突然变空」。这里只认真正的数组。
+            if (!r || r.success === false || !Array.isArray(r.data)) { renderPeers(); return; }
+            const rows = r.data;
             lastInboxSig = inboxSig(rows);
             applyInboxRows(rows);
         } catch (e) { renderPeers(); }
+    }
+
+    // 从服务端恢复屏蔽名单：本地 localStorage 只是缓存，
+    // 换浏览器 / 清缓存后仍要能知道"我屏蔽过谁"，否则按钮会错显成"屏蔽此人"，
+    // 再点一次后端会回"你已经禁止过这个用户私信了"。
+    async function loadBlockedFromServer() {
+        try {
+            const r = await YT.api.get('/api/private_message/block/list', { upId: me.userId });
+            // 接口不可用（表没建 / 500）时返回的不是 Result 结构，此时别清空本地缓存
+            if (!r || r.success === false || !Array.isArray(r.data)) return;
+            blockedPeers = new Set(r.data.map(x => String(x)));
+            saveBlockedPeers();
+            renderPeers();
+            renderHead();
+        } catch (e) { /* 静默失败，继续用本地缓存 */ }
     }
 
     async function syncMyGroups() {
@@ -1104,41 +1143,35 @@
             if (ghost) ghost.remove();
         }
     }    // ---------- 轮询 ----------
+    // ---------- 轮询 ----------
     async function pollOnce() {
         if (loading || aiLock) return;
 
+        // 1. 同步左侧群聊列表（获取最新加入的群）
         syncMyGroups();
 
+        // ==================== 处理群聊消息轮询 ====================
         if (currentGroup) {
             try {
-
-
-                // 在 pollOnce 内部处理群消息时：
-                const lastMsg = normList[normList.length - 1];
-                if (lastMsg && String(lastMsg.fromUser) !== me.userId) {
-                    // 如果当前没有打开这个群，增加未读数
-                    const readTime = getGroupReadTime(peerId); // 上次已读时间
-                    const lastTimeStr = lastMsg.createTime.replace(' ', 'T');
-                    const lastTime = new Date(lastTimeStr).getTime();
-
-                    if (lastTime > readTime) {
-                        const currentUnread = getGroupUnread(peerId);
-                        setGroupUnread(peerId, currentUnread + 1);
-                        renderMyGroups(); // 重新渲染左侧列表显示红点
-                    }
-                }
-
-
                 const peerId = currentGroup.groupId;
+
+                // 拉取当前打开的这个群的聊天记录
                 const r = await YT.api.get('/api/private_message/select/group/message', { groupId: peerId });
                 const list = Array.isArray(r.data) ? r.data : [];
+
+                // 格式化数据
                 const normList = list.map(m => ({
-                    msgId: YT.pick(m, 'msg_id'), fromUser: YT.pick(m, 'from_user'), toUser: peerId,
-                    contents: YT.pick(m, 'contents'), msgType: YT.pick(m, 'msg_type') || 'text',
-                    mediaPath: YT.pick(m, 'media_path'), createTime: YT.pick(m, 'create_time'),
+                    msgId: YT.pick(m, 'msg_id'),
+                    fromUser: YT.pick(m, 'from_user'),
+                    toUser: peerId,
+                    contents: YT.pick(m, 'contents'),
+                    msgType: YT.pick(m, 'msg_type') || 'text',
+                    mediaPath: YT.pick(m, 'media_path'),
+                    createTime: YT.pick(m, 'create_time'),
                     senderName: YT.pick(m, 'senderName', 'sender_name') || (YT.pick(m, 'from_user') === 'AI_BOT' ? 'DeepSeek 助手' : '群友')
                 }));
 
+                // 检查是否有新消息（通过比较最后一条消息的 ID）
                 const sig = normList.length + '|' + (normList.length ? normList[normList.length - 1].msgId : '');
 
                 if (sig !== lastGroupChatSig) {
@@ -1146,8 +1179,10 @@
                     const newMsgs = normList.filter(m => !existingIds.has(m.msgId));
 
                     if (newMsgs.length > 0) {
+                        // 将新消息追加到界面
                         newMsgs.forEach(m => {
                             if (String(m.fromUser) === 'AI_BOT' && String(m.contents).includes('正在阅读群聊并思考')) {
+                                // 处理 AI 思考气泡
                                 if (!document.getElementById('typing-ai-bubble')) {
                                     msgs.insertAdjacentHTML('beforeend', `
                                     <div class="pm-group-msg-wrap" id="typing-ai-bubble">
@@ -1164,13 +1199,17 @@
                             }
                         });
 
+                        // 更新本地缓存列表
                         curList.push(...newMsgs);
                     }
 
                     lastGroupChatSig = sig;
+
+                    // 既然我正在看这个群，就把这个群标记为已读
                     setGroupReadTime(peerId);
                     renderMyGroups();
 
+                    // 检查 AI 是否回复完毕，如果完毕就移除思考气泡并解锁
                     const lastMsg = normList[normList.length - 1];
                     if (lastMsg && String(lastMsg.fromUser) === 'AI_BOT' && !String(lastMsg.contents).includes('正在阅读群聊并思考')) {
                         const ghost = document.getElementById('typing-ai-bubble');
@@ -1178,26 +1217,31 @@
                         if (aiLock) aiLock = false;
                     }
                 }
-            } catch (e) { console.error("群聊轮询失败", e); }
-            return;
+            } catch (e) {
+                console.error("群聊轮询失败", e);
+            }
+            return; // 如果正在看群聊，就不需要执行下面的私信轮询了
         }
 
+        // ==================== 处理私信消息轮询 ====================
         const peerId = current ? current.userId : null;
         if (!peerId) return;
 
+        // 并发请求：获取收件箱、未读数、当前聊天的消息
         const [inboxR, unreadR, chatR] = await Promise.all([
             YT.api.get('/api/private_message/select/inbox', { me: me.userId }).catch(() => null),
             YT.api.get('/api/private_message/count/unread', { me: me.userId }).catch(() => null),
             YT.api.get('/api/private_message/select/message', { a: me.userId, b: peerId }).catch(() => null),
         ]);
 
+        // 处理当前正在聊天的对象
         if (chatR) {
             const list = Array.isArray(chatR.data) ? chatR.data : [];
             const sig = list.length + '|' + (list.length ? (list[list.length - 1].msg_id || list[list.length - 1].msgId) : '');
             if (sig !== lastChatSig) {
                 const existingIds = new Set(curList.map(x => String(x.msgId)));
                 const newMsgs = list.filter(m => !existingIds.has(String(YT.pick(m, 'msg_id', 'msgId'))));
-                // 修改
+
                 if (newMsgs.length > 0) {
                     appendMsgs(newMsgs, false);
                     curList.push(...newMsgs);
@@ -1212,12 +1256,15 @@
                     }
                 }
                 lastChatSig = sig;
+                // 标记已读
                 try { await YT.api.post('/api/private_message/read', { me: me.userId, other: peerId }); } catch (e) { }
             }
         }
 
-        if (inboxR) {
-            const rows = Array.isArray(inboxR.data) ? inboxR.data : [];
+        // 处理左侧私信列表（收件箱）
+        // 同样只认数组：轮询偶发拿到错误响应时，不能把本地会话列表刷没
+        if (inboxR && Array.isArray(inboxR.data)) {
+            const rows = inboxR.data;
             const sig = inboxSig(rows);
             if (sig !== lastInboxSig) {
                 lastInboxSig = sig;
@@ -1225,6 +1272,7 @@
             }
         }
 
+        // 处理左侧标题栏的未读总数
         if (unreadR) {
             const n = Number((unreadR.data && unreadR.data.count) || 0);
             if (n !== lastUnread) {
@@ -1236,7 +1284,6 @@
             }
         }
     }
-
     function schedulePoll() {
         if (document.hidden) { pollTimer = null; return; }
         pollTimer = setTimeout(async () => {
@@ -1267,32 +1314,35 @@
     //    私信屏蔽
 
 
-    // 新增：屏蔽/解除屏蔽事件
+    // 屏蔽 / 解除屏蔽
     if (btnBlockUser) {
         btnBlockUser.onclick = async () => {
             if (!current) return;
-            const isBlocked = blockedPeers.has(current.userId);
+            const peerId = current.userId;
+            const peerName = current.name || peerId;
+            const isBlocked = blockedPeers.has(peerId);
             const action = isBlocked ? '解除屏蔽' : '屏蔽';
             const url = isBlocked ? '/api/private_message/unblock/pm' : '/api/private_message/block/pm';
 
-            if (!confirm(`确定要${action}【${current.name}】吗？\n${isBlocked ? '解除后对方可以继续给你发私信。' : '屏蔽后对方将无法给你发私信。'}`)) return;
+            if (!confirm(`确定要${action}【${peerName}】吗？\n${isBlocked ? '解除后对方可以继续给你发私信。' : '屏蔽后对方将无法给你发私信。'}`)) return;
 
             btnBlockUser.disabled = true;
             try {
-                // 注意：你的后端入参是 upId 和 userId
-                const r = await YT.api.post(url, { upId: me.userId, userId: current.userId });
-                if (r.success) {
+                // 后端入参是 upId（屏蔽的人=我）和 userId（被屏蔽的人=对方）
+                const r = await YT.api.post(url, { upId: me.userId, userId: peerId });
+                if (r && r.success) {
                     if (isBlocked) {
-                        blockedPeers.delete(current.userId);
+                        blockedPeers.delete(peerId);
                         YT.toast('已解除屏蔽');
                     } else {
-                        blockedPeers.add(current.userId);
+                        blockedPeers.add(peerId);
                         YT.toast('已屏蔽，对方无法再给你发私信');
                     }
-                    renderHead();  // 刷新顶部按钮文字
-                    renderPeers(); // 刷新左侧列表样式
+                    saveBlockedPeers();   // 落 localStorage，刷新页面后状态不丢
+                    renderHead();         // 刷新顶部按钮文字
+                    renderPeers();        // 刷新左侧列表样式
                 } else {
-                    YT.toast(r.message || '操作失败');
+                    YT.toast((r && r.message) || '操作失败');
                 }
             } catch (e) {
                 YT.toast('网络错误：' + e.message);
@@ -1609,7 +1659,7 @@
     renderMyGroups();
 
     (async () => {
-        await Promise.all([loadInbox(), refreshUnread(), syncMyGroups()]);
+        await Promise.all([loadInbox(), refreshUnread(), syncMyGroups(), loadBlockedFromServer()]);
 
         //新增：检查 URL 里是否带有 peer 参数（从主页或播放页跳转过来）
         const qs = new URLSearchParams(location.search);

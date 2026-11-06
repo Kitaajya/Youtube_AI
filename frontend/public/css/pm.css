@@ -87,6 +87,19 @@
     padding: 4px;
 }
 .pm-peer .p-del:hover { color: var(--danger); }
+
+/* 已屏蔽的会话：整行淡化 + 名字后标「已屏蔽」，避免以为对方从列表里消失了 */
+.pm-peer.blocked { opacity: .55; }
+.pm-peer.blocked .p-name::after {
+    content: '已屏蔽';
+    margin-left: 6px;
+    padding: 0 4px;
+    border-radius: 4px;
+    background: var(--danger);
+    color: #fff;
+    font-size: 10px;
+    vertical-align: middle;
+}
 .pm-empty-peers { padding: 20px 16px; font-size: 13px; color: var(--text-secondary); text-align: center; }
 
 /* ---------- 右栏 ---------- */
