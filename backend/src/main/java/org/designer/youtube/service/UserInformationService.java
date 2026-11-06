@@ -184,4 +184,60 @@ public class UserInformationService {
     public Result<List<Map<String, Object>>> searchUsers(String keyword){
         return Result.success(userInformationMapper.searchUsers(keyword));
     }
+
+    /**
+     *
+     * @since  2026/11/06/16:10
+     * @author
+     * Conan Doyle
+     * @功能:
+     * 添加视频会员功能，我加入到youtuber的VIP，可以看youtuber的特定视频（VIP视频）
+     *
+     * **/
+    public Result<Map<String,Object>> joinYoutuberSpecialVideoVIP(String myUserId, String youtuberId){
+        if (myUserId == null || myUserId.isBlank()) return Result.fail("观众ID不能为空");
+        if (youtuberId == null || youtuberId.isBlank()) return Result.fail("UP主ID不能为空");
+        if (myUserId.equals(youtuberId)) return Result.fail("不能给自己开通会员！");
+        if(userInformationMapper.isYoutuberVip(myUserId, youtuberId)!=0) return Result.fail("你已经是会员了！");
+        //if (userInformationMapper.countUser(youtuberId)==0) return Result.fail("UP主不存在！");
+        try {
+            int k = userInformationMapper.joinYoutuberSpecialVideoVIP(myUserId, youtuberId);
+            if (k==0) return Result.fail("加入失败");
+            return Result.success("加入成功",
+                    Map.of("myUserId", myUserId, "youtuberId", youtuberId));
+        } catch (DuplicateKeyException e) {
+            return Result.success("已经是该UP主的会员了",
+                    Map.of("myUserId", myUserId, "youtuberId", youtuberId));
+        }
+    }
+    // 我是不是这位UP主的会员（>0 表示是）
+    public Result<Map<String,Object>>isYoutuberVip(String myUserId,String youtuberId){
+        if(myUserId.equals(youtuberId)) return Result.fail("自己不能给自己会员！");
+        if(myUserId.isEmpty()) return Result.fail("请添写自己的id！");
+        if(youtuberId.isEmpty()) return Result.fail("youtuber的id不能为空！");
+        if(userInformationMapper.isYoutuberVip(myUserId, youtuberId)>0)
+            return Result.success("你是他的会员！",Map.of("myUserId",myUserId,"youtuberId",youtuberId));
+        return Result.fail("你不是youtuber的会员");
+    }
+    // 退出某位UP主的会员
+    public Result<Map<String,Object>> quitYoutuberVip(String myUserId,String youtuberId){
+        if (myUserId == null || myUserId.isBlank()) return Result.fail("观众ID不能为空");
+        if (youtuberId == null || youtuberId.isBlank()) return Result.fail("UP主ID不能为空");
+        if (myUserId.equals(youtuberId)) return Result.fail("不能给自己开通会员！");
+        if(userInformationMapper.isYoutuberVip(myUserId, youtuberId)==0) return Result.fail("你不是他/她的会员");
+        try {
+            int k = userInformationMapper.quitYoutuberVip(myUserId, youtuberId);
+            if (k==0) return Result.fail("退出失败");
+            return Result.success("退出成功",
+                    Map.of("myUserId", myUserId, "youtuberId", youtuberId));
+        } catch (DuplicateKeyException e) {
+            return Result.success("已经不是该UP主的会员了",
+                    Map.of("myUserId", myUserId, "youtuberId", youtuberId));
+        }
+    }
+    // 某位UP主的所有会员列表（UP主后台查看用）
+    public Result<List<Map<String,Object>>> selectYoutuberVipList(String youtuberId){
+        return Result.success(userInformationMapper.selectYoutuberVipList(youtuberId));
+    }
+
 }

@@ -150,5 +150,38 @@ public interface UserInformationMapper {
     LIMIT 10
     """)
     List<Map<String, Object>> searchUsers(@Param("keyword") String keyword);
+
+    /**
+     * @since 2026/11/06/16:10
+     * @author Conan Doyle
+     * @功能: 添加视频会员功能，我加入到youtuber的VIP，可以看youtuber的特定视频（VIP视频）
+     * **/
+    @Insert("INSERT INTO youtuber_vip(fan_id, youtuber_id) VALUES(#{myUserId}, #{youtuberId})")
+    int joinYoutuberSpecialVideoVIP(@Param("myUserId")   String myUserId,
+                                    @Param("youtuberId") String youtuberId);
+
+    // 我是不是这位UP主的会员（>0 表示是）
+    @Select("""
+    SELECT COUNT(*) FROM youtuber_vip WHERE fan_id=#{myUserId} AND youtuber_id=#{youtuberId}
+    """)
+    int isYoutuberVip(@Param("myUserId")   String myUserId,
+                      @Param("youtuberId") String youtuberId);
+
+    // 退出某位UP主的会员
+    @Delete("""
+    DELETE FROM youtuber_vip WHERE fan_id=#{myUserId} AND youtuber_id=#{youtuberId}
+    """)
+    int quitYoutuberVip(@Param("myUserId")   String myUserId,
+                        @Param("youtuberId") String youtuberId);
+
+    // 某位UP主的所有会员列表，暂时先不设置隐私模式，默认公开。任何人都可查看
+    @Select("""
+    SELECT u.user_id, u.nickname, u.avatar, yv.create_time AS join_time
+    FROM youtuber_vip yv
+    JOIN user_information u ON u.user_id = yv.fan_id
+    WHERE yv.youtuber_id = #{youtuberId}
+    ORDER BY yv.create_time DESC
+    """)
+    List<Map<String,Object>> selectYoutuberVipList(@Param("youtuberId") String youtuberId);
 }
 

@@ -910,5 +910,4 @@ public interface VideoMapper {
     WHERE ub.user_id = #{upId}
     """)
     List<Map<String,Object>> selectBlockedUsers(@Param("upId") String upId);
-
 }
