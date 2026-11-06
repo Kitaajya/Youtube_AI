@@ -75,6 +75,11 @@ public class PrivateMessageService {
         if(content==null||content.isEmpty()) return Result.fail("发送信息不能为空！");
         if(privateMessage.getFromUser()==null) return Result.fail("发件人不能为空");
         if(privateMessage.getToUser()==null) return Result.fail("目标人不能为空");
+        //检查接收方 (toUser) 是否把发送方 (fromUser) 给屏蔽了
+        int isBlocked = privateMessageMapper.checkBlockStatus(privateMessage.getToUser(), privateMessage.getFromUser());
+        if (isBlocked > 0)
+            // 为了不暴露“你被拉黑了”这种尴尬事实，通常统一提示发送失败或拒收
+            return Result.fail("对方已拒收你的消息");
         privateMessage.setContents(content);
         // 普通文字消息默认 text；生日祝福等特殊消息由前端传 msgType 进来
         if (privateMessage.getMsgType() == null || privateMessage.getMsgType().isBlank())
