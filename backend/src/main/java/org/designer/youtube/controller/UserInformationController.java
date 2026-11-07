@@ -188,4 +188,18 @@ public class UserInformationController {
     public Result<List<Map<String,Object>>> selectYoutuberVipList(@RequestParam String youtuberId){
         return userInformationService.selectYoutuberVipList(youtuberId);
     }
+
+    @GetMapping("/check/youtuber/vip")
+    public Result<Map<String, Object>> checkYoutuberVip(@RequestParam String myUserId, @RequestParam String youtuberId) {
+        return userInformationService.isYoutuberVip(myUserId, youtuberId);
+    }
+    /**
+     * @since 2026/11/07/10:26
+     * @author Conan Doyle
+     * @功能: 添加用户头像。如果用户不添加头像，默认用首字母或汉字第一个字
+     * **/
+    @GetMapping("/add/avatar")
+    public Result<Map<String,Object>> addAvatar(String userId,String avatar){
+        return userInformationService.addAvatar(userId, avatar);
+    }
 }
