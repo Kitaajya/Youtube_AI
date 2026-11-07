@@ -172,6 +172,8 @@ public class PrivateMessageService {
                 : "";
         if (List.of("jpg","jpeg","png","gif","webp","bmp").contains(ext)) privateMessage.setMsgType("image");
         else if (List.of("mp4","webm","mov","m4v").contains(ext)) privateMessage.setMsgType("video");
+        //补上这段（同时建议顺手把 `sendMedia` 里前端的 `voice` 判断也加上）
+        else if (List.of("webm", "mp3", "wav", "ogg", "m4a").contains(ext)) privateMessage.setMsgType("voice");
         else return Result.fail("不支持的媒体类型：" + ext);   // 防乱上传
 
         privateMessage.setContents("");

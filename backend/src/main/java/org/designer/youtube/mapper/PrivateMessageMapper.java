@@ -336,7 +336,6 @@ public interface PrivateMessageMapper {
     /**
      * @deprecated
      * */
-
     @Select("""
     SELECT from_user AS fromUser, to_user AS toUser, contents, is_read AS isRead, 
            is_withdrawn AS isWithdrawn, from_deleted AS fromDeleted, 
@@ -348,5 +347,11 @@ public interface PrivateMessageMapper {
     """)
     List<Map<String, Object>> selectInbox_Duplicate(@Param("me") String me);
 
-
+    /**
+     * @since  2026/11/07/15:55
+     * @author Conan Doyle
+     *
+     * @说明: 语音功能预备上线，打算用MP3传输到私信或群聊里
+     * **/
+    int demoMethodOrInterface();
 }

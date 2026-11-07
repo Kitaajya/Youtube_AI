@@ -300,7 +300,13 @@
             bodyHtml = `<div class="bubble media"><img src="${YT.mediaUrl(mediaFile)}" alt="" loading="lazy"></div>`;
         } else if (mtype === 'video' && mediaFile) {
             bodyHtml = `<div class="bubble media"><video controls preload="metadata" playsinline src="${YT.mediaUrl(mediaFile)}"></video></div>`;
-        } else if (mtype === 'birthday') {
+        } else if (mtype === 'voice' && mediaFile) {
+            bodyHtml = `<div class="bubble media">
+                <audio controls src="${YT.mediaUrl(mediaFile)}" style="height: 40px; max-width: 220px;"></audio>
+            </div>`;
+        }
+
+        else if (mtype === 'birthday') {
             bodyHtml = bdayBubbleHtml();
         } else {
             // bodyHtml = `<div class="bubble">${YT.esc(String(m.contents || ''))}</div>`;
@@ -698,7 +704,6 @@
             const form = new FormData();
             form.append('file', file);
 
-            // 🟢 修改这里：直接传 form，不要加第三个参数
             const r = await YT.api.post('/api/private_message/upload/media', form);
 
             if (!r || !r.success || !r.data || !r.data.mediaPath) {
@@ -708,25 +713,28 @@
 
             const mediaPath = r.data.mediaPath;
 
-            // 判断是图片还是视频（根据文件扩展名）
+            // 👇 改这里：加入 voice 判断
             const ext = file.name.split('.').pop().toLowerCase();
-            const isVideo = ['mp4', 'webm', 'mov', 'm4v'].includes(ext);
-            const msgType = isVideo ? 'video' : 'image';
+            let msgType = 'image';
+            if (['mp4', 'mov', 'm4v'].includes(ext)) {
+                msgType = 'video';
+            } else if (['webm', 'mp3', 'wav', 'ogg', 'm4a'].includes(ext)) {
+                msgType = 'voice';
+            }
 
-            // 这里发送入库的请求，也可以用 FormData 直接发给后端 @ModelAttribute
             const targetForm = new FormData();
             targetForm.append('fromUser', me.userId);
+            targetForm.append('msgType', msgType); // 👈 补上这个
+
             if (currentGroup) {
                 targetForm.append('groupId', currentGroup.groupId);
                 targetForm.append('contents', '');
-                targetForm.append('msgType', msgType);
                 targetForm.append('mediaPath', mediaPath);
             } else {
                 targetForm.append('toUser', current.userId);
                 targetForm.append('mediaPath', mediaPath);
             }
 
-            // 🟢 入库接口：群聊用 add/group/message，私聊用 send/picture/video
             const res = currentGroup
                 ? await YT.api.post('/api/private_message/add/group/message', targetForm)
                 : await YT.api.post('/api/private_message/send/picture/video', targetForm);
@@ -889,7 +897,7 @@
                                 // 如果问成员，走成员查询接口
                                 triggerGroupMemberAi(nowMsg, thinkingMsgId);
                             } else {
-                                // 否则，走普通的聊天总结接口
+                                // 否则，走普通聊天总结接口
                                 triggerGroupAi(nowMsg, thinkingMsgId);
                             }
                         });
