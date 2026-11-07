@@ -239,5 +239,18 @@ public class UserInformationService {
     public Result<List<Map<String,Object>>> selectYoutuberVipList(String youtuberId){
         return Result.success(userInformationMapper.selectYoutuberVipList(youtuberId));
     }
-
+    /**
+     * @since 2026/11/07/10:26
+     * @author Conan Doyle
+     * @功能: 添加用户头像。如果用户不添加头像，默认用首字母或汉字第一个字
+     * **/
+    public Result<Map<String,Object>> addAvatar(String userId,String avatar){
+        try {
+            int k=userInformationMapper.addAvatar(userId,avatar);
+            if(k!=0) return Result.success("添加成功！",Map.of("userId",userId,"avatar",avatar));
+        }catch (DuplicateKeyException esq){
+            return Result.success("你已经添加过了！",Map.of("userId",userId,"avatar",avatar));
+        }
+        return Result.fail("添加失败！");
+    }
 }
