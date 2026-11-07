@@ -47,14 +47,20 @@ public interface PrivateMessageMapper {
 
     // 我的会话列表：每个对话一行（最后一条消息 + 对方昵称 + 未读数），MySQL 8 窗口函数
     // 时间用 DATE_FORMAT 输出字符串，避免 Map 返回时 Timestamp 被序列化成毫秒数
+    // 顺带把"对端"的昵称和头像 JOIN 出来：对端是动态的（我是发件人时是 to_user，
+    // 否则是 from_user），所以 ON 条件里用 IF 判断；前端据此在会话列表显示头像。
     @Select("""
-    SELECT from_user AS fromUser, to_user AS toUser, contents, is_read AS isRead, 
-           is_withdrawn AS isWithdrawn, from_deleted AS fromDeleted, 
-           DATE_FORMAT(create_time, '%Y-%m-%d %H:%i:%S') AS createTime
-    FROM private_message
-    WHERE (from_user=#{me} OR to_user=#{me})
-      AND NOT (from_user=#{me} AND from_deleted = 1)
-    ORDER BY create_time DESC
+    SELECT pm.from_user AS fromUser, pm.to_user AS toUser, pm.contents, pm.is_read AS isRead, 
+           pm.is_withdrawn AS isWithdrawn, pm.from_deleted AS fromDeleted, 
+           DATE_FORMAT(pm.create_time, '%Y-%m-%d %H:%i:%S') AS createTime,
+           peer.nickname AS peerName,
+           peer.avatar   AS peerAvatar
+    FROM private_message pm
+    LEFT JOIN user_information peer
+           ON peer.user_id = IF(pm.from_user = #{me}, pm.to_user, pm.from_user)
+    WHERE (pm.from_user=#{me} OR pm.to_user=#{me})
+      AND NOT (pm.from_user=#{me} AND pm.from_deleted = 1)
+    ORDER BY pm.create_time DESC
 """)
     List<Map<String, Object>> selectInbox(@Param("me") String me);
 

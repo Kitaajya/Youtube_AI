@@ -143,7 +143,7 @@ public interface UserInformationMapper {
 
     /** 根据用户名或昵称模糊搜索（最多返回 10 条）**/
     @Select("""
-    SELECT user_id AS userId, nickname, username 
+    SELECT user_id AS userId, nickname, username, avatar
     FROM user_information 
     WHERE nickname LIKE CONCAT('%', #{keyword}, '%') 
        OR username LIKE CONCAT('%', #{keyword}, '%')
@@ -183,5 +183,19 @@ public interface UserInformationMapper {
     ORDER BY yv.create_time DESC
     """)
     List<Map<String,Object>> selectYoutuberVipList(@Param("youtuberId") String youtuberId);
+    /**
+     * @since 2026/11/07/10:26
+     * @author Conan Doyle
+     * @功能: 添加用户头像。如果用户不添加头像，默认用首字母或汉字第一个字
+     * **/
+    @Update("""
+    UPDATE user_information
+    SET avatar=#{avatar}
+    WHERE user_id=#{userId}
+    """)
+    int addAvatar(@Param("userId") String userId,@Param("avatar") String avatar);
+    //注：此接口是查看所有人的头像，无论有没有进入youtuber的主页
+    @Select("SELECT avatar FROM user_information WHERE user_id = #{userId}")
+    List<Map<String,Object>> selectAvatar(@Param("userId") String userId);
 }
 

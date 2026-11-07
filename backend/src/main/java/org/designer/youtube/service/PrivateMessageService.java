@@ -84,8 +84,12 @@ public class PrivateMessageService {
                     row.put("lastMsg", contents.length() > 30 ? contents.substring(0, 30) : contents);
                 }
                 row.put("lastTime", msg.get("createTime"));
-                //对方的昵称（暂时先用 peer ID 代替，前端有缓存会覆盖显示）
-                row.put("peerName", peer);
+                // 对端昵称 + 头像：SQL 已经 JOIN 出来了，取不到才退回显示 peer ID
+                Object pn = msg.get("peerName");
+                Object pa = msg.get("peerAvatar");
+                String peerName = pn == null ? "" : String.valueOf(pn).trim();
+                row.put("peerName", peerName.isEmpty() ? peer : peerName);
+                row.put("peerAvatar", pa == null ? "" : String.valueOf(pa));
                 int unreadCount = privateMessageMapper.countUnreadFromPeer(me, peer);
                 row.put("unread", unreadCount);
                 latestMap.put(peer, row);

@@ -253,4 +253,9 @@ public class UserInformationService {
         }
         return Result.fail("添加失败！");
     }
+    //查看头像
+    public Result<List<Map<String,Object>>> selectAvatar(String userId){
+        return Result.success(userInformationMapper.selectAvatar(userId));
+    }
+
 }

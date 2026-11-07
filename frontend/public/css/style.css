@@ -71,7 +71,21 @@ button { font-family: inherit; cursor: pointer; }
     overflow: hidden; flex-shrink: 0;
 }
 .avatar.lg { width: 44px; height: 44px; font-size: 18px; }
+.avatar.xs { width: 20px; height: 20px; font-size: 10px; }
 .avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+/* 头像统一结构：<span class="avatar"><span class="av-fb">首字母</span><img></span>
+ * 首字母垫在下面，图片加载失败/透明时自动露出来，不用写 onerror */
+.avatar { position: relative; }
+.avatar .av-fb {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+}
+.avatar img { position: relative; z-index: 1; }
+
+/* 通知面板：用触发人头像代替类型图标 */
+.nt-av { flex-shrink: 0; display: inline-flex; }
+.nt-av .avatar { width: 28px; height: 28px; font-size: 12px; }
 
 /* 用户下拉菜单 */
 .menu-wrap { position: relative; }

@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.designer.youtube.RandomlyCreateID;
 import org.designer.youtube.common.Result;
+import org.designer.youtube.mapper.UserInformationMapper;
 import org.designer.youtube.mapper.VideoMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -31,9 +32,11 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class VideoFileService {
-
+    @Value("${ffmpeg.ffprobe-path}")
+    private String ffprobePath;
     private final VideoMapper vm;
     private final RandomlyCreateID idGen;
+    private final UserInformationMapper uim;
 
     @Value("${video.storage.dir}")
     private String storageDir;
@@ -48,7 +51,7 @@ public class VideoFileService {
     private int probeDuration(Path file) {
         try {
             Process p = new ProcessBuilder(
-                    "ffprobe", "-v", "error",
+                    ffprobePath, "-v", "error",
                     "-show_entries", "format=duration",
                     "-of", "default=nw=1:nk=1",
                     file.toString()).redirectErrorStream(true).start();
@@ -62,12 +65,11 @@ public class VideoFileService {
         }
     }
 
-
     /** 用 ffprobe 读宽高，height > width 视为竖屏；探测失败按横屏处理（不阻断上传） */
     private int isVerticalOf(Path file) {
         try {
             Process p = new ProcessBuilder(
-                    "ffprobe", "-v", "error",
+                    ffprobePath, "-v", "error",
                     "-select_streams", "v:0",
                     "-show_entries", "stream=width,height",
                     "-of", "csv=s=x:p=0",
@@ -101,7 +103,7 @@ public class VideoFileService {
 
     @Transactional
     public Result<Map<String, Object>> uploadFile(String userId, String title, MultipartFile file,
-                                                  int clientDurationSec, int clientVertical) {
+                                                  int clientDurationSec, int clientVertical,int isVipOnly) {
         if (file == null || file.isEmpty()) return Result.fail("没有收到视频文件");
         if (title == null || title.trim().isEmpty()) return Result.fail("标题不能为空");
 
@@ -141,8 +143,9 @@ public class VideoFileService {
 
         int k;
         try {
+            // 调用 vm.uploadVideo 时传入 isVipOnly
             k = vm.uploadVideo(userId, title.trim(), target.toString(),
-                    isShort ? 1 : 0, durationSec, vertical);
+                    isShort ? 1 : 0, durationSec, vertical, isVipOnly);
         } catch (RuntimeException e) {
             deleteQuietly(target);
             log.error("视频入库失败，已回收文件 {}", target, e);
@@ -254,6 +257,63 @@ public class VideoFileService {
     private boolean isImage(String ext) {
         for (String p : IMAGE_EXT) if (p.equals(ext)) return true;
         return false;
+    }
+
+    /** 头像允许的格式（与封面一致，都是图片） */
+    private static final long AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+
+    /**
+     * 上传/更换用户头像：只收图片，落盘到 video.storage.dir，再把可访问 URL 写回
+     * user_information.avatar。
+     *
+     * 与 uploadCover 的区别：封面要校验 videoId + 所属用户，头像跟视频无关，
+     * 所以不能复用封面接口——那边 updateCover 匹配不到记录会把刚存的图片删掉。
+     */
+    @Transactional
+    public Result<Map<String, Object>> uploadAvatar(String userId, MultipartFile file) {
+        if (userId == null || userId.trim().isEmpty()) return Result.fail("缺少用户标识");
+        if (file == null || file.isEmpty()) return Result.fail("没有收到头像图片");
+        if (file.getSize() > AVATAR_MAX_BYTES) return Result.fail("头像不能超过 2MB");
+
+        String ext = extensionOf(file.getOriginalFilename());
+        if (!isImage(ext)) return Result.fail("头像只支持 jpg/png/webp/gif");
+
+        String fileName = "avatar_" + idGen.createId().toLowerCase(Locale.ROOT) + "." + ext;
+        Path dir = Paths.get(storageDir).toAbsolutePath().normalize();
+        Path target = dir.resolve(fileName).normalize();
+        // 防目录穿越：拼出来的路径必须还在存储目录里
+        if (!target.startsWith(dir)) return Result.fail("文件名不合法");
+
+        try {
+            Files.createDirectories(dir);
+            try (InputStream in = file.getInputStream()) {
+                Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException e) {
+            log.error("头像保存失败: {}", target, e);
+            return Result.fail("头像保存失败：" + e.getMessage());
+        }
+
+        String avatarUrl = publicPrefix() + "/" + fileName;
+        int k;
+        try {
+            k = uim.addAvatar(userId.trim(), avatarUrl);
+        } catch (RuntimeException e) {
+            deleteQuietly(target);
+            log.error("头像入库失败，已回收文件 {}", target, e);
+            return Result.fail("登记失败：" + rootMessage(e));
+        }
+        if (k == 0) {
+            deleteQuietly(target);
+            log.warn("头像入库影响 0 行，userId={} 在 user_information 中不存在", userId);
+            return Result.fail("用户不存在，头像保存失败");
+        }
+
+        log.info("头像上传成功，userId={}, 本地={}, 访问={}", userId, target, avatarUrl);
+        return Result.success("头像更换成功", Map.of(
+                "avatarUrl", avatarUrl,
+                "filePath", target.toString()
+        ));
     }
 
     /** 私信媒体允许的格式：图片 + 浏览器可直接播放的视频 */

@@ -83,7 +83,7 @@
         return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
     }
 
-    function touchPeer(userId, name, lastMsg, lastTime, unread) {
+    function touchPeer(userId, name, lastMsg, lastTime, unread, avatar) {
         const arr = getPeers();
         const i = arr.findIndex(p => p.userId === userId);
         const old = i >= 0 ? arr[i] : null;
@@ -91,6 +91,7 @@
         arr.unshift({
             userId,
             name: name || (old && old.name) || '',
+            avatar: avatar || (old && old.avatar) || '',
             lastMsg: lastMsg !== undefined ? String(lastMsg || '') : (old && old.lastMsg) || '',
             lastTime: lastTime || (old && old.lastTime) || '',
             unread: unread !== undefined ? Number(unread) || 0 : (old && old.unread) || 0,
@@ -136,7 +137,7 @@
             const isBlocked = blockedPeers.has(p.userId); // 👈 新增：判断是否被屏蔽
             return `
             <div class="pm-peer ${current && current.userId === p.userId ? 'active' : ''} ${isBlocked ? 'blocked' : ''}" data-peer="${YT.esc(p.userId)}">
-                <span class="avatar">${YT.esc((p.name || p.userId).slice(0, 1).toUpperCase())}</span>
+                ${YT.avatarHtml(p.name || p.userId, p.avatar)}
                 <div class="p-txt">
                     <div class="p-name">${YT.esc(p.name || p.userId)}</div>
                     <div class="p-sub">${YT.esc(p.lastMsg || '（无消息）')} · ${YT.timeAgo(p.lastTime)}</div>
@@ -320,12 +321,13 @@
         }
 
         if (isGroup) {
-            const avatarHtml = `<div class="pm-group-avatar" onclick="location.href='profile.html?userId=${YT.esc(m.fromUser)}&name=${encodeURIComponent(who)}'" title="查看 ${YT.esc(who)} 的资料">
-                <span class="avatar">${YT.esc(who.slice(0, 1).toUpperCase())}</span>
+            // 群消息左侧头像：有头像就显示图片（SQL 已经带了 senderAvatar），没有才用首字母
+            const avBlock = `<div class="pm-group-avatar" onclick="location.href='profile.html?userId=${YT.esc(m.fromUser)}&name=${encodeURIComponent(who)}'" title="查看 ${YT.esc(who)} 的资料">
+                ${YT.avatarHtml(who, m.senderAvatar)}
             </div>`;
             return `
             <div class="pm-group-msg-wrap ${mine ? 'me' : ''}" data-msg-id="${YT.esc(msgId)}">
-                ${avatarHtml}
+                ${avBlock}
                 <div class="pm-group-msg-body">
                     <span class="pm-group-name">${YT.esc(who)}</span>
                     <div class="pm-msg ${mine ? 'me' : ''}">
@@ -416,7 +418,7 @@
         }
 
         if (titleSpan) titleSpan.innerHTML = `
-            <span class="avatar" style="margin-right:8px;">${YT.esc((current.name || current.userId).slice(0, 1).toUpperCase())}</span>
+            <span style="margin-right:8px;display:inline-flex;">${YT.avatarHtml(current.name || current.userId, current.avatar)}</span>
             <b>${YT.esc(current.name || '对方')}</b>
             <span class="w-stats">ID: ${YT.esc(current.userId)}</span>`;
         if (exitBtn) exitBtn.style.display = 'none';
@@ -461,6 +463,7 @@
         const server = rows.map(row => ({
             userId: String(YT.pick(row, 'peerId', 'peer_id') || ''),
             name: String(YT.pick(row, 'peerName', 'peer_name') || ''),
+            avatar: String(YT.pick(row, 'peerAvatar', 'peer_avatar') || ''),
             lastMsg: String(YT.pick(row, 'lastMsg', 'last_msg') || '').slice(0, 30),
             lastTime: String(YT.pick(row, 'lastTime', 'last_time') || ''),
             unread: Number(YT.pick(row, 'unread') || 0),
@@ -470,7 +473,10 @@
         const merged = server.map(p => {
             const old = local.find(x => x.userId === p.userId);
             const note = old && old.name ? old.name : '';
-            return { ...p, name: note || p.name };
+            // 服务端现在会返回真实昵称：以服务端为准；只有在它没昵称（等于 ID）时才用本地缓存的名字。
+            // 头像同理：服务端没返回就用本地缓存的，别把人家的头像弄丢了。
+            const name = (p.name && p.name !== p.userId) ? p.name : (note || p.name);
+            return { ...p, name, avatar: p.avatar || (old && old.avatar) || '' };
         });
         const extra = local.filter(x => !server.some(p => p.userId === x.userId));
         setPeers([...extra, ...merged]);
@@ -562,7 +568,7 @@
         } catch (e) { }
     }
 
-    async function openChat(userId, name) {
+    async function openChat(userId, name, avatar) {
         //if (!userId || userId.length !== 13) { YT.toast('用户ID应为13位'); return; }
         if (userId === me.userId) { YT.toast('不能和自己聊天'); return; }
 
@@ -574,7 +580,7 @@
         picBtn.disabled = false;
         videoBtn.disabled = false;
 
-        current = { userId, name: name || '' };
+        current = { userId, name: name || '', avatar: avatar || '' };
         if (bdayBar) bdayBar.style.display = 'none';
         renderHead(); renderPeers(); renderMyGroups();
 
@@ -587,7 +593,10 @@
             lastChatSig = chatSig(list);
 
             const last = list[list.length - 1];
-            touchPeer(userId, name, last ? previewOf(last) : undefined, last ? last.createTime : '', 0);
+            // 头像：优先用调用方传进来的，其次用本地缓存里已经有的
+            const cachedPeer = getPeers().find(x => x.userId === userId);
+            touchPeer(userId, name, last ? previewOf(last) : undefined, last ? last.createTime : '', 0,
+                avatar || (cachedPeer && cachedPeer.avatar) || '');
 
             msgs.innerHTML = '';
             if (!list.length) msgs.innerHTML = '<div class="empty">还没有消息，发第一条吧</div>';
@@ -623,7 +632,8 @@
                 msgType: YT.pick(m, 'msg_type') || 'text',
                 mediaPath: YT.pick(m, 'media_path'),
                 createTime: YT.pick(m, 'create_time'),
-                senderName: YT.pick(m, 'senderName', 'sender_name') || (YT.pick(m, 'from_user') === 'AI_BOT' ? 'DeepSeek 助手' : '群友')
+                senderName: YT.pick(m, 'senderName', 'sender_name') || (YT.pick(m, 'from_user') === 'AI_BOT' ? 'DeepSeek 助手' : '群友'),
+                senderAvatar: YT.pick(m, 'senderAvatar', 'sender_avatar', 'avatar') || ''
             }));
 
             curList = normList;
@@ -1168,7 +1178,8 @@
                     msgType: YT.pick(m, 'msg_type') || 'text',
                     mediaPath: YT.pick(m, 'media_path'),
                     createTime: YT.pick(m, 'create_time'),
-                    senderName: YT.pick(m, 'senderName', 'sender_name') || (YT.pick(m, 'from_user') === 'AI_BOT' ? 'DeepSeek 助手' : '群友')
+                    senderName: YT.pick(m, 'senderName', 'sender_name') || (YT.pick(m, 'from_user') === 'AI_BOT' ? 'DeepSeek 助手' : '群友'),
+                    senderAvatar: YT.pick(m, 'senderAvatar', 'sender_avatar', 'avatar') || ''
                 }));
 
                 // 检查是否有新消息（通过比较最后一条消息的 ID）
@@ -1404,7 +1415,7 @@
         const row = e.target.closest('[data-peer]');
         if (row) {
             const p = getPeers().find(x => x.userId === row.dataset.peer);
-            openChat(row.dataset.peer, p ? p.name : '');
+            openChat(row.dataset.peer, p ? p.name : '', p ? p.avatar : '');
         }
     });
 

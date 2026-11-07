@@ -83,7 +83,7 @@
         const nm = String(YT.pick(u, 'nickname') || uid);
         return `
         <div class="user-card" data-user="${YT.esc(uid)}" data-name="${YT.esc(nm)}">
-            <span class="avatar">${YT.esc(nm.slice(0, 1).toUpperCase())}</span>
+            ${YT.avatarHtml(nm, YT.pick(u, 'avatar'))}
             <div class="uc-txt">
                 <div class="uc-name">${YT.esc(nm)}</div>
                 <div class="w-stats">ID: ${YT.esc(uid)}${YT.timeAgo(YT.pick(u, 'follow_time')) ? ' · ' + YT.timeAgo(YT.pick(u, 'follow_time')) : ''}</div>
@@ -732,6 +732,82 @@
             }
         });
     }
+    // ---------- 头像上传模块 ----------
+    const avEl = $('#ch-av');
+
+    // 把头像地址渲染成圆形图片；地址为空时保留首字母占位
+    function paintAvatar(url) {
+        const u = YT.mediaUrl(url);
+        if (!u) return;
+        avEl.innerHTML = `<img src="${YT.esc(u)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+    }
+
+    // 以后端为准读头像：换浏览器、清缓存、换设备后依然能显示；
+    // 后端没存头像时（avatar 为 null）就继续用首字母占位，不写坏本地缓存
+    async function loadAvatar() {
+        try {
+            const r = await YT.api.get('/api/user/select/avatar', { userId });
+            const row = r && Array.isArray(r.data) ? r.data[0] : null;
+            const av = row ? YT.pick(row, 'avatar') : '';
+            if (av) {
+                paintAvatar(av);
+                if (isMine) {
+                    try { localStorage.setItem('avatar', av); } catch (e) { /* 隐私模式忽略 */ }
+                }
+            }
+        } catch (e) { /* 接口不可用时保持首字母占位 */ }
+    }
+
+    if (isMine) {
+        const fileIn = $('#avatar-input');
+
+        // 点击头像触发文件选择
+        avEl.onclick = () => fileIn.click();
+
+        // 选择文件后上传
+        fileIn.onchange = async () => {
+            const file = fileIn.files[0];
+            if (!file) return;
+
+            // 大小校验 (限制 2MB)
+            if (file.size > 2 * 1024 * 1024) return YT.toast('头像不能超过 2MB');
+
+            const form = new FormData();
+            form.append('file', file);
+
+            // 后端 /api/user/upload/avatar 用 @RequestParam 同时收 userId 和文件，
+            // 所以两者都放进同一个 FormData 里
+            form.append('userId', me.userId);
+
+            avEl.style.opacity = '0.5'; // 变暗提示正在上传
+            try {
+                // 一步完成：图片落盘 + 写回 user_information.avatar
+                const r = await YT.api.post('/api/user/upload/avatar', form);
+                const avatarUrl = r && r.data ? (r.data.avatarUrl || '') : '';
+
+                if (r && r.success && avatarUrl) {
+                    YT.toast(r.message || '头像更换成功！');
+                    // 立即渲染新头像
+                    paintAvatar(avatarUrl);
+                    // 缓存一份，供顶栏等其他位置读取
+                    try { localStorage.setItem('avatar', avatarUrl); } catch (e) { /* 隐私模式忽略 */ }
+                } else {
+                    // 后端返回的是 Result 结构，失败原因在 message 里
+                    YT.toast((r && (r.message || r.error)) || '上传失败');
+                }
+            } catch (e) {
+                YT.toast('网络错误：' + e.message);
+            } finally {
+                avEl.style.opacity = '1';
+                fileIn.value = ''; // 清空 input 允许重复选同一个文件
+            }
+        };
+
+    }
+    // 页面加载时以后端为准读一次头像（自己的：换浏览器/清缓存后依然显示；
+    // 别人的：直接显示对方头像，而不只是首字母）
+    loadAvatar();
+    // --------------------------------
 
     switchTab('home');
 })();

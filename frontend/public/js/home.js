@@ -60,14 +60,16 @@
     function card(v) {
         const id = YT.pick(v, 'id');
         const title = YT.pick(v, 'title');
-        const up = YT.pick(v, 'uploader', 'user_id') || '未知UP主';
+        // 热榜接口返回的是 up_name/up_avatar，普通列表是 uploader/uploader_avatar，这里都兼容
+        const up = YT.pick(v, 'uploader', 'up_name', 'user_id') || '未知UP主';
+        const upAv = YT.pick(v, 'uploader_avatar', 'uploaderAvatar', 'up_avatar', 'upAvatar');
         const views = YT.pick(v, 'view_count');
         const time = YT.pick(v, 'create_time');
         return `
         <div class="card" onclick="location.href='watch.html?id=${encodeURIComponent(id)}'">
             ${YT.thumb(v)}
             <div class="meta">
-                <span class="avatar" title="${YT.esc(YT.pick(v, 'uploader_avatar'))}">${YT.esc(String(up).slice(0, 1).toUpperCase())}</span>
+                ${YT.avatarHtml(up, upAv)}
                 <div class="txt">
                     <div class="title">${YT.esc(title)}</div>
                     <div class="sub">${YT.esc(up)}</div>

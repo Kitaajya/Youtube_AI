@@ -87,6 +87,8 @@ const YT = (() => {
     function logout() {
         localStorage.removeItem('userId');
         localStorage.removeItem('nickname');
+        // 头像缓存一并清掉：否则同浏览器换账号登录时会串号显示上一个人的头像
+        localStorage.removeItem('avatar');
         location.href = 'index.html';
     }
 
@@ -117,6 +119,42 @@ const YT = (() => {
         const name = p.split(/[\\/]/).pop().replace(/[?#].*$/, '');
         return name ? '/videos/' + encodeURIComponent(name) : '';
     }
+    // ---------- 头像 ----------
+    // 全站统一用这个函数渲染头像：有头像地址就出图片，没有就退回首字母。
+    // 首字母用 .av-fb 垫在图片下面（见 style.css），所以图片 404 时自动露出首字母，
+    // 不会出现"裂图"或空白圆圈，也不需要任何 onerror 内联脚本。
+    function avatarHtml(name, avatarPath, extraClass) {
+        const nm = String(name || '').trim();
+        const initial = (nm.slice(0, 1) || '?').toUpperCase();
+        const url = avatarPath ? mediaUrl(String(avatarPath)) : '';
+        const cls = 'avatar' + (extraClass ? ' ' + extraClass : '');
+        if (!url) return `<span class="${cls}">${esc(initial)}</span>`;
+        return `<span class="${cls}"><span class="av-fb">${esc(initial)}</span><img src="${esc(url)}" alt="" loading="lazy"></span>`;
+    }
+
+    // 当前登录用户的头像地址：上传头像 / 打开个人主页时写进 localStorage.avatar。
+    // 没缓存过就先渲染首字母，再由 refreshMyAvatar() 去后端补一次，这样顶栏在
+    // 任何页面都能直接显示头像，不用先跑去个人主页"激活"。
+    function myAvatar() {
+        try { return localStorage.getItem('avatar') || ''; } catch (e) { return ''; }
+    }
+    let myAvatarBusy = false;
+    async function refreshMyAvatar() {
+        const u = user();
+        if (!u || myAvatar() || myAvatarBusy) return;
+        myAvatarBusy = true;
+        try {
+            const r = await api.get('/api/user/select/avatar', { userId: u.userId });
+            const row = r && Array.isArray(r.data) ? r.data[0] : null;
+            const av = row ? pick(row, 'avatar') : '';
+            if (!av) return;
+            try { localStorage.setItem('avatar', av); } catch (e) { /* 隐私模式忽略 */ }
+            const el = document.getElementById('yt-me-av');
+            if (el) el.outerHTML = avatarHtml(u.nickname, av);
+        } catch (e) { /* 后端不可用就让首字母顶着 */ }
+        finally { myAvatarBusy = false; }
+    }
+
     // 视频封面：能取到播放地址时用视频首帧，取不到时退回纯色占位
     // 视频封面：优先用 cover_path（用户选的帧），没有则回退到视频首帧
     //就这一个函数。 首页/侧栏/搜索的结果都会自动优先显示封面。
@@ -384,9 +422,15 @@ const YT = (() => {
             text = text.substring(who.length + 1).trim();
         }
 
+        // 有头像就用头像当图标（YouTube 也是这么做的），没有才用类型图标
+        const av = String(pick(n, 'avatar') || '');
+        const lead = av
+            ? `<span class="nt-av">${avatarHtml(who, av)}</span>`
+            : `<span class="nt-ic" style="display:flex; align-items:center; justify-content:center;">${t.icon}</span>`;
+
         return `
         <div class="nt-item ${unread ? 'unread' : ''}"${href ? ` data-href="${esc(href)}"` : ''}>
-            <span class="nt-ic" style="display:flex; align-items:center; justify-content:center;">${t.icon}</span>
+            ${lead}
             <div class="nt-txt">
                 <div class="nt-line">${whoHtml}${esc(text || t.label)}</div>
                 <div class="nt-time">${esc(timeAgo(pick(n, 'create_time')) || '')}</div>
@@ -622,7 +666,7 @@ const YT = (() => {
                     </div>
                     <div class="menu-wrap">
                         <button class="icon-btn" id="yt-menu-btn" style="width:auto;padding:0 4px;">
-                            <span class="avatar">${esc((u.nickname || u.userId).slice(0, 1).toUpperCase())}</span>
+                            <span id="yt-me-av">${avatarHtml(u.nickname || u.userId, myAvatar())}</span>
                         </button>
                         <div class="menu" id="yt-menu">
                             <div class="m-name">${esc(u.nickname)}<br><span style="color:var(--text-tertiary);font-size:12px;">ID: ${esc(u.userId)}</span></div>
@@ -715,6 +759,7 @@ const YT = (() => {
         if (typeof YT_THEME !== 'undefined') YT_THEME.bind();
         bindSbToggle();
         ntBind();          // 铃铛只在登录态下渲染出来，未登录时函数内部自动跳过
+        refreshMyAvatar(); // 本地没缓存头像时，去后端补一张，顶栏任何页面都能显示
     }
 
     document.addEventListener('DOMContentLoaded', renderHeader);
@@ -722,6 +767,7 @@ const YT = (() => {
     document.addEventListener('DOMContentLoaded', () => { maybeBirthdayCard().catch(() => { }); });
 
     return { api, randId, user, requireLogin, logout, esc, pick, mediaUrl, thumb, timeAgo, fmtNum,
-        fmtFull, toast, safeFrom, currentPath, FROM_KEY, IC, todayMD, isBirthdayToday, birthdayOf };})();
+        fmtFull, toast, safeFrom, currentPath, FROM_KEY, IC, todayMD, isBirthdayToday, birthdayOf,
+        avatarHtml, myAvatar, refreshMyAvatar };})();
 //截止2026/10/16/8:34，我已经修复了通知红点bug，以上的红点bug注释作废
 //2026/10/21/14:48 修复通知图标丢失及文字重复问题

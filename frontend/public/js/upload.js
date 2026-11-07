@@ -42,11 +42,16 @@
                     dropdown.innerHTML = list.map(u => {
                         const uid = YT.pick(u, 'userId') || YT.pick(u, 'user_id');
                         const nick = YT.pick(u, 'nickname') || YT.pick(u, 'username') || uid;
+                        const av = String(YT.pick(u, 'avatar') || '');
+                        const initial = YT.esc(nick.slice(0,1).toUpperCase());
+                        const avInner = av
+                            ? `<span class="av-fb">${initial}</span><img src="${YT.esc(YT.mediaUrl(av))}" alt="" loading="lazy">`
+                            : initial;
                         return `
                         <div class="user-item" data-id="${uid}" data-name="${YT.esc(nick)}" 
                              style="padding:10px 14px; cursor:pointer; display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--divider);">
-                            <span class="avatar" style="width:24px; height:24px; font-size:12px; background:var(--link); color:#fff; border-radius:50%; display:inline-flex; justify-content:center; align-items:center;">
-                                ${YT.esc(nick.slice(0,1).toUpperCase())}
+                            <span class="avatar" style="width:24px; height:24px; font-size:12px;">
+                                ${avInner}
                             </span>
                             <div>
                                 <div style="font-size:14px; color:var(--text-primary);">${YT.esc(nick)}</div>
@@ -159,6 +164,10 @@
         submit.textContent = '上传中…';
 
         const fd = new FormData();
+
+        const isVipOnly = document.getElementById('is-vip-only').checked ? 1 : 0;
+
+        fd.append('isVipOnly', isVipOnly);
         fd.append('userId', me.userId);
         fd.append('title', title);
         fd.append('file', f, f.name);

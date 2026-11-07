@@ -4,72 +4,83 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>上传视频 - YouTube</title>
+
     <link rel="stylesheet" href="css/vars.css">
     <script>(function(){try{var s=localStorage.getItem('yt-theme');var d=s==='dark'||(s!=='light'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
     <link rel="stylesheet" href="css/dark.css">
-    <link rel="stylesheet" href="css/style.css?v=3">
+    <link rel="stylesheet" href="css/style.css?v=10">
 </head>
 <body>
-    <div id="app-header"></div>
+<div id="app-header"></div>
 
-    <div class="page">
-        <div class="form-card">
-            <h1 class="page-title">上传视频</h1>
+<div class="page">
+    <div class="form-card">
+        <h1 class="page-title">上传视频</h1>
 
-            <div class="field">
-                <label>选择视频文件 <span class="req">*</span></label>
-                <input type="file" id="file" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,.m4v,.ogv">
-                <div class="hint" id="file-hint">支持 mp4 / webm / mov 等浏览器可播放格式，最大 1GB</div>
-            </div>
-
-            <div id="drop-zone" class="drop-zone">
-                <div style="font-size:34px;">&#127909;</div>
-                <div>拖拽视频文件到这里，或点击上方"选择文件"</div>
-            </div>
-
-            <div class="field">
-                <label>视频标题 <span class="req">*</span></label>
-                <input type="text" id="title" maxlength="200" placeholder="给视频起个标题">
-
-
-                <!-- 选择限制用户（屏蔽） -->
-                <div class="field" style="margin-top: 18px; position: relative;">
-                    <label for="shield-ids">
-                        限制以下用户观看/评论这条视频 <span style="color: var(--text-tertiary); font-weight: 400;">（只对这条视频生效，输入 @ 可搜索用户）</span>
-                    </label>
-                    <input type="text" id="shield-ids" placeholder="输入 @ 搜索用户，或直接输入用户 ID"
-                           style="width: 100%; height: 44px; padding: 0 14px; border: 1px solid var(--input-border); border-radius: 8px; background: var(--input-bg); color: var(--text-primary);">
-
-                    <!--新增：下拉浮层 -->
-                    <div id="user-dropdown" style="display:none; position:absolute; left:0; right:0; top:75px; background:var(--surface); border:1px solid var(--border); border-radius:8px; box-shadow:var(--shadow-menu); max-height:200px; overflow-y:auto; z-index:100;">
-                        <!-- 列表项由 JS 动态生成 -->
-                    </div>
-                </div>
-
-
-
-            </div>
-
-            <div class="prog" id="prog" style="display:none;">
-                <div class="prog-bar"><div class="prog-fill" id="prog-fill"></div></div>
-                <div class="prog-txt" id="prog-txt">上传中…</div>
-            </div>
-
-            <button class="btn red" id="submit" style="width:100%;justify-content:center;height:44px;">上传并发布</button>
-            <p class="tip" id="tip"></p>
-
-            <details style="margin-top:20px;">
-                <summary style="font-size:13px;color:var(--text-secondary);cursor:pointer;">高级：只登记服务器上已有的文件路径（不传文件本体）</summary>
-                <div style="margin-top:12px;">
-                    <div class="field"><label>文件完整路径</label><input type="text" id="old-path" placeholder="D:/videos/xxx.mp4"></div>
-                    <button class="btn sm" id="old-submit">仅登记路径</button>
-                </div>
-            </details>
+        <!-- 1. 选择文件 -->
+        <div class="field">
+            <label>选择视频文件 <span class="req">*</span></label>
+            <input type="file" id="file" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,.m4v,.ogv">
+            <div class="hint" id="file-hint">支持 mp4 / webm / mov 等浏览器可播放格式，最大 1GB</div>
         </div>
-    </div>
 
-    <script src="js/theme.js?v=1"></script>
-    <script src="js/common.js?v=18"></script>
-    <script src="js/upload.js?v=8"></script>
+        <div id="drop-zone" class="drop-zone">
+            <div style="font-size:34px;">&#127909;</div>
+            <div>拖拽视频文件到这里，或点击上方"选择文件"</div>
+        </div>
+
+        <!-- 2. 视频标题 -->
+        <div class="field">
+            <label>视频标题 <span class="req">*</span></label>
+            <input type="text" id="title" maxlength="200" placeholder="给视频起个标题">
+        </div>
+
+        <!-- 3. 视频权限（VIP选项） -->
+        <div class="field">
+            <label>视频权限</label>
+            <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="checkbox" id="is-vip-only" style="width:18px;height:18px;">
+                <span style="font-size:14px;">设为 UP 主会员专享（只有加入你会员的粉丝可观看）</span>
+            </label>
+        </div>
+
+        <!-- 4. 限制用户（屏蔽） -->
+        <div class="field" style="position: relative;">
+            <label for="shield-ids">
+                限制以下用户观看/评论这条视频 <span style="color: var(--text-tertiary); font-weight: 400;">（只对这条视频生效，输入 @ 可搜索用户）</span>
+            </label>
+            <input type="text" id="shield-ids" placeholder="输入 @ 搜索用户，或直接输入用户 ID"
+                   style="width: 100%; height: 44px; padding: 0 14px; border: 1px solid var(--input-border); border-radius: 8px; background: var(--input-bg); color: var(--text-primary);">
+
+            <!-- 下拉浮层 -->
+            <div id="user-dropdown" style="display:none; position:absolute; left:0; right:0; top:75px; background:var(--surface); border:1px solid var(--border); border-radius:8px; box-shadow:var(--shadow-menu); max-height:200px; overflow-y:auto; z-index:100;">
+                <!-- 列表项由 JS 动态生成 -->
+            </div>
+        </div>
+
+        <!-- 5. 进度条 -->
+        <div class="prog" id="prog" style="display:none;">
+            <div class="prog-bar"><div class="prog-fill" id="prog-fill"></div></div>
+            <div class="prog-txt" id="prog-txt">上传中…</div>
+        </div>
+
+        <!-- 6. 提交按钮 -->
+        <button class="btn red" id="submit" style="width:100%;justify-content:center;height:44px;">上传并发布</button>
+        <p class="tip" id="tip"></p>
+
+        <!-- 7. 高级选项 -->
+        <details style="margin-top:20px;">
+            <summary style="font-size:13px;color:var(--text-secondary);cursor:pointer;">高级：只登记服务器上已有的文件路径（不传文件本体）</summary>
+            <div style="margin-top:12px;">
+                <div class="field"><label>文件完整路径</label><input type="text" id="old-path" placeholder="D:/videos/xxx.mp4"></div>
+                <button class="btn sm" id="old-submit">仅登记路径</button>
+            </div>
+        </details>
+    </div>
+</div>
+
+<script src="js/theme.js?v=1"></script>
+<script src="js/common.js?v=19"></script>
+<script src="js/upload.js?v=9"></script>
 </body>
 </html>

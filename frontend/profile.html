@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="css/vars.css">
     <script>(function(){try{var s=localStorage.getItem('yt-theme');var d=s==='dark'||(s!=='light'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
     <link rel="stylesheet" href="css/dark.css">
-    <link rel="stylesheet" href="css/style.css?v=3">
+    <link rel="stylesheet" href="css/style.css?v=10">
     <link rel="stylesheet" href="css/channel.css?v=9">
 </head>
 <body>
@@ -19,12 +19,15 @@
 
         <!-- 频道头部：居中头像 + 名称/订阅数/简介/关注按钮 -->
         <div class="ch-head">
-            <span class="ch-avatar" id="ch-av"></span>
-            <div class="ch-meta">
+            <!-- 👇 给头像加上点击更换的提示 -->
+            <span class="ch-avatar" id="ch-av" style="cursor: pointer;" title="点击更换头像"></span>
+            <!-- 👇 新增隐藏的文件选择框 -->
+            <input type="file" id="avatar-input" accept="image/*" style="display: none;">            <div class="ch-meta">
                 <h1 class="ch-title" id="ch-name">加载中…</h1>
                 <div class="ch-sub" id="ch-stats"></div>
                 <div class="ch-bio" id="ch-bio"></div>
                 <div class="ch-actions">
+                    <button class="btn light" id="ch-join-vip" style="display:none;">加入会员</button>
                     <button class="btn ch-follow" id="ch-follow" style="display:none;">关注</button>
                     <a href="#" class="btn sm" id="ch-pm" style="display:none;">✉️ 私信</a>
                     <a href="upload.html" class="btn red sm" id="ch-upload" style="display:none;">&#8679; 上传视频</a>
@@ -142,7 +145,7 @@
     </div>
 
     <script src="js/theme.js?v=1"></script>
-    <script src="js/common.js?v=18"></script>
-    <script src="js/profile.js?v=18"></script>
+    <script src="js/common.js?v=19"></script>
+    <script src="js/profile.js?v=19"></script>
 </body>
 </html>

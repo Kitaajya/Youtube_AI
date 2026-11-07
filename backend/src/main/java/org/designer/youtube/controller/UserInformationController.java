@@ -8,7 +8,9 @@ import org.designer.youtube.common.Result;
 import org.designer.youtube.mapper.UserInformationMapper;
 import org.designer.youtube.service.PrivateMessageService;
 import org.designer.youtube.service.UserInformationService;
+import org.designer.youtube.service.VideoFileService;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -25,6 +27,7 @@ public class UserInformationController {
     private final RandomlyCreateID randomlyCreateID;
     private final UserInformationMapper userInformationMapper;
     private final PrivateMessageService privateMessageService;
+    private final VideoFileService videoFileService;
 
     //注册
     @PostMapping("/create/user/account")
@@ -198,8 +201,22 @@ public class UserInformationController {
      * @author Conan Doyle
      * @功能: 添加用户头像。如果用户不添加头像，默认用首字母或汉字第一个字
      * **/
-    @GetMapping("/add/avatar")
-    public Result<Map<String,Object>> addAvatar(String userId,String avatar){
+    @PostMapping("/add/avatar")
+    public Result<Map<String,Object>> addAvatar(@RequestParam String userId,@RequestParam String avatar){
         return userInformationService.addAvatar(userId, avatar);
+    }
+
+    /**
+     * 头像上传（一步到位）：接收图片文件 → 落盘 → 把访问 URL 写回 user_information.avatar。
+     * 前端只需带 userId + file 调这一个接口，不用再分两步借用封面上传接口。
+     */
+    @PostMapping("/upload/avatar")
+    public Result<Map<String,Object>> uploadAvatar(@RequestParam String userId,
+                                                   @RequestParam("file") MultipartFile file){
+        return videoFileService.uploadAvatar(userId, file);
+    }
+    @GetMapping("/select/avatar")
+    public Result<List<Map<String, Object>>> selectAvatar(@RequestParam String userId){
+        return userInformationService.selectAvatar(userId);
     }
 }

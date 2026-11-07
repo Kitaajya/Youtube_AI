@@ -43,15 +43,16 @@ import java.util.Map;
 public interface VideoMapper {
     //增加我的视频，返回受影响行数（1 表示成功，0 表示失败）
     @Insert("""
-    INSERT INTO video(user_id,title,video_path,is_short,duration_sec,is_vertical)
-    VALUES(#{userId},#{title},#{videoPath},#{isShort},#{durationSec},#{isVertical})
+    INSERT INTO video(user_id,title,video_path,is_short,duration_sec,is_vertical,is_vip_only)
+    VALUES(#{userId},#{title},#{videoPath},#{isShort},#{durationSec},#{isVertical},#{isVipOnly})
     """)
     int uploadVideo(@Param("userId")        String userId,
                     @Param("title")         String title,
                     @Param("videoPath")     String videoPath,
                     @Param("isShort")       int isShort,
                     @Param("durationSec")   int durationSec,
-                    @Param("isVertical")    int isVertical      );
+                    @Param("isVertical")    int isVertical,
+                    @Param("isVipOnly")     int isVipOnly); // 新增参数
 
     //取刚上传视频的自增ID：必须与 uploadVideo 在同一事务中调用（Service 方法上加 @Transactional）
     @Select("SELECT LAST_INSERT_ID()")
@@ -136,7 +137,7 @@ public interface VideoMapper {
    // List<Map<String,Object>> selectVideoById(@Param("id")long id);
     @Select("""
     <script>
-    SELECT v.id, v.user_id, v.title, v.video_path, v.cover_path, v.create_time, v.view_count,
+    SELECT v.id, v.user_id, v.title, v.video_path, v.cover_path, v.create_time, v.view_count, v.is_vip_only,
            (SELECT COUNT(*) FROM video_like vl WHERE vl.video_id = v.id) AS like_count,
            u.nickname AS uploader, u.avatar AS uploader_avatar
     FROM video v
@@ -151,8 +152,7 @@ public interface VideoMapper {
     </if>
     </script>
     """)
-    List<Map<String,Object>> selectVideoById(@Param("id") long id,
-                                             @Param("viewerId") String viewerId);
+    List<Map<String,Object>> selectVideoById(@Param("id") long id, @Param("viewerId") String viewerId);
     //模糊搜索
     @Select("""
     SELECT v.id, v.user_id, v.title, v.video_path, v.create_time, v.view_count,
@@ -572,7 +572,8 @@ public interface VideoMapper {
            -- 删除冗余列
            (SELECT COUNT(*) FROM video_like vl WHERE vl.video_id = v.id) AS like_count,
            v.create_time,
-           u.nickname AS uploader
+           u.nickname AS uploader,
+           u.avatar   AS uploader_avatar
     FROM watch_history h
     LEFT JOIN video v            ON h.video_id = v.id
     LEFT JOIN user_information u ON v.user_id  = u.user_id

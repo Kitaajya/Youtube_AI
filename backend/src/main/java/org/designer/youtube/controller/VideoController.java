@@ -77,8 +77,9 @@ public class VideoController {
                                                        @RequestParam String title,
                                                        @RequestParam MultipartFile file,
                                                        @RequestParam(defaultValue = "-1") int clientDurationSec,
-                                                       @RequestParam(defaultValue = "-1") int clientVertical) {
-        return vfs.uploadFile(userId, title, file, clientDurationSec, clientVertical);
+                                                       @RequestParam(defaultValue = "-1") int clientVertical,
+                                                       @RequestParam(defaultValue = "0") int isVipOnly) { // 新增
+        return vfs.uploadFile(userId, title, file, clientDurationSec, clientVertical, isVipOnly);
     }
 
     //上传视频（旧方式：只登记服务器上的路径字符串，文件本体不经过服务器）

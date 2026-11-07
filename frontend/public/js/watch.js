@@ -10,25 +10,92 @@
     const currentUserId = localStorage.getItem('userId') || '';
 
     // ---------- 视频详情 ----------
+    // 详情接口万一一直不返回，页面会永远停在 <h1>加载中…</h1>（你截图里那个状态），
+    // 所以这里加个超时兜底，至少把失败原因显示出来，不用靠 F12 猜。
+    const withTimeout = (p, ms) => Promise.race([
+        p,
+        new Promise((_, reject) => setTimeout(() => reject(new Error(`${Math.round(ms / 1000)} 秒未响应`)), ms))
+    ]);
+
+    let loadError = '';
     try {
         // 带上 viewerId：如果 UP 主在这个视频下屏蔽了我，后端返回空数组，下面会提示不可见
-        const res = await YT.api.get('/api/video/select/video/single/infor', { id, viewerId: currentUserId });
-        video = (res.data || [])[0];
-    } catch (e) { YT.toast('详情加载失败：' + e.message); }
+        const res = await withTimeout(
+            YT.api.get('/api/video/select/video/single/infor', { id, viewerId: currentUserId }),
+            15000
+        );
+        video = (res && Array.isArray(res.data) ? res.data[0] : null) || null;
+    } catch (e) {
+        loadError = (e && e.message) || '未知错误';
+        YT.toast('详情加载失败：' + loadError);
+    }
 
     if (!video) {
-        $('#w-title').textContent = '视频不存在或已被删除';
+        // 把"接口挂了/超时"和"视频真被删了"分开提示，否则后端一挂就显示成视频被删
+        $('#w-title').textContent = loadError ? `视频加载失败（${loadError}）` : '视频不存在或已被删除';
+        $('#w-stats').textContent = loadError ? '请确认后端已启动、网络正常，然后刷新重试' : '';
         return;
     }
 
-    const title = String(YT.pick(video, 'title'));
+    const title  = String(YT.pick(video, 'title'));
     const upName = String(YT.pick(video, 'uploader') || YT.pick(video, 'user_id'));
-    const upId = String(YT.pick(video, 'user_id'));
+    const upId   = String(YT.pick(video, 'user_id'));
 
     // ⚠️ 注意：item() 内部又声明了一个局部 const isMine（那里表示"这条评论是我发的"），
     // 会把模块级的 isMine 遮蔽掉。屏蔽按钮要的是"我是这个视频的 UP 主"，
     // 所以这里另起一个不冲突的名字，避免在 item()/opBtns() 里拿到错误的值。
     const isUpOwner = !!currentUserId && currentUserId === upId;
+
+    // ---------- 会员专享视频（必须放在 upId / upName / isUpOwner 声明之后） ----------
+    // 原来这段写在文件最上面（第 23 行），而 upId、upName、isUpOwner 要到第 70+ 行才声明。
+    // const 有"暂时性死区"：只要这条视频是会员专享（is_vip_only=1），
+    // 判断 !isUpOwner 的瞬间就会抛
+    //   ReferenceError: Cannot access 'isUpOwner' before initialization
+    // 整个播放页脚本当场中断 —— 标题永远停在"加载中…"、播放器全黑、评论区/推荐全不出来。
+    const isVipOnly = Number(YT.pick(video, 'is_vip_only') || 0) === 1;
+    let isVipMember = false;
+
+    // 如果是 VIP 视频，且不是本人，去查一下会员状态
+    if (isVipOnly && !isUpOwner && currentUserId) {
+        try {
+            const vipRes = await YT.api.get('/api/user/check/youtuber/vip', { myUserId: currentUserId, youtuberId: upId });
+            if (vipRes && vipRes.success) isVipMember = true;
+        } catch (e) { console.log('查询会员状态失败', e); }
+    }
+
+    // 拦截：无权限则屏蔽播放器
+    if (isVipOnly && !isUpOwner && !isVipMember) {
+        $('#w-title').textContent = '该视频为 UP 主会员专享';
+        $('#w-stats').textContent = '开通该 UP 主的专属会员后即可观看';
+
+        document.getElementById('player').style.display = 'none';
+        const fallback = document.getElementById('fallback');
+        fallback.style.display = 'flex';
+        fallback.innerHTML = `
+        <div style="text-align:center; padding: 40px;">
+            <h3 style="margin-bottom:8px;">这是一个会员专属视频</h3>
+            <p style="color:var(--text-secondary);margin-bottom:16px;">加入 <b>${YT.esc(upName)}</b> 的会员，即刻解锁观看。</p>
+            <button class="btn red" id="btn-join-vip" style="height:40px;border-radius:20px;padding:0 24px;">加入会员</button>
+        </div>
+    `;
+
+        document.getElementById('btn-join-vip').onclick = async () => {
+            if (!YT.requireLogin()) return;
+            if (!confirm(`确定要加入 ${upName} 的专属会员吗？`)) return;
+            try {
+                const r = await YT.api.post('/api/user/join/youtuber/video/vip', { myUserId: currentUserId, youtuberId: upId });
+                if (r.success) {
+                    YT.toast('加入成功！正在刷新...');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    YT.toast(r.message || '加入失败');
+                }
+            } catch (e) {
+                YT.toast('网络错误：' + e.message);
+            }
+        };
+        return; // 关键：阻断后续所有播放计数、评论加载、推荐加载逻辑
+    }
 
     // 我是 UP 主时，先把自己在这个视频下屏蔽过的人拉下来（按 videoId 过滤，只针对本视频）：
     // 1) 评论按钮才能正确渲染成"已屏蔽" 2) 支持在评论区就地解除屏蔽
@@ -47,12 +114,31 @@
             .catch(() => { /* 拉不到就当没屏蔽过，不影响正常看评论 */ })
         : Promise.resolve();
 
+    // 禁言名单（user_block 表，按 UP 主整体生效，不区分视频）。
+    // 这个 Set 以前压根没声明：UP 主一打开评论区，opBtns() 里的
+    // blockedCommentIds.has(...) 就抛 ReferenceError，整条评论渲染直接中断。
+    const blockedCommentIds = new Set();
+    const banReady = isUpOwner
+        ? YT.api.get('/api/video/select/my/blocked/users', { upId: currentUserId })
+            .then(r => {
+                ((r && r.data) || []).forEach(u => {
+                    const uid = String(YT.pick(u, 'blocked_user_id', 'blockedUserId'));
+                    if (uid) blockedCommentIds.add(uid);
+                });
+            })
+            .catch(() => { /* 拉不到就当没禁言过 */ })
+        : Promise.resolve();
+
     document.title = title + ' - YouTube';
     $('#w-title').textContent = title;
     $('#w-stats').textContent = `${YT.fmtNum(YT.pick(video, 'view_count'))} 次观看 · ${YT.fmtFull(YT.pick(video, 'create_time'))}`;
     $('#w-up-name').textContent = upName;
     $('#w-up-id').textContent = 'ID: ' + upId;
-    $('#w-up-av').textContent = upName.slice(0, 1).toUpperCase();
+    // 频道头像：有头像就显示图片，没有才用首字母
+    const upAvatar = String(YT.pick(video, 'uploader_avatar', 'uploaderAvatar') || '');
+    $('#w-up-av').innerHTML = upAvatar
+        ? `<span class="av-fb">${YT.esc(upName.slice(0, 1).toUpperCase())}</span><img src="${YT.esc(YT.mediaUrl(upAvatar))}" alt="" loading="lazy">`
+        : YT.esc(upName.slice(0, 1).toUpperCase());
     $('#w-up').style.cursor = 'pointer';
     $('#w-up').title = '查看 ' + upName + ' 的频道';
     $('#w-up').onclick = () => location.href = 'profile.html?userId=' + encodeURIComponent(upId) + '&name=' + encodeURIComponent(upName);
@@ -201,7 +287,10 @@
                 ${YT.thumb(v)}
                 <div class="txt">
                     <div class="title">${YT.esc(YT.pick(v, 'title'))}</div>
-                    <div class="sub">${YT.esc(YT.pick(v, 'uploader') || '')}</div>
+                    <div class="sub" style="display:flex; align-items:center; gap:6px;">
+                        ${YT.avatarHtml(YT.pick(v, 'uploader') || '', YT.pick(v, 'uploader_avatar', 'uploaderAvatar'), 'xs')}
+                        <span>${YT.esc(YT.pick(v, 'uploader') || '')}</span>
+                    </div>
                     <div class="sub">${YT.fmtNum(YT.pick(v, 'view_count'))} 次观看</div>
                 </div>
             </div>`).join('') || '<div class="empty" style="padding:20px;">暂无其他视频</div>';
@@ -406,7 +495,11 @@
 
     // ---------- 评论区 ----------
     if (currentUserId) {
-        $('#me-av1').textContent = (localStorage.getItem('nickname') || currentUserId).slice(0, 1).toUpperCase();
+        // 评论框里"我"的头像：有就显示图片，没有才用首字母
+        const myAv = YT.myAvatar();
+        $('#me-av1').innerHTML = myAv
+            ? `<span class="av-fb">${YT.esc((localStorage.getItem('nickname') || currentUserId).slice(0, 1).toUpperCase())}</span><img src="${YT.esc(YT.mediaUrl(myAv))}" alt="" loading="lazy">`
+            : YT.esc((localStorage.getItem('nickname') || currentUserId).slice(0, 1).toUpperCase());
     } else {
         $('#me-av1').textContent = '\uD83D\uDD12';
         $('#me-av1').style.filter = 'grayscale(1)';
@@ -517,7 +610,9 @@
         const roPh = currentUserId ? `回复 ${YT.esc(who)}…` : '登录后即可回复…';
         const rootAttr = isReply ? ` data-root="${YT.esc(cid)}"` : '';
         const av = String(YT.pick(c, 'commenter_avatar', 'commenterAvatar') || '');
-        const avInner = av ? `<img src="${YT.mediaUrl(av)}" alt="">` : YT.esc(who.slice(0, 1).toUpperCase());
+        const avInner = av
+            ? `<span class="av-fb">${YT.esc(who.slice(0, 1).toUpperCase())}</span><img src="${YT.mediaUrl(av)}" alt="" loading="lazy">`
+            : YT.esc(who.slice(0, 1).toUpperCase());
         return `
         <div class="comment${isReply ? ' is-reply' : ''}" data-cid="${YT.esc(cid)}" data-who="${YT.esc(who)}" data-uid="${YT.esc(commentUid)}"${rootAttr}>
             <span class="avatar">${avInner}</span>
@@ -554,8 +649,8 @@
 
     async function loadComments() {
         list.innerHTML = '<div class="empty" style="padding:20px;">加载评论…</div>';
-        // 我是 UP 主时，先等屏蔽名单到位再渲染，否则"屏蔽/已屏蔽"按钮会先画错再闪一次
-        await shieldReady;
+        // 我是 UP 主时，先等屏蔽名单/禁言名单到位再渲染，否则按钮会先画错再闪一次
+        await Promise.all([shieldReady, banReady]);
         let data = [];
         try {
             // 加上 currentUserId 传给后端

@@ -322,7 +322,12 @@
             if (!rows.length) { dlist.innerHTML = '<div class="empty" style="padding:20px;">还没有评论，来说两句吧</div>'; return; }
             dlist.innerHTML = rows.map(c => {
                 const who = String(YT.pick(c, 'commenter') || YT.pick(c, 'userId', 'user_id') || '匿名用户');
-                return '<div class="sf-cmt"><span class="sf-cav">' + YT.esc(who.slice(0, 1).toUpperCase()) + '</span>'
+                // 评论区头像：接口本来就返回 commenter_avatar，有就显示图片
+                const av = String(YT.pick(c, 'commenter_avatar', 'commenterAvatar') || '');
+                const avHtml = av
+                    ? `<img src="${YT.esc(YT.mediaUrl(av))}" alt="" loading="lazy">`
+                    : `<span class="sf-cav">${YT.esc(who.slice(0, 1).toUpperCase())}</span>`;
+                return '<div class="sf-cmt">' + avHtml
                     + '<div class="sf-cbody"><div class="sfcname">' + YT.esc(who)
                     + '<span style="float:right;color:var(--text-tertiary);font-size:12px;">' + YT.timeAgo(YT.pick(c, 'createTime', 'create_time')) + '</span></div>'
                     + '<div class="sfctext">' + YT.esc(YT.pick(c, 'contents') || YT.pick(c, 'content')) + '</div></div></div>';

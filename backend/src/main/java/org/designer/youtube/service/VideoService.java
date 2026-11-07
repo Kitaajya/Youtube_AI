@@ -88,7 +88,7 @@ public class VideoService {
     //上传视频
     @Transactional
     public Result<Map<String,Object>> uploadVideo(String userId, String title, String videoPath){
-        int k = vm.uploadVideo(userId, title, videoPath,0,0,0);
+        int k = vm.uploadVideo(userId, title, videoPath,0,0,0,0);
         if(k == 0) return Result.fail("上传失败");
         //取刚上传视频的自增ID：必须与 uploadVideo 在同一事务中调用（Service 方法上加 @Transactional）
         long videoId = vm.selectLastVideoId();

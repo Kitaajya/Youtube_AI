@@ -20,7 +20,7 @@
         <div class="card" onclick="location.href='watch.html?id=${encodeURIComponent(id)}'">
             ${YT.thumb(v)}
             <div class="meta">
-                <span class="avatar">${YT.esc(String(up).slice(0, 1).toUpperCase())}</span>
+                ${YT.avatarHtml(up, YT.pick(v, 'uploader_avatar', 'uploaderAvatar'))}
                 <div class="txt">
                     <div class="title">${YT.esc(title) || '（视频已不存在）'}</div>
                     <div class="sub">${YT.esc(up)}</div>
