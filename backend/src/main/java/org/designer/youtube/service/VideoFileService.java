@@ -319,10 +319,14 @@ public class VideoFileService {
         ));
     }
 
-    /** 私信媒体允许的格式：图片 + 浏览器可直接播放的视频 */
+    /** 浏览器原生 <audio> 能直接播放的语音格式（MediaRecorder 录出来的容器） */
+    private static final String[] AUDIO_EXT = {"webm", "ogg", "oga", "mp3", "wav", "m4a"};
+
+    /** 私信媒体允许的格式：图片 + 浏览器可直接播放的视频 + 语音 */
     private boolean isPmMedia(String ext) {
         for (String p : IMAGE_EXT) if (p.equals(ext)) return true;
         for (String p : PLAYABLE) if (p.equals(ext)) return true;
+        for (String p : AUDIO_EXT) if (p.equals(ext)) return true;
         return false;
     }
 
@@ -335,7 +339,7 @@ public class VideoFileService {
         if (file.getSize() > 100 * 1024 * 1024) return Result.fail("文件不能超过 100MB");
 
         String ext = extensionOf(file.getOriginalFilename());
-        if (!isPmMedia(ext)) return Result.fail("仅支持 jpg/png/webp/gif 图片或 mp4/webm/mov/m4v 视频");
+        if (!isPmMedia(ext)) return Result.fail("仅支持 jpg/png/webp/gif 图片、mp4/webm/mov/m4v 视频或 webm/ogg/mp3/wav/m4a 语音");
 
         String fileName = "pm_" + idGen.createId().toLowerCase(Locale.ROOT) + "." + ext;
         Path dir = Paths.get(storageDir).toAbsolutePath().normalize();

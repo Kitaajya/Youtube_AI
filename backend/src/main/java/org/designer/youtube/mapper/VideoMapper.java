@@ -548,20 +548,6 @@ public interface VideoMapper {
                     @Param("id") long id,
                     @Param("userId") String userId);
     //新增观看历史功能，可查询和删除，此处为查询观看历史，一次查询分200条数据，防止因数据过多而查询变慢
-    /**
-     * CREATE TABLE IF NOT EXISTS watch_history (
-     *       user_id     VARCHAR(13) NOT NULL,               -- 谁看的
-     *       video_id    BIGINT      NOT NULL,               -- 看了哪条视频（video.id 是 BIGINT，这里必须同为 BIGINT）
-     *       watch_time  DATETIME    DEFAULT CURRENT_TIMESTAMP, -- 最近一次观看时间
-     *       PRIMARY KEY (user_id, video_id),                -- 联合主键 = 同一用户同一视频只保留一条
-     *       KEY idx_wh_user_time (user_id, watch_time DESC),-- 我的历史按时间倒序走索引
-     *       KEY idx_wh_video (video_id),                    -- 反查这视频被谁看过（可选，但留着有用）
-     *       CONSTRAINT fk_wh_user FOREIGN KEY (user_id)
-     *           REFERENCES user_information(user_id) ON DELETE CASCADE,
-     *       CONSTRAINT fk_wh_video FOREIGN KEY (video_id)
-     *           REFERENCES video(id) ON DELETE CASCADE      -- 删视频，历史里的引用自动清
-     * ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
-     * **/
     @Select("""
     SELECT h.video_id,
            h.watch_time,
@@ -627,19 +613,8 @@ public interface VideoMapper {
     """)
     List<Map<String,Object>> selectShortFeed(@Param("size") int size, @Param("offset") int offset);
     /**
-     * 评论区点赞，在视频 id为id的情况下点赞此评论
-     * 2026/10/19/14:15
-     *
-     *-- 评论区点赞，本人给他点赞
-     * CREATE TABLE IF NOT EXISTS comment_like(
-     *     user_id     VARCHAR(13) NOT NULL,   -- 谁点的赞
-     *     comment_id  VARCHAR(13) NOT NULL,   -- 赞了哪条评论
-     *     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-     *     PRIMARY KEY (user_id, comment_id),   -- 一人一评论只能赞一次
-     *     CONSTRAINT fk_cl_user    FOREIGN KEY (user_id)    REFERENCES user_information(user_id) ON DELETE CASCADE,
-     *     CONSTRAINT fk_cl_comment FOREIGN KEY (comment_id) REFERENCES video_comment(comment_id) ON DELETE CASCADE
-     * );
-     *
+     * @since  2026/10/19/14:15
+     * @功能: 评论区点赞，在视频 id为id的情况下点赞此评论
      *
      *
      * **/

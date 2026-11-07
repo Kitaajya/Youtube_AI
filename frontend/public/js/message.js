@@ -14,6 +14,7 @@
     const picBtn = $('#pm-pic-btn'), videoBtn = $('#pm-video-btn');
     const picInput = $('#pm-pic-input'), videoInput = $('#pm-video-input');
     const emojiBtn = $('#pm-emoji-btn'), emojiPanel = $('#pm-emoji-panel');
+    const voiceBtn = $('#pm-voice-btn');
     const bdayBar = $('#pm-bday-bar'), bdayBtn = $('#pm-bday-btn');
     const groupsBox = $('#pm-groups');
     // 屏蔽私信按钮：必须先取到元素再使用。
@@ -442,6 +443,7 @@
         const t = String(m.msgType || 'text').toLowerCase();
         if (t === 'image') return '[图片]';
         if (t === 'video') return '[视频]';
+        if (t === 'voice') return '[语音]';
         if (t === 'emoji') return '[表情]';
         if (t === 'birthday') return '[生日祝福]';
         return String(m.contents || '').slice(0, 30);
@@ -695,7 +697,9 @@
     }
 
     // ---------- 媒体发送 ----------
-    async function sendMedia(file) {
+    // forcedType：录音按钮会显式传 'voice'。
+    // webm / ogg 既能装视频也能装语音，只靠扩展名判断必然误判，所以优先采信调用方给的类型。
+    async function sendMedia(file, forcedType) {
         if (!file) return;
         if (loading) return;
 
@@ -713,13 +717,14 @@
 
             const mediaPath = r.data.mediaPath;
 
-            // 👇 改这里：加入 voice 判断
-            const ext = file.name.split('.').pop().toLowerCase();
-            let msgType = 'image';
-            if (['mp4', 'mov', 'm4v'].includes(ext)) {
-                msgType = 'video';
-            } else if (['webm', 'mp3', 'wav', 'ogg', 'm4a'].includes(ext)) {
-                msgType = 'voice';
+            let msgType = forcedType || 'image';
+            if (!forcedType) {
+                const ext = file.name.split('.').pop().toLowerCase();
+                if (['mp4', 'mov', 'm4v'].includes(ext)) {
+                    msgType = 'video';
+                } else if (['webm', 'mp3', 'wav', 'ogg', 'm4a'].includes(ext)) {
+                    msgType = 'voice';
+                }
             }
 
             const targetForm = new FormData();
@@ -1372,6 +1377,116 @@
     }
 
 
+    // ---------- 语音消息：录音 + 发送 ----------
+    // 之前按钮只是画在页面上，没有任何点击事件，所以点不动也发不出。
+    // 这里用 MediaRecorder 实现：点一次开始录（需授权麦克风），再点一次结束并发送。
+    let voiceRecorder = null, voiceChunks = [], voiceRecording = false, voiceStartTs = 0;
+
+    function voiceExtFromMime(mime) {
+        const m = String(mime || '').toLowerCase();
+        if (m.includes('ogg')) return 'ogg';
+        if (m.includes('mp4')) return 'm4a';
+        if (m.includes('mpeg')) return 'mp3';
+        if (m.includes('wav')) return 'wav';
+        return 'webm';
+    }
+
+    function chooseVoiceMime() {
+        const list = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus',
+                      'audio/mp4', 'audio/x-m4a'];
+        for (const m of list) {
+            if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) return m;
+        }
+        return '';
+    }
+
+    function setVoiceBtnState(rec) {
+        if (!voiceBtn) return;
+        voiceBtn.classList.toggle('on', rec);
+        voiceBtn.title = rec ? '停止并发送语音' : '发送语音';
+    }
+
+    function startVoiceRec() {
+        if (voiceRecording) return;
+        if (!window.MediaRecorder) { YT.toast('当前浏览器不支持录音，请改用 Chrome/Edge'); return; }
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            YT.toast('浏览器未开放麦克风接口（需 http://localhost 或 https 访问）');
+            return;
+        }
+        if (!(navigator.mediaDevices.getUserMedia && window.isSecureContext)) {
+            YT.toast('非安全上下文无法调用麦克风，请通过 localhost 访问页面');
+            return;
+        }
+        voiceBtn.disabled = true;
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+            voiceBtn.disabled = false;
+            if (voiceRecording) { stream.getTracks().forEach(t => t.stop()); return; }
+            let rec;
+            try {
+                const mime = chooseVoiceMime();
+                rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+            } catch (e) {
+                stream.getTracks().forEach(t => t.stop());
+                YT.toast('初始化录音器失败：' + e.message);
+                return;
+            }
+            voiceChunks = [];
+            rec.ondataavailable = e => { if (e.data && e.data.size) voiceChunks.push(e.data); };
+            rec.onerror = () => {
+                YT.toast('录音出错');
+                stream.getTracks().forEach(t => t.stop());
+                voiceRecording = false;
+                setVoiceBtnState(false);
+            };
+            rec.onstop = () => {
+                stream.getTracks().forEach(t => t.stop());
+                const dur = (Date.now() - voiceStartTs) / 1000;
+                const blob = new Blob(voiceChunks, { type: rec.mimeType || 'audio/webm' });
+                voiceRecording = false;
+                setVoiceBtnState(false);
+                if (dur < 0.5 || !blob.size) { YT.toast('录音太短，请按住说两句再发送'); return; }
+                const ext = voiceExtFromMime(blob.type);
+                // 带当前时间戳，重发不会覆盖旧文件
+                const name = 'voice_' + new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14) + '.' + ext;
+                const file = new File([blob], name, { type: blob.type || ('audio/' + ext), lastModified: Date.now() });
+                sendMedia(file, 'voice');
+            };
+            voiceRecorder = rec;
+            voiceRecording = true;
+            voiceStartTs = Date.now();
+            try { rec.start(); } catch (e) {
+                voiceRecording = false;
+                setVoiceBtnState(false);
+                stream.getTracks().forEach(t => t.stop());
+                YT.toast('开始录音失败：' + e.message);
+                return;
+            }
+            setVoiceBtnState(true);
+            YT.toast('正在录音…再次点击麦克风结束并发送');
+        }).catch(err => {
+            voiceBtn.disabled = false;
+            const name = (err && err.name) || '';
+            if (name === 'NotAllowedError' || name === 'SecurityError') {
+                YT.toast('麦克风权限被拒绝，请在浏览器地址栏🔒里允许麦克风后重试');
+            } else if (name === 'NotFoundError') {
+                YT.toast('未检测到麦克风设备，请插入麦克风后重试');
+            } else {
+                YT.toast('无法打开麦克风：' + ((err && err.message) || name || '未知错误'));
+            }
+        });
+    }
+
+    function stopVoiceRec() {
+        if (voiceRecorder && voiceRecording && voiceRecorder.state !== 'inactive') {
+            try { voiceRecorder.stop(); } catch (e) {}
+        }
+    }
+
+    if (voiceBtn) voiceBtn.addEventListener('click', () => {
+        if (voiceRecording) stopVoiceRec();
+        else if (!loading) startVoiceRec();
+    });
+
     ta.addEventListener('keydown', e => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
     });
@@ -1384,12 +1499,12 @@
     picInput.addEventListener('change', () => {
         const f = picInput.files[0];
         picInput.value = '';
-        if (f) sendMedia(f);
+        if (f) sendMedia(f, 'image');
     });
     videoInput.addEventListener('change', () => {
         const f = videoInput.files[0];
         videoInput.value = '';
-        if (f) sendMedia(f);
+        if (f) sendMedia(f, 'video');
     });
 
     emojiBtn.addEventListener('click', () => { toggleEmojiPanel(); });

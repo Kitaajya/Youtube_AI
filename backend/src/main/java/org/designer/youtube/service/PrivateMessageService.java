@@ -76,6 +76,8 @@ public class PrivateMessageService {
                     row.put("lastMsg", "[图片]");
                 } else if ("video".equals(msgType)) {
                     row.put("lastMsg", "[视频]");
+                } else if ("voice".equals(msgType)) {
+                    row.put("lastMsg", "[语音]");
                 } else if ("emoji".equals(msgType)) {
                     row.put("lastMsg", "[表情]");
                 } else if ("birthday".equals(msgType)) {
@@ -170,11 +172,24 @@ public class PrivateMessageService {
         String ext = mediaPath.contains(".")
                 ? mediaPath.substring(mediaPath.lastIndexOf('.') + 1).toLowerCase()
                 : "";
-        if (List.of("jpg","jpeg","png","gif","webp","bmp").contains(ext)) privateMessage.setMsgType("image");
-        else if (List.of("mp4","webm","mov","m4v").contains(ext)) privateMessage.setMsgType("video");
-        //补上这段（同时建议顺手把 `sendMedia` 里前端的 `voice` 判断也加上）
-        else if (List.of("webm", "mp3", "wav", "ogg", "m4a").contains(ext)) privateMessage.setMsgType("voice");
-        else return Result.fail("不支持的媒体类型：" + ext);   // 防乱上传
+        // 允许落盘的媒体扩展名白名单（含语音常用容器），不在表内直接拒收
+        boolean allowedExt = List.of("jpg","jpeg","png","gif","webp","bmp",
+                        "mp4","webm","mov","m4v","mp3","wav","ogg","m4a").contains(ext);
+        if (!allowedExt) return Result.fail("不支持的媒体类型：" + ext);   // 防乱上传
+
+        // webm/ogg 既可能是视频也可能是语音，只靠扩展名分不开。
+        // 因此优先采信前端显式传来的 msgType（限 image/video/voice），
+        // 前端没传或不合法时，再回退到按扩展名推断。
+        String frontType = privateMessage.getMsgType();
+        if (frontType != null && List.of("image","video","voice").contains(frontType)) {
+            privateMessage.setMsgType(frontType);
+        } else if (List.of("jpg","jpeg","png","gif","webp","bmp").contains(ext)) {
+            privateMessage.setMsgType("image");
+        } else if (List.of("mp4","webm","mov","m4v").contains(ext)) {
+            privateMessage.setMsgType("video");
+        } else {
+            privateMessage.setMsgType("voice");
+        }
 
         privateMessage.setContents("");
         RandomlyCreateID id = new RandomlyCreateID();
@@ -350,7 +365,7 @@ public class PrivateMessageService {
                     Object contents = map.get("contents");
                     Object createTime = map.get("create_time");
                     Object msgType = map.get("msg_type");
-                    if ("image".equals(msgType) || "video".equals(msgType) || "emoji".equals(msgType))
+                    if ("image".equals(msgType) || "video".equals(msgType) || "voice".equals(msgType) || "emoji".equals(msgType))
                         contents = "[发送了一个" + msgType + "]";
                     sb.append("[").append(createTime).append("] ")
                             .append(senderName).append(": ")
