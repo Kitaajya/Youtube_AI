@@ -2,6 +2,7 @@ package org.designer.youtube.mapper;
 
 import org.apache.ibatis.annotations.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 //***********************************************************视频模块***********************************************************
@@ -886,4 +887,28 @@ public interface VideoMapper {
     WHERE ub.user_id = #{upId}
     """)
     List<Map<String,Object>> selectBlockedUsers(@Param("upId") String upId);
+    /**
+     * 举报视频评论
+     *
+     * @param reportId  举报ID（13位随机字符串，服务端或前端生成）
+     * @param commentId 被举报的评论ID
+     * @param userId    举报人用户ID
+     * @param reason    举报原因，如 porn/abuse/ad/spam/illegal/other
+     * @param detail    补充说明，可空，最长 500 字
+     * @return 成功/失败结果
+     * @since 2026/11/09/09:14
+     * @author Conan Doyle
+     */
+    @Insert("""
+    INSERT INTO video_comment_report(report_id,comment_id,user_id,reason,detail,status,handle_time,create_time)
+    VALUES (#{reportId},#{commentId},#{userId},#{reason},#{detail},#{status},#{handleTime},#{createTime})
+    """)
+    int report(@Param("reportId")   String reportId,
+               @Param("commentId")  String commentId,
+               @Param("userId")     String userId,
+               @Param("reason")     String reason,
+               @Param("detail")     String detail,
+               @Param("status")     int status,                // 新建传 0
+               @Param("handleTime") LocalDateTime handleTime,  // 新建传 null
+               @Param("createTime") LocalDateTime createTime  );
 }

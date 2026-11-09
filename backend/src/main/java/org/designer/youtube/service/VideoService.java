@@ -7,6 +7,7 @@ import org.designer.youtube.common.Result;
 import org.designer.youtube.mapper.VideoMapper;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -16,6 +17,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Slf4j
@@ -587,9 +589,9 @@ public class VideoService {
     }
     /**
      * @deprecated
-     * 让DeepSeek自动实现删除违规评论的功能
+     * @说明: 让DeepSeek自动实现删除违规评论的功能。
      *
-     *  //查找包含违禁词的评论ID（利用你现有的 prohibit_words 表）
+     *  查找包含违禁词的评论ID（利用你现有的 prohibit_words 表）
      *  at_Select("""
      *  SELECT vc.comment_id
      *  FROM video_comment vc
@@ -903,7 +905,7 @@ public class VideoService {
     /**
      * @since 2026/11/05/16:57
      * @author Kitaajya/Conan Doyle
-     * @功能 禁止某人评论我的视频，但是可以看我的视频。
+     * @功能: 禁止某人评论我的视频，但是可以看我的视频。
      * **/
     public Result<Map<String,Object>> blockUser(String upId, String userId) {
         int rows = vm.blockUser(upId, userId);
@@ -920,5 +922,43 @@ public class VideoService {
     //查询我屏蔽了谁
     public List<Map<String,Object>> selectBlockedUsers(String upId) {
         return vm.selectBlockedUsers(upId);
+    }
+    /**
+     * @功能: 举报视频评论
+     *
+     *
+     * @param commentId 被举报的评论ID
+     * @param userId    举报人用户ID
+     * @param reason    举报原因，如 porn/abuse/ad/spam/illegal/other
+     * @param detail    补充说明，可空，最长 500 字
+     * @return 成功/失败结果
+     * @since 2026/11/09/09:14
+     * @author Conan Doyle
+     */
+    public Result<Map<String,Object>> report(String commentId, String userId,
+                                             String reason, String detail) {
+        final RandomlyCreateID idGen=new RandomlyCreateID();
+        if (commentId == null || commentId.isBlank()) return Result.fail("评论ID不能为空");
+        if (userId == null || userId.isBlank())       return Result.fail("用户ID不能为空");
+        if (reason == null || reason.isBlank())       return Result.fail("举报原因不能为空");
+        if (detail != null && detail.length() > 500)  return Result.fail("补充说明不能超过500字");
+
+        String reportId = idGen.createId();   // 服务端生成 13 位
+
+        try {
+            int k = vm.report(
+                    reportId, commentId, userId, reason, detail,
+                    0,                    // status：待处理
+                    null,                 // handleTime：未处理
+                    LocalDateTime.now()   // createTime：服务端生成
+            );
+            return k != 0
+                    ? Result.success("举报成功！", Map.of())
+                    : Result.fail("举报失败！");
+        } catch (DuplicateKeyException e) {
+            return Result.fail("不能重复举报！");
+        } catch (DataIntegrityViolationException e) {
+            return Result.fail("评论不存在或已被删除");
+        }
     }
 }

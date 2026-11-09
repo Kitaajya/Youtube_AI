@@ -443,4 +443,24 @@ public class VideoController {
     public Result<List<Map<String,Object>>> selectBlockedUsers(@RequestParam String upId) {
         return Result.success(vs.selectBlockedUsers(upId));
     }
+
+    /**
+     * 举报视频评论
+     *
+     * @param commentId 被举报的评论ID
+     * @param userId    举报人用户ID
+     * @param reason    举报原因，如 porn/abuse/ad/spam/illegal/other
+     * @param detail    补充说明，可空，最长 500 字
+     * @return 成功/失败结果
+     * @since 2026/11/09/09:14
+     * @author Conan Doyle
+     */
+    @PostMapping("/report")
+    public Result<Map<String,Object>> report(@RequestParam String commentId,
+                                             @RequestParam String userId,
+                                             @RequestParam String reason,
+                                             @RequestParam(required = false) String detail) {
+        return vs.report(commentId, userId, reason, detail);
+    }
+
 }

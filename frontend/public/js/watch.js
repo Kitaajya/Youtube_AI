@@ -539,6 +539,12 @@
                 : `<span class="op-btn ban-btn" data-ban-user="${uid}" data-ban-name="${YT.esc(YT.pick(c, 'commenter') || commentUid)}">禁止评论</span>`;
         }
 
+        // 新增：举报按钮 —— 不是自己发的评论都可以举报（屏蔽/禁言只有 UP 主能用，举报对所有登录用户开放）
+        let reportBtn = '';
+        if (!isMine && commentUid) {
+            reportBtn = `<span class="op-btn" data-report="${cid}" data-report-name="${YT.esc(YT.pick(c, 'commenter') || commentUid)}">举报</span>`;
+        }
+
         return `<div class="ops">
             <button class="js-cmt-like" data-comment-like="${cid}" type="button" style="display:inline-flex;align-items:center;gap:4px;background:none;border:none;color:${color};cursor:pointer;padding:0;font-size:13px;margin-right:8px;transition:color 0.2s;">
                 <span class="cmt-like-ic" style="display:flex;align-items:center;">${icon}</span>
@@ -549,7 +555,176 @@
                        <span class="op-btn" style="color:var(--danger);" data-del="${cid}">删除</span>` : ''}
             ${shieldBtn}
             ${banBtn}
+            ${reportBtn}
         </div>`;
+    }
+
+    // ---------- 举报视频评论 ----------
+    // 后端：POST /api/video/report  表单参数 commentId / userId / reason / detail
+    // reason 只能取下面六个枚举值，detail 选填且最长 500 字，同一人对同一评论不能重复举报。
+    const REPORT_REASONS = [
+        { value: 'porn', label: '色情低俗', hint: '包含裸露、性暗示或低俗内容' },
+        { value: 'abuse', label: '谩骂攻击', hint: '人身攻击、侮辱、歧视言论' },
+        { value: 'ad', label: '垃圾广告', hint: '推广导流、售卖、诈骗链接' },
+        { value: 'spam', label: '重复刷屏', hint: '无意义复读、大量灌水' },
+        { value: 'illegal', label: '违法有害', hint: '涉恐涉暴、违法违规信息' },
+        { value: 'other', label: '其他', hint: '以上都不符合，请在下方说明' }
+    ];
+    const REPORT_DETAIL_MAX = 500;
+    // 本次页面会话内已举报过的评论，用来把按钮变成"已举报"（刷新后以服务端唯一约束兜底）
+    const reportedIds = new Set();
+
+    const REPORT_CSS = `
+.yt-report-mask{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;}
+.yt-report-mask.closing{opacity:0;transition:opacity .18s;}
+.yt-report-card{background:var(--surface);color:var(--text-primary);width:100%;max-width:420px;max-height:86vh;overflow:auto;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.28);}
+.yt-report-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 18px 10px;}
+.yt-report-title{font-size:17px;font-weight:600;line-height:1.4;}
+.yt-report-sub{font-size:12.5px;color:var(--text-secondary);margin-top:4px;word-break:break-all;}
+.yt-report-x{flex:none;background:none;border:none;font-size:22px;line-height:1;color:var(--text-secondary);cursor:pointer;padding:2px 6px;border-radius:6px;}
+.yt-report-x:hover{background:var(--surface-hover);color:var(--text-primary);}
+.yt-report-body{padding:4px 18px 6px;}
+.yt-report-opt{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;transition:background .15s,border-color .15s;}
+.yt-report-opt:hover{background:var(--surface-hover);}
+.yt-report-opt input{margin:3px 0 0;flex:none;cursor:pointer;}
+.yt-report-opt.sel{border-color:var(--danger);background:var(--surface-2);}
+.yt-report-opt-t{font-size:14px;font-weight:500;}
+.yt-report-opt-h{font-size:12px;color:var(--text-secondary);margin-top:2px;}
+.yt-report-detail{padding:2px 18px 4px;}
+.yt-report-detail textarea{width:100%;box-sizing:border-box;min-height:72px;resize:vertical;padding:8px 10px;font:inherit;font-size:13.5px;color:var(--text-primary);background:var(--bg);border:1px solid var(--border);border-radius:8px;}
+.yt-report-detail textarea:focus{outline:none;border-color:var(--text-tertiary);}
+.yt-report-count{font-size:11.5px;color:var(--text-tertiary);text-align:right;margin-top:3px;}
+.yt-report-foot{display:flex;gap:10px;justify-content:flex-end;padding:12px 18px 18px;}
+.yt-report-btn{font:inherit;font-size:14px;padding:8px 18px;border-radius:20px;border:1px solid var(--border);background:none;color:var(--text-primary);cursor:pointer;}
+.yt-report-btn:hover{background:var(--surface-hover);}
+.yt-report-btn.go{border-color:var(--danger);background:var(--danger);color:#fff;}
+.yt-report-btn.go:hover{background:var(--danger-hover);border-color:var(--danger-hover);}
+.yt-report-btn[disabled]{opacity:.55;cursor:not-allowed;}`;
+
+    function ensureReportCss() {
+        if (document.getElementById('yt-report-style')) return;
+        const st = document.createElement('style');
+        st.id = 'yt-report-style';
+        st.textContent = REPORT_CSS;
+        document.head.appendChild(st);
+    }
+
+    // 打开举报弹层；commentId / commenterName 来自按钮的 data-* 属性
+    function openReportModal(commentId, commenterName) {
+        if (!YT.requireLogin()) return;
+        if (reportedIds.has(String(commentId))) return YT.toast('你已经举报过这条评论了');
+        ensureReportCss();
+
+        const opts = REPORT_REASONS.map((r, i) => `
+            <label class="yt-report-opt" data-value="${r.value}">
+                <input type="radio" name="yt-report-reason" value="${r.value}"${i === 0 ? ' checked' : ''}>
+                <span>
+                    <span class="yt-report-opt-t">${r.label}</span>
+                    <span class="yt-report-opt-h">${r.hint}</span>
+                </span>
+            </label>`).join('');
+
+        const mask = document.createElement('div');
+        mask.className = 'yt-report-mask';
+        mask.innerHTML = `
+            <div class="yt-report-card" role="dialog" aria-modal="true" aria-labelledby="yt-report-title">
+                <div class="yt-report-head">
+                    <div>
+                        <div class="yt-report-title" id="yt-report-title">举报评论</div>
+                        <div class="yt-report-sub">被举报人：${YT.esc(commenterName || '匿名用户')}</div>
+                    </div>
+                    <button class="yt-report-x" type="button" aria-label="关闭">&times;</button>
+                </div>
+                <div class="yt-report-body">${opts}</div>
+                <div class="yt-report-detail">
+                    <textarea maxlength="${REPORT_DETAIL_MAX}" placeholder="补充说明（选填，${REPORT_DETAIL_MAX} 字以内），描述具体问题有助于更快处理"></textarea>
+                    <div class="yt-report-count">0/${REPORT_DETAIL_MAX}</div>
+                </div>
+                <div class="yt-report-foot">
+                    <button class="yt-report-btn" data-act="cancel" type="button">取消</button>
+                    <button class="yt-report-btn go" data-act="submit" type="button">提交举报</button>
+                </div>
+            </div>`;
+        document.body.appendChild(mask);
+
+        const card = mask.querySelector('.yt-report-card');
+        const ta = mask.querySelector('textarea');
+        const counter = mask.querySelector('.yt-report-count');
+        const submitBtn = mask.querySelector('[data-act="submit"]');
+
+        let closed = false;
+        const close = () => {
+            if (closed) return;
+            closed = true;
+            mask.classList.add('closing');
+            document.removeEventListener('keydown', onKey);
+            setTimeout(() => mask.remove(), 180);
+        };
+        function onKey(e) { if (e.key === 'Escape') close(); }
+        document.addEventListener('keydown', onKey);
+        mask.addEventListener('click', e => { if (e.target === mask) close(); });
+        mask.querySelector('.yt-report-x').addEventListener('click', close);
+        mask.querySelector('[data-act="cancel"]').addEventListener('click', close);
+
+        // 选中态样式随单选同步，方便看出当前选了哪一项
+        mask.querySelectorAll('.yt-report-opt').forEach(lb => {
+            const radio = lb.querySelector('input');
+            lb.classList.toggle('sel', radio.checked);
+            radio.addEventListener('change', () => {
+                mask.querySelectorAll('.yt-report-opt').forEach(x => {
+                    x.classList.toggle('sel', x.querySelector('input').checked);
+                });
+            });
+        });
+        ta.addEventListener('input', () => {
+            if (ta.value.length > REPORT_DETAIL_MAX) ta.value = ta.value.slice(0, REPORT_DETAIL_MAX);
+            counter.textContent = `${ta.value.length}/${REPORT_DETAIL_MAX}`;
+        });
+
+        submitBtn.addEventListener('click', async () => {
+            const checked = card.querySelector('input[name="yt-report-reason"]:checked');
+            if (!checked) return YT.toast('请选择举报原因');
+            const detail = ta.value.trim();
+            if (detail.length > REPORT_DETAIL_MAX) return YT.toast(`补充说明不能超过 ${REPORT_DETAIL_MAX} 字`);
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = '提交中…';
+            try {
+                const r = await YT.api.post('/api/video/report', {
+                    commentId, userId: currentUserId, reason: checked.value, detail: detail || null
+                });
+                if (r && r.success) {
+                    reportedIds.add(String(commentId));
+                    YT.toast(r.message || '举报成功！我们会尽快核实处理');
+                    refreshReportBtn(commentId);
+                    close();
+                } else {
+                    // 失败原因（如"不能重复举报""评论不存在或已被删除"）由后端给出，恢复按钮让用户能再操作
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '提交举报';
+                    YT.toast((r && r.message) || '举报失败，请稍后重试');
+                    if (r && /重复举报/.test(String(r.message || ''))) {
+                        reportedIds.add(String(commentId));
+                        refreshReportBtn(commentId);
+                        close();
+                    }
+                }
+            } catch (e) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '提交举报';
+                YT.toast('举报失败：' + (e.message || '网络错误'));
+            }
+        });
+    }
+
+    // 举报成功后把该条评论上的按钮就地改成"已举报"，避免整块刷新评论区
+    function refreshReportBtn(commentId) {
+        document.querySelectorAll(`.comment [data-report="${CSS.escape(commentId)}"]`).forEach(el => {
+            el.textContent = '已举报';
+            el.removeAttribute('data-report');
+            el.style.opacity = '.6';
+            el.style.pointerEvents = 'none';
+        });
     }
     /**
      * @param {string} upId
@@ -909,6 +1084,12 @@
                 }
             }
             else YT.toast(r.message || '回复失败');
+            return;
+        }
+
+        // 举报评论：点击"举报"打开原因选择弹层
+        if (cid.report) {
+            openReportModal(String(cid.report), cid.reportName || '');
             return;
         }
 
