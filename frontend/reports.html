@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>举报历史 - YouTube</title>
+    <link rel="stylesheet" href="css/vars.css">
+    <script>(function(){try{var s=localStorage.getItem('yt-theme');var d=s==='dark'||(s!=='light'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
+    <link rel="stylesheet" href="css/dark.css">
+    <link rel="stylesheet" href="css/style.css?v=10">
+    <style>
+        /* 举报历史页专用样式（不动公共 style.css，避免影响其它页面） */
+        .rep-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 12px; flex-wrap: wrap; margin: 0 0 16px;
+        }
+        .rep-stat { font-size: 13px; color: var(--text-secondary); }
+        .rep-item {
+            border: 1px solid var(--border); border-radius: 10px;
+            padding: 12px 14px; margin-bottom: 10px; background: var(--surface);
+        }
+        .rep-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .rep-reason { font-weight: 600; font-size: 14px; }
+        .rep-chip {
+            font-size: 11.5px; padding: 2px 8px; border-radius: 10px;
+            border: 1px solid currentColor; white-space: nowrap;
+        }
+        .rep-chip.wait { color: #e6a23c; }
+        .rep-chip.pass { color: var(--ok); }
+        .rep-chip.rej  { color: var(--text-tertiary); }
+        .rep-time { margin-left: auto; font-size: 12px; color: var(--text-tertiary); }
+        .rep-quote {
+            margin-top: 8px; padding: 8px 10px; border-left: 3px solid var(--border);
+            background: var(--surface-2); border-radius: 6px;
+            font-size: 13px; line-height: 1.6;
+            white-space: pre-wrap; word-break: break-word; color: var(--text-primary);
+        }
+        .rep-quote.gone { color: var(--text-tertiary); font-style: italic; }
+        .rep-detail { margin-top: 6px; font-size: 12.5px; color: var(--text-secondary); word-break: break-word; }
+        .rep-foot {
+            margin-top: 8px; font-size: 12.5px; color: var(--text-tertiary);
+            display: flex; gap: 14px; flex-wrap: wrap;
+        }
+        .rep-foot a { color: var(--link); text-decoration: none; }
+        .rep-foot a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div id="app-header"></div>
+
+    <div class="page">
+        <div class="page-title">举报历史</div>
+        <div class="note">
+            举报提交后由 <b>DeepSeek 自动审核</b>：判定违规的评论会被删除，其余举报标记为「已驳回」。
+            <br>
+            提示：违规评论被删除时，对应的举报记录会随外键 <code>ON DELETE CASCADE</code> 一起清除，
+            所以这里主要看到的是「待处理」和「已驳回」两类记录。
+        </div>
+
+        <div class="rep-bar">
+            <div class="rep-stat" id="rep-stat">加载中…</div>
+            <button class="btn primary" id="rep-audit" type="button">🤖 立即审核待处理举报</button>
+        </div>
+
+        <div id="rep-list"></div>
+        <div class="empty" id="rep-empty" style="display:none;">你还没有举报过任何评论</div>
+    </div>
+
+    <script src="js/theme.js?v=1"></script>
+    <script src="js/common.js?v=20"></script>
+    <script src="js/reports.js?v=1"></script>
+</body>
+</html>

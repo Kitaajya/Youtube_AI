@@ -943,6 +943,7 @@ public class VideoService {
      * @return 成功/失败结果
      * @since 2026/11/09/09:14
      * @author Conan Doyle
+     * @see #auditAndDeleteComments(ChatClient, long)
      */
     public Result<Map<String,Object>> report(String commentId, String userId,
                                              String reason, String detail) {
