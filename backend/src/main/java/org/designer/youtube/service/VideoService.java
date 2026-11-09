@@ -961,4 +961,99 @@ public class VideoService {
             return Result.fail("评论不存在或已被删除");
         }
     }
+    /**
+     * @说明: DeepSeek 审核被举报的评论：拉待审->批量送审->按结果删/驳回。
+     * 只处理 status=0 的举报，已处理过的不会重复送审。
+     *
+     * @since 2026/11/09/15:31
+     * @author Conan Doyle
+     * @see #auditAndDeleteComments(ChatClient, long)
+     */
+    @Transactional
+    public Result<String> checkReportedComments(ChatClient client) {
+        if (client == null) {
+            log.error("ChatClient 未注入，无法执行举报审核");
+            return Result.fail("AI 审核服务未就绪");
+        }
+
+        //拉待审评论 ID（DISTINCT，一条评论被多人举报只审一次）
+        List<String> pendingIds = vm.getCommentsId();
+        if (pendingIds == null || pendingIds.isEmpty())
+            return Result.success("当前没有待处理的举报");
+        //逐条查评论正文 + 举报理由，组装成送审列表
+        List<Map<String, Object>> toAudit = new ArrayList<>();
+        for (String cid : pendingIds) {
+            Map<String, Object> row = vm.getCommentForAudit(cid);
+            if (row == null) continue; //评论已被删，举报记录靠外键级联也没了，跳过
+            toAudit.add(row);
+        }
+        if (toAudit.isEmpty())
+            return Result.success("待处理举报对应的评论均已不存在");
+        StringBuilder sb = new StringBuilder("[\n");
+        for (int i = 0; i < toAudit.size(); i++) {
+            Map<String, Object> c = toAudit.get(i);
+            String id      = String.valueOf(c.get("commentId"));
+            String content = String.valueOf(c.get("contents"));
+            String reason  = String.valueOf(c.get("reason"));
+            content = content.replace("\\", "\\\\")
+                    .replace("\"", "\\\"")
+                    .replace("\n", "\\n")
+                    .replace("\r", "");
+            if (content.length() > 300) content = content.substring(0, 300) + "...";
+            sb.append("  {\"comment_id\":\"").append(id)
+                    .append("\",\"contents\":\"").append(content)
+                    .append("\",\"report_reason\":\"").append(reason).append("\"}");
+            if (i < toAudit.size() - 1) sb.append(",");
+            sb.append("\n");
+        }
+        sb.append("]");
+
+        String systemPrompt = """
+        你是严格的内容审核员。
+        输入是用户举报的评论 JSON 数组，每条含 comment_id、contents、report_reason。
+        report_reason 是举报人给出的理由（porn/abuse/ad/spam/illegal/other），仅供参考，
+        最终以评论正文是否真的违规为准（色情、辱骂、暴恐、政治敏感、广告引流）。
+        你必须只返回一个 JSON 数组，元素为判定违规的 comment_id 字符串，形如 ["id1","id2"]；
+        如果没有任何违规，返回 []。不要输出任何解释或 markdown 代码块。
+        """;
+        String userPrompt = "请审核以下被举报评论：\n" + sb;
+        String aiResponse;
+        try {
+            aiResponse = client.prompt()
+                    .system(systemPrompt)
+                    .user(userPrompt)
+                    .call()
+                    .content();
+        } catch (Exception e) {
+            log.error("举报审核 AI 调用失败", e);
+            return Result.fail("AI 审核服务调用失败：" + e.getMessage());
+        }
+
+        //解析取交集防幻觉
+        List<String> violationIds = parseViolationIds(aiResponse);
+        Set<String> pendingSet = new HashSet<>(pendingIds);
+        List<String> finalIds = new ArrayList<>();
+        for (String id : violationIds)
+            if (pendingSet.contains(id) && !finalIds.contains(id)) finalIds.add(id);
+        //违规 删评论（report 靠 ON DELETE CASCADE 自动清；子回复手动删）
+        //不违规 把该评论所有待处理举报置为已驳回
+        int deleted = 0;
+        int rejected = 0;
+        for (Map<String, Object> c : toAudit) {
+            String cid = String.valueOf(c.get("commentId"));
+            if (finalIds.contains(cid)) {
+                try {
+                    deleted += vm.deleteRepliesByParent(cid);
+                    deleted += vm.deleteCommentById(cid);
+                } catch (Exception e) {
+                    log.error("删除违规评论失败 commentId={}", cid, e);
+                }
+            }else rejected += vm.rejectReports(cid);
+        }
+
+        log.info("举报审核完成：待审 {} 条，AI 判违规 {} 条，删评论（含回复）{} 行，驳回举报 {} 条",
+                toAudit.size(), finalIds.size(), deleted, rejected);
+        return Result.success("审核完毕：待审 " + toAudit.size() + " 条，判定违规 "
+                + finalIds.size() + " 条并已删除，其余 " + rejected + " 条举报已驳回");
+    }
 }
