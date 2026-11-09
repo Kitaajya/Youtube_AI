@@ -541,6 +541,7 @@ const YT = (() => {
         const isYou = page === 'profile.html';
         const isHistory = page === 'history.html';
         const isShorts = page === 'shorts.html';
+        const isReports = page === 'reports.html';
         const item = (icon, label, opts) => {
             opts = opts || {};
             let h = '<a class="sb-item' + (opts.active ? ' active' : '') + '"';
@@ -577,7 +578,7 @@ const YT = (() => {
             + item(IC.kids, 'YouTube Kids', { toast: 'YouTube Kids 暂未开放' })
             + '</div>'
             + '<div class="sb-sec">'
-            + item(IC.flag, '举报历史', { toast: '举报历史暂未开放' })
+            + item(IC.flag, '举报历史', { href: 'reports.html', active: isReports })
             + '</div>'
             + '</div>';
     }

@@ -1,9 +1,9 @@
-import { fileURLToPath, URL } from 'node:url';
-import { defineConfig, loadEnv } from 'vite';
-import { absolutePublicAssets } from './src/vite-plugin-absolute-assets.js';
+import {fileURLToPath, URL} from 'node:url';
+import {defineConfig, loadEnv} from 'vite';
+import {absolutePublicAssets} from './src/vite-plugin-absolute-assets.js';
 
 /* ===== 多页入口 =====
- * 10 个 HTML 页面位于 frontend 根目录，逐个登记为构建入口，
+ * 11 个 HTML 页面位于 frontend 根目录，逐个登记为构建入口，
  * 保持「一个页面一个 HTML」的原有多页结构，不合并成 SPA。
  * 构建后各页面输出到 dist 根目录，页面间的相对跳转（watch.html?id=xxx）继续可用。
  */
@@ -18,6 +18,7 @@ const PAGES = [
     'message',
     'profile',
     'upload',
+    'reports',
 ];
 
 const input = Object.fromEntries(

@@ -193,6 +193,48 @@
     }, 2000);
     // =========================================================
 
+    // =========================================================
+    // 后台触发一次「被举报评论」的 AI 审核
+    // ---------------------------------------------------------
+    // 后端 POST /api/video/check/reported/comments 负责拉 status=0 的举报 → 送 DeepSeek →
+    // 违规的删评论、其余驳回。这个接口目前没有定时任务，需要有人调一次，否则举报会一直挂着。
+    // 这里跟上面的静默审查一样，在页面空闲时兜底触发；为了不把本地大模型打爆，
+    // 同一个浏览器 10 分钟内只触发一次（时间戳存 localStorage）。
+    // =========================================================
+    const REPORT_AUDIT_KEY = 'yt_report_audit_at';
+    const REPORT_AUDIT_GAP = 10 * 60 * 1000;
+    function runReportedAudit(force) {
+        if (!currentUserId) return;                       // 没登录就别触发，省得白发请求
+        let last = 0;
+        try { last = Number(localStorage.getItem(REPORT_AUDIT_KEY) || 0); } catch (e) { }
+        // force=true 用于"用户刚提交举报"，这时候必须马上送审，不能等 10 分钟节流；
+        // 否则只有"我自己还有待处理举报"时才触发，避免每个路人都在调本地大模型
+        if (!force) {
+            if (!myPendingReports) return;
+            if (Date.now() - last < REPORT_AUDIT_GAP) return;
+        }
+        try { localStorage.setItem(REPORT_AUDIT_KEY, String(Date.now())); } catch (e) { }
+        YT.api.post('/api/video/check/reported/comments').then(r => {
+            // 注意：后端是 Result.success("审核完毕：…") 单参调用 → 摘要文本在 data 里，
+            // message 只会是默认的"操作成功"，所以两个都兜一下
+            const msg = String((r && (r.data || r.message)) || '');
+            console.log('【举报审核】', msg);
+            // 返回形如"审核完毕：待审 N 条，判定违规 M 条并已删除…"，只有真删了评论才提示 + 刷新
+            if (r && r.success && /判定违规 [1-9]/.test(msg)) {
+                YT.toast('有被举报的违规评论已被 AI 删除');
+                loadComments();
+            }
+        }).catch(e => console.warn('【举报审核】请求失败', e));
+    }
+    setTimeout(() => {
+        if (window.requestIdleCallback) {
+            window.requestIdleCallback(() => runReportedAudit(), { timeout: 4000 });
+        } else {
+            runReportedAudit();
+        }
+    }, 4000);
+    // =========================================================
+
     // ---------- 关注模块 ----------
     const followBtn = $('#btn-follow'), fansEl = $('#w-up-fans');
     let following = false, fansCount = 0, followBusy = false;
@@ -539,10 +581,14 @@
                 : `<span class="op-btn ban-btn" data-ban-user="${uid}" data-ban-name="${YT.esc(YT.pick(c, 'commenter') || commentUid)}">禁止评论</span>`;
         }
 
-        // 新增：举报按钮 —— 不是自己发的评论都可以举报（屏蔽/禁言只有 UP 主能用，举报对所有登录用户开放）
+        // 举报按钮 —— 不是自己发的评论都可以举报（屏蔽/禁言只有 UP 主能用，举报对所有登录用户开放）
+        // 已经举报过的（本次会话提交过，或页面加载时从 /select/my/reports 拉到的）直接显示"已举报"
         let reportBtn = '';
         if (!isMine && commentUid) {
-            reportBtn = `<span class="op-btn" data-report="${cid}" data-report-name="${YT.esc(YT.pick(c, 'commenter') || commentUid)}">举报</span>`;
+            const cidRaw = String(YT.pick(c, 'comment_id'));
+            reportBtn = reportedIds.has(cidRaw)
+                ? `<span class="op-btn" style="opacity:.55;cursor:default;" title="你已举报过这条评论">已举报</span>`
+                : `<span class="op-btn" data-report="${cid}" data-report-name="${YT.esc(YT.pick(c, 'commenter') || commentUid)}">举报</span>`;
         }
 
         return `<div class="ops">
@@ -571,8 +617,23 @@
         { value: 'other', label: '其他', hint: '以上都不符合，请在下方说明' }
     ];
     const REPORT_DETAIL_MAX = 500;
-    // 本次页面会话内已举报过的评论，用来把按钮变成"已举报"（刷新后以服务端唯一约束兜底）
+    // 已经举报过的评论：本次页面会话内提交成功后加进来；
+    // 页面加载时还会从服务端把"我在这个视频下举报过的"补进来，刷新后按钮也不会退回"举报"。
     const reportedIds = new Set();
+    // 我自己还有多少条"待处理"的举报：>0 才值得在页面空闲时去触发一次全局 AI 审核，
+    // 免得每个路过的人都把本地大模型叫起来跑一遍
+    let myPendingReports = 0;
+    const reportsReady = currentUserId
+        ? YT.api.get('/api/video/select/my/reports', { userId: currentUserId, videoId: id })
+            .then(r => {
+                ((r && r.data) || []).forEach(x => {
+                    const cid = String(YT.pick(x, 'commentId', 'comment_id'));
+                    if (cid) reportedIds.add(cid);
+                    if (Number(YT.pick(x, 'status') || 0) === 0) myPendingReports++;
+                });
+            })
+            .catch(() => { /* 拉不到就按没举报过渲染；真的重复举报由后端唯一约束兜底 */ })
+        : Promise.resolve();
 
     const REPORT_CSS = `
 .yt-report-mask{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;}
@@ -695,9 +756,13 @@
                 });
                 if (r && r.success) {
                     reportedIds.add(String(commentId));
-                    YT.toast(r.message || '举报成功！我们会尽快核实处理');
+                    // 举报已入库(status=0)，由 DeepSeek 审核后决定删除/驳回
+                    YT.toast('举报已提交，AI 将自动审核；进度可在左侧「举报历史」查看');
                     refreshReportBtn(commentId);
                     close();
+                    // 刚提交的举报立刻送审一次（不受 10 分钟节流限制），
+                    // 审核真删了评论会顺势刷新评论区
+                    setTimeout(() => runReportedAudit(true), 800);
                 } else {
                     // 失败原因（如"不能重复举报""评论不存在或已被删除"）由后端给出，恢复按钮让用户能再操作
                     submitBtn.disabled = false;
@@ -824,8 +889,9 @@
 
     async function loadComments() {
         list.innerHTML = '<div class="empty" style="padding:20px;">加载评论…</div>';
-        // 我是 UP 主时，先等屏蔽名单/禁言名单到位再渲染，否则按钮会先画错再闪一次
-        await Promise.all([shieldReady, banReady]);
+        // 我是 UP 主时，先等屏蔽名单/禁言名单到位再渲染，否则按钮会先画错再闪一次；
+        // reportsReady 也要等：不然"已举报"的评论会先显示成"举报"，点下去后端报"不能重复举报"
+        await Promise.all([shieldReady, banReady, reportsReady]);
         let data = [];
         try {
             // 加上 currentUserId 传给后端

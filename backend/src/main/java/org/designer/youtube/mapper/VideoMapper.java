@@ -957,4 +957,41 @@ public interface VideoMapper {
     WHERE comment_id = #{commentId} AND status = 0
     """)
     int rejectReports(@Param("commentId") String commentId);
+
+    /**
+     * @功能: 我举报过的评论（"举报历史"页用）。按举报时间倒序，最多 200 条。
+     * @说明:
+     *   1) LEFT JOIN video_comment 是为了带出被举报评论的正文摘要和它属于哪个视频，
+     *      评论被 AI 判违规删掉后，举报记录会按外键 ON DELETE CASCADE 一起消失
+     *      （表结构如此），所以这里查到的通常是"待处理(0)"和"已驳回(2)"。
+     *   2) videoId 传 0 表示"我全部举报"，传具体视频 ID 就只查这个视频下的举报——
+     *      播放页用它来判断"这条评论我是不是已经举报过了"。
+     * @since 2026/11/09/16:40
+     **/
+    @Select("""
+    <script>
+    SELECT r.report_id  AS reportId,
+           r.comment_id AS commentId,
+           r.reason,
+           r.detail,
+           r.status,
+           DATE_FORMAT(r.create_time, '%Y-%m-%d %H:%i:%S') AS createTime,
+           DATE_FORMAT(r.handle_time, '%Y-%m-%d %H:%i:%S') AS handleTime,
+           c.video_id   AS videoId,
+           c.contents   AS commentContents,
+           c.user_id    AS commentUserId,
+           u.nickname   AS commentUserName
+    FROM video_comment_report r
+    LEFT JOIN video_comment c       ON c.comment_id = r.comment_id
+    LEFT JOIN user_information u    ON u.user_id    = c.user_id
+    WHERE r.user_id = #{userId}
+    <if test="videoId != null and videoId > 0">
+        AND c.video_id = #{videoId}
+    </if>
+    ORDER BY r.create_time DESC
+    LIMIT 200
+    </script>
+    """)
+    List<Map<String,Object>> selectMyReports(@Param("userId")  String userId,
+                                             @Param("videoId") long videoId);
 }

@@ -462,5 +462,29 @@ public class VideoController {
                                              @RequestParam(required = false) String detail) {
         return vs.report(commentId, userId, reason, detail);
     }
+    /**
+     * @说明: DeepSeek 审核被举报的评论：拉待审->批量送审->按结果删/驳回。
+     * 只处理 status=0 的举报，已处理过的不会重复送审。
+     *
+     * @since 2026/11/09/15:31
+     * @author Conan Doyle
+     *
+     */
+    @PostMapping("/check/reported/comments")
+    public Result<String> checkReportedComments(){
+        return vs.checkReportedComments(this.client);
+    }
+
+    /**
+     * 我举报过的评论（"举报历史"页 / 播放页判断"这条评论我举报过没有"）
+     * @param userId  举报人
+     * @param videoId 可选，0/不传=我全部的举报；传具体视频 ID=只看这个视频下的
+     * @since 2026/11/09/16:40
+     **/
+    @GetMapping("/select/my/reports")
+    public Result<List<Map<String,Object>>> selectMyReports(@RequestParam String userId,
+                                                            @RequestParam(required = false, defaultValue = "0") long videoId) {
+        return Result.success(vs.selectMyReports(userId, videoId));
+    }
 
 }
