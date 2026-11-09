@@ -924,7 +924,17 @@ public class VideoService {
         return vm.selectBlockedUsers(upId);
     }
     /**
-     * @功能: 举报视频评论
+     * 我举报过的评论（"举报历史"页 / 播放页判断"已举报"都用它）
+     * @param userId  举报人
+     * @param videoId 0=我全部的举报；具体视频 ID=只查这个视频下的
+     */
+    public List<Map<String,Object>> selectMyReports(String userId, long videoId) {
+        if (userId == null || userId.isBlank()) return List.of();
+        return vm.selectMyReports(userId, videoId);
+    }
+    /**
+     * @功能: 举报视频评论，被举报的评论进入Redis缓存，防止数据库被打爆，之后入库，给DeepSeek审核；DeepSeek会检查这个举报理由是否合理，
+     * 并将举报结果以通知的形式返还给用户
      *
      *
      * @param commentId 被举报的评论ID
