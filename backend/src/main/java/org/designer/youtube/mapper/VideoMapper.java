@@ -738,7 +738,7 @@ public interface VideoMapper {
     """)
     List<Map<String,Object>> selectCommentsByIdOnlyOneArgument(@Param("videoId") long videoId);
     /**
-     * 删除违规评论
+     * @说明: 删除违规评论
      * **/
      @Delete("DELETE FROM video_comment WHERE comment_id = #{commentId}")
      int deleteCommentById(@Param("commentId") String commentId);
@@ -888,7 +888,8 @@ public interface VideoMapper {
     """)
     List<Map<String,Object>> selectBlockedUsers(@Param("upId") String upId);
     /**
-     * 举报视频评论
+     * @功能: 举报视频评论，被举报的评论进入Redis缓存，防止数据库被打爆，之后入库，给DeepSeek审核；DeepSeek会检查这个举报理由是否合理，
+     * 并将举报结果以通知的形式返还给用户
      *
      * @param reportId  举报ID（13位随机字符串，服务端或前端生成）
      * @param commentId 被举报的评论ID
@@ -898,6 +899,7 @@ public interface VideoMapper {
      * @return 成功/失败结果
      * @since 2026/11/09/09:14
      * @author Conan Doyle
+     * @see #deleteCommentById(String)
      */
     @Insert("""
     INSERT INTO video_comment_report(report_id,comment_id,user_id,reason,detail,status,handle_time,create_time)
@@ -911,4 +913,48 @@ public interface VideoMapper {
                @Param("status")     int status,                // 新建传 0
                @Param("handleTime") LocalDateTime handleTime,  // 新建传 null
                @Param("createTime") LocalDateTime createTime  );
+    /**
+     *
+     * @since 2026/11/09/13:30
+     * @author Conan Doyle
+     *
+     * @说明: DeepSeek审核被举报的评论，浏览举报表并做出判断。利用以下两个接口：
+     * @apiNote
+     * <div> <code>getCommentsId()</code>:只拿待审的评论 ID（去重）</div>
+     * <div> <code>getCommentForAudit(String commentId)</code>:利用Mapper 1返回的comment_id查询comment_id对应的功能</div>
+     * @return
+     * <div>
+     *     <code>getCommentsId()</code>->comment_id
+     * </div>
+     * <div>
+     *     <code>getCommentForAudit(String commentId)</code>->comment's content
+     * </div>
+     *
+     *
+     **
+     * */
+    @Select("""
+    SELECT DISTINCT comment_id
+    FROM video_comment_report
+    WHERE status = 0
+    """)
+    List<String> getCommentsId();
+    @Select("""
+    SELECT c.comment_id AS commentId,
+           c.contents   AS contents,
+           GROUP_CONCAT(DISTINCT r.reason) AS reason,
+           GROUP_CONCAT(DISTINCT r.detail) AS detail
+    FROM video_comment c
+    JOIN video_comment_report r ON r.comment_id = c.comment_id
+    WHERE c.comment_id = #{commentId} AND r.status = 0
+    GROUP BY c.comment_id, c.contents
+    """)
+    Map<String, Object> getCommentForAudit(@Param("commentId") String commentId);
+    //驳回
+    @Update("""
+    UPDATE video_comment_report
+    SET status = 2, handle_time = NOW()
+    WHERE comment_id = #{commentId} AND status = 0
+    """)
+    int rejectReports(@Param("commentId") String commentId);
 }
