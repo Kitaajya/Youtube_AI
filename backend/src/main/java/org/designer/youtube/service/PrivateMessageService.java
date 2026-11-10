@@ -547,4 +547,21 @@ public class PrivateMessageService {
         List<String> ids = privateMessageMapper.selectBlockedUserIdsInPrivateMessage(upId);
         return ids == null ? List.of() : ids;
     }
+
+    /**
+     * @since 2026/11/10/15:00
+     * @功能: 群聊消息撤回。仅发送者本人、发送后 timeWithdraw 秒内、且未撤回过的消息可撤回。
+     *        撤回后正文清空、媒体清空、msg_type 重置为 text，前端显示"消息已撤回"。
+     * @see #withdraw(String, String, int)
+     */
+    public Result<Map<String,Object>> withdrawGroupMessage(String msgId,String userId,int timeWithdraw){
+        try {
+            int k=privateMessageMapper.withdrawGroupMessage(msgId, userId, timeWithdraw);
+            if(k>0)
+                return Result.success("撤回成功！",Map.of("msgId",msgId,"userId",userId,"time",timeWithdraw));
+        }catch (DuplicateKeyException esq){
+            return Result.success("不允许重复撤回！",Map.of("msgId",msgId,"userId",userId,"time",timeWithdraw));
+        }
+        return Result.fail("撤回失败！");
+    }
 }

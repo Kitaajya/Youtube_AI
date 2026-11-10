@@ -103,7 +103,7 @@
     }
 
     let withdrawRefreshTimer = null;
-    function scheduleWithdrawRefresh(list) {
+    function scheduleWithdrawRefresh(list, isGroup = false) {
         if (withdrawRefreshTimer) { clearTimeout(withdrawRefreshTimer); withdrawRefreshTimer = null; }
         let next = Infinity;
         const now = Date.now();
@@ -119,7 +119,7 @@
             withdrawRefreshTimer = null;
             const atBottom = msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 40;
             const keepTop = msgs.scrollTop;
-            renderMsgs(curList, false);
+            renderMsgs(curList, isGroup);
             if (!atBottom) msgs.scrollTop = keepTop;
         }, next - now + 500);
     }
@@ -318,12 +318,12 @@
         }
 
         let ops = '';
-        if (mine && !isGroup && !withdrawn) {
+        if (mine && !withdrawn) {
             const created = new Date(String(m.createTime).replace(' ', 'T')).getTime();
             const fresh = !isNaN(created) && (Date.now() - created) / 1000 <= WITHDRAW_LIMIT_S;
             ops = '<div class="m-ops">'
-                + (fresh ? `<button class="m-op" data-withdraw="${YT.esc(msgId)}">撤回</button>` : '')
-                + `<button class="m-op" data-del="${YT.esc(msgId)}">删除</button>`
+                + (fresh ? `<button class="m-op" data-withdraw="${YT.esc(msgId)}" data-group="${isGroup ? '1' : ''}">撤回</button>` : '')
+                + (isGroup ? '' : `<button class="m-op" data-del="${YT.esc(msgId)}">删除</button>`)
                 + '</div>';
         }
 
@@ -340,6 +340,7 @@
                     <div class="pm-msg ${mine ? 'me' : ''}">
                         ${bodyHtml}
                     </div>
+                    ${ops}
                 </div>
             </div>`;
         }
@@ -373,12 +374,13 @@
         }
         msgs.innerHTML = html;
         msgs.scrollTop = msgs.scrollHeight;
-        if (!isGroup) scheduleWithdrawRefresh(list);
-
+        //if (!isGroup) scheduleWithdrawRefresh(list);
         // 加上这 3 行
         if (window.MathJax && window.MathJax.typesetPromise) {
             MathJax.typesetPromise([msgs]).catch(err => console.log('MathJax渲染失败', err));
         }
+        scheduleWithdrawRefresh(list, isGroup);
+
     }
     function appendMsgs(newMsgs, isGroup = false) {
         if (!newMsgs || !newMsgs.length) return;
@@ -388,6 +390,9 @@
         }
         msgs.insertAdjacentHTML('beforeend', html);
         msgs.scrollTop = msgs.scrollHeight;
+        // 撤回按钮要在 120 秒到期后自动消失：追加新消息也要重新安排定时重绘，
+        // 否则发出去的消息撤回按钮会一直挂着。
+        scheduleWithdrawRefresh(curList, isGroup);
 
         //核心新增：通知 MathJax 渲染新插入的消息（比如历史记录、最终落定在屏幕上的 AI 回复）
         if (window.MathJax && window.MathJax.typesetPromise) {
@@ -639,6 +644,7 @@
                 contents: YT.pick(m, 'contents'),
                 msgType: YT.pick(m, 'msg_type') || 'text',
                 mediaPath: YT.pick(m, 'media_path'),
+                isWithdrawn: Number(YT.pick(m, 'isWithdrawn', 'is_withdrawn') || 0),
                 createTime: YT.pick(m, 'create_time'),
                 senderName: YT.pick(m, 'senderName', 'sender_name') || (YT.pick(m, 'from_user') === 'AI_BOT' ? 'DeepSeek 助手' : '群友'),
                 senderAvatar: YT.pick(m, 'senderAvatar', 'sender_avatar', 'avatar') || ''
@@ -940,9 +946,12 @@
         }
     }
     // ---------- 撤回 / 删除 ----------
-    async function doWithdraw(msgId, node) {
+    async function doWithdraw(msgId, node, isGroup = false) {
+        const url = isGroup
+            ? '/api/private_message/withdraw/private/group/message'
+            : '/api/private_message/withdraw/private/message';
         try {
-            const r = await YT.api.post('/api/private_message/withdraw/private/message', {
+            const r = await YT.api.post(url, {
                 msgId,
                 userId: me.userId,
                 timeWithdraw: WITHDRAW_LIMIT_S
@@ -951,16 +960,31 @@
 
             const idx = curList.findIndex(x => String(x.msgId) === String(msgId));
             if (idx >= 0) curList[idx].isWithdrawn = 1;
-            if (node) {
+
+            // 群聊撤回后重渲染整段（群消息结构比私信复杂，局部改容易错位）
+            if (isGroup) {
+                const typing = document.getElementById('typing-ai-bubble');
+                if (typing) {
+                    // 有 AI 正在输出时，只替换目标消息节点，不整段重建
+                    const node = msgs.querySelector(`[data-msg-id="${CSS.escape(String(msgId))}"]`);
+                    if (node) {
+                        const bubble = node.querySelector('.bubble');
+                        if (bubble) bubble.innerHTML = '<span style="opacity:.8;">消息已撤回</span>';
+                        const ops = node.querySelector('.m-ops');
+                        if (ops) ops.remove();
+                    }
+                } else {
+                    renderMsgs(curList, true);
+                }
+            }else if (node) {
                 const bubble = node.querySelector('.bubble');
-                if (bubble) bubble.innerHTML = '<span style=\"opacity:.8;\">消息已撤回</span>';
+                if (bubble) bubble.innerHTML = '<span style="opacity:.8;">消息已撤回</span>';
+                renderMsgs(curList, false);
             }
-            renderMsgs(curList, !!currentGroup);
         } catch (e) {
             YT.toast('撤回失败：' + e.message);
         }
     }
-
     async function doDeleteFromMySide(msgId, node) {
         try {
             const r = await YT.api.post('/api/private_message/delete/private/message', {
@@ -1184,62 +1208,84 @@
 
                 // 格式化数据
                 const normList = list.map(m => ({
-                    msgId: YT.pick(m, 'msg_id'),
-                    fromUser: YT.pick(m, 'from_user'),
+                    msgId: String(YT.pick(m, 'msg_id', 'msgId') || ''),
+                    fromUser: YT.pick(m, 'from_user', 'fromUser'),
                     toUser: peerId,
                     contents: YT.pick(m, 'contents'),
-                    msgType: YT.pick(m, 'msg_type') || 'text',
-                    mediaPath: YT.pick(m, 'media_path'),
-                    createTime: YT.pick(m, 'create_time'),
-                    senderName: YT.pick(m, 'senderName', 'sender_name') || (YT.pick(m, 'from_user') === 'AI_BOT' ? 'DeepSeek 助手' : '群友'),
+                    msgType: YT.pick(m, 'msg_type', 'msgType') || 'text',
+                    mediaPath: YT.pick(m, 'media_path', 'mediaPath'),
+                    isWithdrawn: Number(YT.pick(m, 'isWithdrawn', 'is_withdrawn') || 0),
+                    createTime: YT.pick(m, 'create_time', 'createTime'),
+                    senderName: YT.pick(m, 'senderName', 'sender_name') || (YT.pick(m, 'from_user', 'fromUser') === 'AI_BOT' ? 'DeepSeek 助手' : '群友'),
                     senderAvatar: YT.pick(m, 'senderAvatar', 'sender_avatar', 'avatar') || ''
                 }));
 
                 // 检查是否有新消息（通过比较最后一条消息的 ID）
                 const sig = normList.length + '|' + (normList.length ? normList[normList.length - 1].msgId : '');
 
-                if (sig !== lastGroupChatSig) {
-                    const existingIds = new Set(curList.map(x => x.msgId));
-                    const newMsgs = normList.filter(m => !existingIds.has(m.msgId));
+                // 每轮都做一次增量对齐：新消息追加、别人撤回的消息同步撤回态。
+                // 之前这里引用了只存在于私信分支的 existMap，群聊轮询每轮都抛
+                // ReferenceError 被 catch 吞掉，撤回和新消息全都不生效。
+                const existMap = new Map(curList.map(x => [String(x.msgId), x]));
+                const newMsgs = [];
+                let dirty = false;
+                for (const m of normList) {
+                    const old = existMap.get(String(m.msgId));
+                    if (!old) {
+                        newMsgs.push(m);              // 新消息
+                    } else if (m.isWithdrawn === 1 && Number(old.isWithdrawn || 0) !== 1) {
+                        old.isWithdrawn = 1;          // 已有消息被撤回了
+                        old.contents = '';
+                        old.mediaPath = '';
+                        old.msgType = 'text';
+                        dirty = true;                 // 标记需要重渲染
+                    }
+                }
 
-                    if (newMsgs.length > 0) {
-                        // 将新消息追加到界面
-                        newMsgs.forEach(m => {
-                            if (String(m.fromUser) === 'AI_BOT' && String(m.contents).includes('正在阅读群聊并思考')) {
-                                // 处理 AI 思考气泡
-                                if (!document.getElementById('typing-ai-bubble')) {
-                                    msgs.insertAdjacentHTML('beforeend', `
-                                    <div class="pm-group-msg-wrap" id="typing-ai-bubble">
-                                        <div class="pm-group-avatar"><span class="avatar" style="background:#3ea6ff; color:#fff;">AI</span></div>
-                                        <div class="pm-group-msg-body">
-                                            <span class="pm-group-name">DeepSeek 助手</span>
-                                            <div class="pm-msg"><div class="bubble" style="background:var(--surface-2); border: 1px dashed var(--link); color:var(--text-primary);" id="typing-ai-bubble-content">正在阅读群聊并思考...</div></div>
-                                        </div>
-                                    </div>`);
-                                    msgs.scrollTop = msgs.scrollHeight;
-                                }
-                            } else {
-                                appendMsgs([m], true);
+                if (newMsgs.length > 0) {
+                    for (const m of newMsgs) {
+                        if (String(m.fromUser) === 'AI_BOT' && String(m.contents).includes('正在阅读群聊并思考')) {
+                            // 处理 AI 思考气泡
+                            if (!document.getElementById('typing-ai-bubble')) {
+                                msgs.insertAdjacentHTML('beforeend', `
+                                <div class="pm-group-msg-wrap" id="typing-ai-bubble">
+                                    <div class="pm-group-avatar"><span class="avatar" style="background:#3ea6ff; color:#fff;">AI</span></div>
+                                    <div class="pm-group-msg-body">
+                                        <span class="pm-group-name">DeepSeek 助手</span>
+                                        <div class="pm-msg"><div class="bubble" style="background:var(--surface-2); border: 1px dashed var(--link); color:var(--text-primary);" id="typing-ai-bubble-content">正在阅读群聊并思考...</div></div>
+                                    </div>
+                                </div>`);
+                                msgs.scrollTop = msgs.scrollHeight;
                             }
-                        });
-
-                        // 更新本地缓存列表
-                        curList.push(...newMsgs);
+                        } else {
+                            appendMsgs([m], true);
+                        }
                     }
 
-                    lastGroupChatSig = sig;
+                    // 更新本地缓存列表
+                    curList.push(...newMsgs);
+                }
 
-                    // 既然我正在看这个群，就把这个群标记为已读
-                    setGroupReadTime(peerId);
-                    renderMyGroups();
+                lastGroupChatSig = sig;
 
-                    // 检查 AI 是否回复完毕，如果完毕就移除思考气泡并解锁
-                    const lastMsg = normList[normList.length - 1];
-                    if (lastMsg && String(lastMsg.fromUser) === 'AI_BOT' && !String(lastMsg.contents).includes('正在阅读群聊并思考')) {
-                        const ghost = document.getElementById('typing-ai-bubble');
-                        if (ghost) ghost.remove();
-                        if (aiLock) aiLock = false;
-                    }
+                // 既然我正在看这个群，就把这个群标记为已读
+                setGroupReadTime(peerId);
+                renderMyGroups();
+
+                // 检查 AI 是否回复完毕，如果完毕就移除思考气泡并解锁
+                const lastMsg = normList[normList.length - 1];
+                if (lastMsg && String(lastMsg.fromUser) === 'AI_BOT' && !String(lastMsg.contents).includes('正在阅读群聊并思考')) {
+                    const ghost = document.getElementById('typing-ai-bubble');
+                    if (ghost) ghost.remove();
+                    if (aiLock) aiLock = false;
+                }
+
+                // 有消息被撤回时整段重绘，显示"对方撤回了一条消息"
+                if (dirty) {
+                    const atBottom = msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 40;
+                    const keepTop = msgs.scrollTop;
+                    renderMsgs(curList, true);
+                    if (!atBottom) msgs.scrollTop = keepTop;
                 }
             } catch (e) {
                 console.error("群聊轮询失败", e);
@@ -1307,6 +1353,25 @@
                 }
             }
         }
+
+
+        // 撤回态对齐：每轮用服务端返回的全量私信消息纠正本地状态，
+        // 保证对方撤回的消息及时从界面消失。
+        // （之前这段错放在这里、还引用了群聊分支才有的 normList，
+        //   私信轮询每轮都抛 ReferenceError，整段收尾逻辑全部中断）
+        if (chatR && Array.isArray(chatR.data)) {
+            let pmDirty = false;
+            const pmExist = new Map(curList.map(x => [String(x.msgId), x]));
+            for (const m of chatR.data) {
+                const old = pmExist.get(String(YT.pick(m, 'msg_id', 'msgId')));
+                if (old && Number(YT.pick(m, 'isWithdrawn', 'is_withdrawn') || 0) === 1 && Number(old.isWithdrawn || 0) !== 1) {
+                    old.isWithdrawn = 1; old.contents = ''; old.mediaPath = ''; old.msgType = 'text';
+                    pmDirty = true;
+                }
+            }
+            if (pmDirty) renderMsgs(curList, false);
+        }
+
     }
     function schedulePoll() {
         if (document.hidden) { pollTimer = null; return; }
@@ -1330,7 +1395,13 @@
     // ---------- 事件绑定 ----------
     msgs.addEventListener('click', e => {
         const w = e.target.closest('[data-withdraw]');
-        if (w) { doWithdraw(w.dataset.withdraw, w.closest('.pm-msg')); return; }
+        if (w) {
+            const isGroup = w.dataset.group === '1';
+            // 群消息取最近的 wrap，私信取 .pm-msg
+            const node = isGroup ? w.closest('.pm-group-msg-wrap') : w.closest('.pm-msg');
+            doWithdraw(w.dataset.withdraw, node, isGroup);
+            return;
+        }
         const d = e.target.closest('[data-del]');
         if (d) { doDeleteFromMySide(d.dataset.del, d.closest('.pm-msg')); }
     });

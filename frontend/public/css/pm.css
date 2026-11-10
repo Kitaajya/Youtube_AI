@@ -469,3 +469,25 @@
 @keyframes pm-confetti-fall {
     to { transform: translateY(106vh) rotate(720deg); opacity: .85; }
 }
+
+
+/* ---------- 群聊消息操作按钮（撤回） ---------- */
+/* 群消息的 .pm-msg 外层多套了一层 .pm-group-msg-wrap，
+   私信的 .pm-msg:hover 规则覆盖不到，这里单独补 hover 触发 */
+.pm-group-msg-wrap .pm-msg {
+    position: relative;
+}
+.pm-group-msg-wrap .m-ops {
+    visibility: hidden;
+    display: flex;
+    gap: 6px;
+    padding: 0 4px;
+}
+.pm-group-msg-wrap:hover .m-ops {
+    visibility: visible;
+}
+
+/* 自己的群消息：按钮在气泡左侧（因为 body 是 align-items:flex-end，气泡在右） */
+.pm-group-msg-wrap.me .pm-group-msg-body .m-ops {
+    justify-content: flex-end;
+}

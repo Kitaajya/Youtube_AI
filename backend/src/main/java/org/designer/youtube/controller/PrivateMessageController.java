@@ -65,32 +65,32 @@ public class PrivateMessageController {
         return Result.success(Map.of("count", privateMessageService.countUnread(me)));
     }
 
-    // 把某人发给我的消息标记已读（打开对话时调用）
+    /**把某人发给我的消息标记已读（打开对话时调用）**/
     @PostMapping("/read")
     public Result<Map<String, Object>> markRead(@RequestParam String me, @RequestParam String other) {
         privateMessageService.markRead(me, other);
         return Result.successMessage("已读标记完成");
     }
 
+    /**我发送私信（msgId 由 Service 调RandomlyCreateID填好再传进来）**/
     @PostMapping("/send")
-    // 我发送私信（msgId 由 Service 调RandomlyCreateID填好再传进来）
     public Result<Map<String, Object>> send(@ModelAttribute PrivateMessage privateMessage) {
         return privateMessageService.send(privateMessage);
     }
 
-    //从我这里删除发出的信息，但是对方依旧能看得到。因为这不是撤回操作，软删除
+    /**从我这里删除发出的信息，但是对方依旧能看得到。因为这不是撤回操作，软删除**/
     @PostMapping("/delete/private/message")
     public Result<Map<String, Object>> deleteFromMySide(@RequestParam String msgId, @RequestParam String userId) {
         return privateMessageService.deleteFromMySide(msgId, userId);
     }
 
-    //撤回操作
+    /**撤回操作**/
     @PostMapping("/withdraw/private/message")
     public Result<Map<String, Object>> withdraw(@RequestParam String msgId, @RequestParam String userId, @RequestParam int timeWithdraw) {
         return privateMessageService.withdraw(msgId, userId, timeWithdraw);
     }
 
-    //私信功能要求不仅仅是可以互相发送文字，还可以发送视频与图片
+    /**私信功能要求不仅仅是可以互相发送文字，还可以发送视频与图片**/
     @PostMapping("/send/picture/video")
     public Result<Map<String, Object>> sendPictureOfVideo(@ModelAttribute PrivateMessage privateMessage) {
         return privateMessageService.sendPictureOrVideo(privateMessage);
@@ -102,13 +102,13 @@ public class PrivateMessageController {
         return videoFileService.uploadPmMedia(file);
     }
 
-    //发送表情包
+    /**发送表情包**/
     @PostMapping("/send/emoji")
     public Result<Map<String, Object>> sendEmoji(@ModelAttribute PrivateMessage privateMessage) {
         return privateMessageService.sendEmoji(privateMessage);
     }
 
-    //查看表情包列表（选择器用）
+    /**查看表情包列表（选择器用）**/
     @GetMapping("/emoji/list")
     public Result<List<Map<String, Object>>> emojiList() {
         return privateMessageService.selectEmojiList();
@@ -126,20 +126,20 @@ public class PrivateMessageController {
         return privateMessageService.establishGroup(id, groupName, ownerId);
     }
 
-    //拉人
+    /**拉人**/
     @PostMapping("/add/member")
     public Result<Map<String, Object>> addGroupMember(@RequestParam String groupId, @RequestParam String userId,@RequestParam String fromUser) {
         return privateMessageService.addGroupMember(groupId, userId,fromUser);
     }
 
-    //群主踢人
+    /**群主踢人**/
     @PostMapping("/remove/member")
     public Result<Map<String, Object>> removeGroupMember(@RequestParam String groupId,
                                                          @RequestParam String userId,
                                                          @RequestParam String groupOwner) {
         return privateMessageService.removeGroupMember(groupId, userId, groupOwner);
     }
-    //查看群聊消息
+    /**查看群聊消息**/
     @GetMapping("/select/group/message")
     public Result<List<Map<String,Object>>> selectGroupMessage(@RequestParam String groupId){
         return Result.success(privateMessageService.selectGroupMessage(groupId));
@@ -198,5 +198,15 @@ public class PrivateMessageController {
     @GetMapping("/block/list")
     public Result<List<String>> selectBlockedUsersForPrivateMessage(@RequestParam String upId){
         return Result.success(privateMessageService.selectBlockedUsersInPrivateMessage(upId));
+    }
+    /**
+     * @since 2026/11/10/15:00
+     * @功能: 群聊消息撤回。仅发送者本人、发送后 timeWithdraw 秒内、且未撤回过的消息可撤回。
+     *        撤回后正文清空、媒体清空、msg_type 重置为 text，前端显示"消息已撤回"。
+     * @see #withdraw(String, String, int)
+     */
+    @PostMapping("/withdraw/private/group/message")
+    public Result<Map<String,Object>> withdrawGroupMessage(String msgId,String userId,int timeWithdraw){
+        return privateMessageService.withdrawGroupMessage(msgId, userId, timeWithdraw);
     }
 }

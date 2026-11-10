@@ -77,8 +77,11 @@ public interface PrivateMessageMapper {
        AND from_user = #{userId}
     """)
     int deleteFromMySide(@Param("msgId") String msgId, @Param("userId") String userId);
-    //撤回操作，规定timeWithdraw秒的时间内可以撤回信息，通常地，timeWithdraw==120s
-    //仅发送方本人、且发送时间在timeWithdraw秒内可撤回。撤回后正文清空，双方聊天记录显示"消息已撤回"
+    /**
+     * @since 2026/10/20
+     * @author Conan Doyle
+     * @功能: 撤回操作，规定timeWithdraw秒的时间内可以撤回信息，通常地，timeWithdraw==120s
+     * 仅发送方本人、且发送时间在timeWithdraw秒内可撤回。撤回后正文清空，双方聊天记录显示"消息已撤回"**/
     @Update("""
     UPDATE private_message
        SET is_withdrawn = 1,
@@ -172,10 +175,11 @@ public interface PrivateMessageMapper {
     """)
     int removeGroupMember(@Param("groupId")String groupId,@Param("userId")String userId);
     //查看群聊消息
-     @Select("""
-    SELECT gm.msg_id, gm.group_id, gm.from_user, 
-           u.nickname AS senderName, 
+    @Select("""
+    SELECT gm.msg_id, gm.group_id, gm.from_user,
+           u.nickname AS senderName,
            gm.contents, gm.msg_type, gm.media_path,
+           gm.is_withdrawn AS isWithdrawn,
            DATE_FORMAT(gm.create_time, '%Y-%m-%d %H:%i:%s') AS create_time,
            u.avatar AS senderAvatar
     FROM group_message gm
@@ -352,6 +356,29 @@ public interface PrivateMessageMapper {
      * @author Conan Doyle
      *
      * @说明: 语音功能预备上线，打算用MP3传输到私信或群聊里
+     * @deprecated
      * **/
     int demoMethodOrInterface();
+
+    /**
+     * @since 2026/11/10/15:00
+     * @功能: 群聊消息撤回。仅发送者本人、发送后 timeWithdraw 秒内、且未撤回过的消息可撤回。
+     *        撤回后正文清空、媒体清空、msg_type 重置为 text，前端显示"消息已撤回"。
+     * @see #withdraw(String, String, int)
+     */
+    @Update("""
+    UPDATE group_message
+       SET is_withdrawn = 1,
+           contents     = '',
+           msg_type     = 'text',
+           media_path   = NULL
+     WHERE msg_id       = #{msgId}
+       AND from_user    = #{userId}
+       AND is_withdrawn = 0
+       AND create_time >= DATE_SUB(NOW(), INTERVAL #{timeWithdraw} SECOND)
+    """)
+    int withdrawGroupMessage(@Param("msgId")        String msgId,
+                             @Param("userId")       String userId,
+                             @Param("timeWithdraw") int timeWithdraw);
+
 }
