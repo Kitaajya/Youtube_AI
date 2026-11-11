@@ -175,6 +175,8 @@ public interface PrivateMessageMapper {
     """)
     int removeGroupMember(@Param("groupId")String groupId,@Param("userId")String userId);
     //查看群聊消息
+    //me = 当前查看的人：他本人已软删除的消息（from_deleted=1）不再返回给他，其他群友照常可见
+    //IFNULL(#{me},'') 兼容 AI 总结等不传 me 的内部调用：me 为空时过滤条件恒不成立，等于不过滤
     @Select("""
     SELECT gm.msg_id, gm.group_id, gm.from_user,
            u.nickname AS senderName,
@@ -185,9 +187,10 @@ public interface PrivateMessageMapper {
     FROM group_message gm
     LEFT JOIN user_information u ON gm.from_user = u.user_id
     WHERE gm.group_id = #{groupId}
+      AND NOT (gm.from_user = IFNULL(#{me}, '') AND gm.from_deleted = 1)
     ORDER BY gm.create_time ASC
     """)
-    List<Map<String,Object>> selectGroupMessage(@Param("groupId") String groupId);
+    List<Map<String,Object>> selectGroupMessage(@Param("groupId") String groupId, @Param("me") String me);
     // 向群聊中发消息
     @Insert("""
     INSERT IGNORE INTO group_message(msg_id, group_id, from_user, contents, msg_type, media_path)
@@ -380,5 +383,18 @@ public interface PrivateMessageMapper {
     int withdrawGroupMessage(@Param("msgId")        String msgId,
                              @Param("userId")       String userId,
                              @Param("timeWithdraw") int timeWithdraw);
-
+    /**
+     * @since 2026/11/10/21:30
+     * @author Conan Doyle
+     * @功能: 群聊message的软删除。只删发送者自己这边的显示，其他群友照常能看到（这不是撤回）
+     * @see #deleteFromMySide(String, String)
+     * **/
+    @Update("""
+    UPDATE group_message
+       SET from_deleted = 1
+     WHERE msg_id       = #{msgId}
+       AND from_user    = #{userId}
+       AND from_deleted = 0
+    """)
+    int deleteGroupMessageFromMySide(@Param("msgId") String msgId, @Param("userId") String userId);
 }

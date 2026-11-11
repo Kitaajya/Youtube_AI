@@ -323,7 +323,7 @@
             const fresh = !isNaN(created) && (Date.now() - created) / 1000 <= WITHDRAW_LIMIT_S;
             ops = '<div class="m-ops">'
                 + (fresh ? `<button class="m-op" data-withdraw="${YT.esc(msgId)}" data-group="${isGroup ? '1' : ''}">撤回</button>` : '')
-                + (isGroup ? '' : `<button class="m-op" data-del="${YT.esc(msgId)}">删除</button>`)
+                + `<button class="m-op" data-del="${YT.esc(msgId)}" data-group="${isGroup ? '1' : ''}">删除</button>`
                 + '</div>';
         }
 
@@ -635,7 +635,7 @@
 
         msgs.innerHTML = '<div class="empty">加载群聊消息…</div>';
         try {
-            const r = await YT.api.get('/api/private_message/select/group/message', { groupId });
+            const r = await YT.api.get('/api/private_message/select/group/message', { groupId, me: me.userId });
             const list = Array.isArray(r.data) ? r.data : [];
             const normList = list.map(m => ({
                 msgId: YT.pick(m, 'msg_id'),
@@ -985,9 +985,11 @@
             YT.toast('撤回失败：' + e.message);
         }
     }
-    async function doDeleteFromMySide(msgId, node) {
+    async function doDeleteFromMySide(msgId, node, isGroup = false) {
         try {
-            const r = await YT.api.post('/api/private_message/delete/private/message', {
+            const r = await YT.api.post(isGroup
+                ? '/api/private_message/delete/group/message'
+                : '/api/private_message/delete/private/message', {
                 msgId,
                 userId: me.userId
             });
@@ -1203,7 +1205,7 @@
                 const peerId = currentGroup.groupId;
 
                 // 拉取当前打开的这个群的聊天记录
-                const r = await YT.api.get('/api/private_message/select/group/message', { groupId: peerId });
+                const r = await YT.api.get('/api/private_message/select/group/message', { groupId: peerId, me: me.userId });
                 const list = Array.isArray(r.data) ? r.data : [];
 
                 // 格式化数据
@@ -1403,7 +1405,12 @@
             return;
         }
         const d = e.target.closest('[data-del]');
-        if (d) { doDeleteFromMySide(d.dataset.del, d.closest('.pm-msg')); }
+        if (d) {
+            const isGroup = d.dataset.group === '1';
+            // 群消息取最近的 wrap，私信取 .pm-msg
+            const node = isGroup ? d.closest('.pm-group-msg-wrap') : d.closest('.pm-msg');
+            doDeleteFromMySide(d.dataset.del, node, isGroup);
+        }
     });
 
     //    私信屏蔽

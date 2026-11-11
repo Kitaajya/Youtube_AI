@@ -311,9 +311,26 @@ public class PrivateMessageService {
         if(k==0) return Result.fail("踢人失败！");
         return Result.success("踢人成功！",Map.of("userId",userId));
     }
-    //查看群聊消息
-    public List<Map<String,Object>> selectGroupMessage(String groupId){
-        return privateMessageMapper.selectGroupMessage(groupId);
+    //查看群聊消息（me=当前查看的人，本人已软删除的消息不再返回给他）
+    public List<Map<String,Object>> selectGroupMessage(String groupId, String me){
+        return privateMessageMapper.selectGroupMessage(groupId, me);
+    }
+    /**
+     * @since 2026/11/10/21:30
+     * @author Conan Doyle
+     * @功能: 群聊消息软删除：只删"我这边的显示"，群里其他人照常能看到。因为这不是撤回操作
+     * @see #deleteFromMySide(String, String)
+     */
+    public Result<Map<String,Object>> deleteGroupMessageFromMySide(String msgId,String userId){
+        if (msgId == null || msgId.isBlank() || userId == null || userId.isBlank())
+            return Result.fail("参数错误");
+        try{
+            int k= privateMessageMapper.deleteGroupMessageFromMySide(msgId, userId);
+            if(k!=0) return Result.success("删除成功！",Map.of("success",true));
+        }catch (DuplicateKeyException esq){
+            return Result.success("已经删除过一次了！",Map.of("success",true));
+        }
+        return Result.fail("删除失败！（只能删除自己发的消息）");
     }
     /**
      * @描述 向群中发消息。
@@ -343,7 +360,7 @@ public class PrivateMessageService {
     public Flux<String> selectGroupMessageForDeepSeek(ChatClient client, String groupId, String question) {
         //将阻塞查询包装进 Mono
         Mono<String> contextMono = Mono.fromCallable(() -> {
-            List<Map<String, Object>> list = privateMessageMapper.selectGroupMessage(groupId);
+            List<Map<String, Object>> list = privateMessageMapper.selectGroupMessage(groupId, null);
 
             //过滤掉“正在阅读群聊并思考...”这种干扰信息
             if (list != null) {

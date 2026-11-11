@@ -139,10 +139,19 @@ public class PrivateMessageController {
                                                          @RequestParam String groupOwner) {
         return privateMessageService.removeGroupMember(groupId, userId, groupOwner);
     }
-    /**查看群聊消息**/
+    /**查看群聊消息（me=当前查看的人，本人已软删除的消息不再返回；不传则不过滤，供内部调用兜底）**/
     @GetMapping("/select/group/message")
-    public Result<List<Map<String,Object>>> selectGroupMessage(@RequestParam String groupId){
-        return Result.success(privateMessageService.selectGroupMessage(groupId));
+    public Result<List<Map<String,Object>>> selectGroupMessage(@RequestParam String groupId,
+                                                               @RequestParam(required = false) String me){
+        return Result.success(privateMessageService.selectGroupMessage(groupId, me));
+    }
+    /**
+     * @since 2026/11/10/21:30
+     * @功能: 群聊消息软删除：只删发送者自己这边的显示，其他群友照常可见（非撤回）
+     */
+    @PostMapping("/delete/group/message")
+    public Result<Map<String, Object>> deleteGroupMessageFromMySide(@RequestParam String msgId, @RequestParam String userId) {
+        return privateMessageService.deleteGroupMessageFromMySide(msgId, userId);
     }
     //向群聊中发消息
     @PostMapping("/add/group/message")
