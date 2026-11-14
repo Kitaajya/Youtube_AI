@@ -6,7 +6,7 @@
 [![CI](https://github.com/Kitaajya/Youtube_AI/actions/workflows/ci.yml/badge.svg)](https://github.com/Kitaajya/Youtube_AI/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A video community website built from scratch, featuring a separated frontend and backend architecture, deeply integrated with AI and high-concurrency design.
+A video community website built from scratch, featuring a separated frontend and backend architecture, deeply integrated with AI and high-concurrency design.You can delete and withdraw the wrong messages in group and private messages！
 
 *This is a personal learning and practice project and is not affiliated with YouTube in any way.*
 
