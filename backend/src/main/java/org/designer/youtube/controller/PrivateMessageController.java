@@ -108,10 +108,30 @@ public class PrivateMessageController {
         return privateMessageService.sendEmoji(privateMessage);
     }
 
-    /**查看表情包列表（选择器用）**/
+    /**查看表情包列表（选择器用；传 me 时把"我上传的"一并返回）**/
     @GetMapping("/emoji/list")
-    public Result<List<Map<String, Object>>> emojiList() {
-        return privateMessageService.selectEmojiList();
+    public Result<List<Map<String, Object>>> emojiList(@RequestParam(required = false) String me) {
+        return privateMessageService.selectEmojiList(me);
+    }
+
+    /**我上传的表情列表（管理面板用）**/
+    @GetMapping("/emoji/my/list")
+    public Result<List<Map<String, Object>>> myEmojiList(@RequestParam String me) {
+        return privateMessageService.selectMyEmojiList(me);
+    }
+
+    /**删除我上传的表情（软删除，历史消息不影响）**/
+    @PostMapping("/emoji/delete")
+    public Result<Map<String, Object>> deleteMyEmoji(@RequestParam String emojiId, @RequestParam String ownerId) {
+        return privateMessageService.disableUserEmoji(emojiId, ownerId);
+    }
+
+    /**右键收藏别人发的表情到"我的表情"（仅登记引用，不改动原文件）**/
+    @PostMapping("/emoji/add/from/message")
+    public Result<Map<String, Object>> addEmojiFromMessage(@RequestParam String ownerId,
+                                                           @RequestParam String fileName,
+                                                           @RequestParam(required = false) String rawName) {
+        return privateMessageService.addEmojiFromMessage(ownerId, fileName, rawName);
     }
 
     /**
@@ -215,7 +235,40 @@ public class PrivateMessageController {
      * @see #withdraw(String, String, int)
      */
     @PostMapping("/withdraw/private/group/message")
-    public Result<Map<String,Object>> withdrawGroupMessage(String msgId,String userId,int timeWithdraw){
+    public Result<Map<String,Object>> withdrawGroupMessage(@RequestParam String msgId,@RequestParam String userId,@RequestParam int timeWithdraw){
         return privateMessageService.withdrawGroupMessage(msgId, userId, timeWithdraw);
+    }
+    /**
+     * @since 2026/11/12（2026/11/14 补全文件落盘）
+     * @功能: 用户上传表情包。一次请求完成"图片落盘 -> 校验 -> 入库"，
+     *        落盘文件名以 emoji_ 开头，对外走 /videos/**；入库失败会回收文件。
+     * @param file     图片本体（multipart，png/jpg/jpeg/gif/webp，<=2MB）
+     * @param ownerId  上传者
+     * @param rawName  用户可读名，缺省取原文件名去扩展名
+     */
+    @PostMapping("/upload/user/emoji")
+    public Result<Map<String,Object>> uploadUserEmoji(@RequestParam MultipartFile file,
+                                                      @RequestParam String ownerId,
+                                                      @RequestParam(required = false) String rawName){
+        Result<Map<String,Object>> saved = videoFileService.uploadUserEmoji(file);
+        if (!saved.isSuccess()) return saved;
+        String fileName = String.valueOf(saved.getData().get("fileName"));
+        Result<Map<String,Object>> reg;
+        try {
+            reg = privateMessageService.uploadUserEmoji(ownerId, fileName, rawName);
+        } catch (Exception e) {
+            // 入库异常（唯一键冲突、外键等）也要回收文件，不能只处理 Result.fail
+            videoFileService.deleteEmojiFile(fileName);
+            return Result.fail("上传失败，请稍后重试");
+        }
+        if (!reg.isSuccess()) {
+            videoFileService.deleteEmojiFile(fileName);
+            return reg;
+        }
+        // 把可访问地址一并返回，前端可直接预览
+        Map<String,Object> data = new java.util.HashMap<>(reg.getData());
+        data.put("fileName", fileName);
+        data.put("url", saved.getData().get("url"));
+        return Result.success("上传成功", data);
     }
 }

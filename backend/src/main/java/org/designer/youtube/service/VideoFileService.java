@@ -362,4 +362,50 @@ public class VideoFileService {
         ));
     }
 
+    /** 用户表情允许的最大体积（表情是小图，别让人塞几十 MB 进来） */
+    private static final long USER_EMOJI_MAX_BYTES = 2 * 1024 * 1024;
+
+    /**
+     * 用户上传表情：和视频/头像共用 video.storage.dir，文件名统一 emoji_ 前缀，
+     * 对外地址走已映射好的 /videos/**，前端用 YT.mediaUrl(fileName) 即可访问。
+     * 这里只负责落盘 + 返回文件名，入库由 PrivateMessageService.uploadUserEmoji 完成。
+     */
+    public Result<Map<String, Object>> uploadUserEmoji(MultipartFile file) {
+        if (file == null || file.isEmpty()) return Result.fail("没有收到表情图片");
+        if (file.getSize() > USER_EMOJI_MAX_BYTES) return Result.fail("表情不能超过 2MB");
+
+        String ext = extensionOf(file.getOriginalFilename());
+        if (!isImage(ext)) return Result.fail("表情只支持 jpg/png/webp/gif");
+
+        String fileName = "emoji_" + idGen.createId().toLowerCase(Locale.ROOT) + "." + ext;
+        Path dir = Paths.get(storageDir).toAbsolutePath().normalize();
+        Path target = dir.resolve(fileName).normalize();
+        if (!target.startsWith(dir)) return Result.fail("文件名不合法");
+
+        try {
+            Files.createDirectories(dir);
+            try (InputStream in = file.getInputStream()) {
+                Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException e) {
+            log.error("表情保存失败: {}", target, e);
+            return Result.fail("表情保存失败：" + e.getMessage());
+        }
+
+        return Result.success("上传成功", Map.of(
+                "fileName", fileName,                            // 入库只存文件名
+                "url", publicPrefix() + "/" + fileName,          // /videos/emoji_xxx.png
+                "size", file.getSize()
+        ));
+    }
+
+    /** 入库失败时回收刚落盘的文件，避免留下孤儿图片；只认自己生成的 emoji_ 前缀，防目录穿越 */
+    public void deleteEmojiFile(String fileName) {
+        if (fileName == null || fileName.isBlank()) return;
+        String name = Paths.get(fileName).getFileName().toString();
+        if (!name.startsWith("emoji_")) return;
+        Path dir = Paths.get(storageDir).toAbsolutePath().normalize();
+        deleteQuietly(dir.resolve(name).normalize());
+    }
+
 }

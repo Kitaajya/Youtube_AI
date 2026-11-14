@@ -20,10 +20,12 @@ public interface PrivateMessageMapper {
            msg_type     AS msgType,
            media_path   AS mediaPath,
            create_time  AS createTime
-    FROM private_message
-    WHERE ((from_user=#{a} AND to_user=#{b}) OR (from_user=#{b} AND to_user=#{a}))
-      AND NOT (from_user=#{a} AND from_deleted = 1)
-    ORDER BY create_time
+    FROM private_message pm0
+    WHERE ((pm0.from_user=#{a} AND pm0.to_user=#{b}) OR (pm0.from_user=#{b} AND pm0.to_user=#{a}))
+      AND NOT (pm0.from_user=#{a} AND pm0.from_deleted = 1)
+      AND NOT EXISTS (SELECT 1 FROM message_soft_delete d
+                      WHERE d.msg_id = pm0.msg_id AND d.scope = 'pm' AND d.user_id = #{a})
+    ORDER BY pm0.create_time
     """)
     List<PrivateMessage> selectOurMessage(@Param("a") String a, @Param("b") String b);
 
@@ -34,8 +36,13 @@ public interface PrivateMessageMapper {
     """)
     int send(PrivateMessage privateMessage);
 
-    // 我的收件箱未读数（配合 idx_pm_inbox(to_user,is_read,...) 索引）
-    @Select("SELECT COUNT(*) FROM private_message WHERE to_user=#{me} AND is_read=0 AND is_withdrawn=0")
+    // 我的收件箱未读数（配合 idx_pm_inbox(to_user,is_read,...) 索引）；单方面删掉的消息不再计未读
+    @Select("""
+    SELECT COUNT(*) FROM private_message pm0
+    WHERE pm0.to_user=#{me} AND pm0.is_read=0 AND pm0.is_withdrawn=0
+      AND NOT EXISTS (SELECT 1 FROM message_soft_delete d
+                      WHERE d.msg_id = pm0.msg_id AND d.scope = 'pm' AND d.user_id = #{me})
+    """)
     int countUnread(@Param("me") String me);
 
     // 把某人发给我的消息标记已读
@@ -60,12 +67,19 @@ public interface PrivateMessageMapper {
            ON peer.user_id = IF(pm.from_user = #{me}, pm.to_user, pm.from_user)
     WHERE (pm.from_user=#{me} OR pm.to_user=#{me})
       AND NOT (pm.from_user=#{me} AND pm.from_deleted = 1)
+      AND NOT EXISTS (SELECT 1 FROM message_soft_delete d
+                      WHERE d.msg_id = pm.msg_id AND d.scope = 'pm' AND d.user_id = #{me})
     ORDER BY pm.create_time DESC
 """)
     List<Map<String, Object>> selectInbox(@Param("me") String me);
 
-    // 查某个人发给我的未读消息数
-    @Select("SELECT COUNT(*) FROM private_message WHERE to_user=#{me} AND from_user=#{peer} AND is_read=0 AND is_withdrawn=0")
+    // 查某个人发给我的未读消息数（同样排除我已单方面删掉的）
+    @Select("""
+    SELECT COUNT(*) FROM private_message pm0
+    WHERE pm0.to_user=#{me} AND pm0.from_user=#{peer} AND pm0.is_read=0 AND pm0.is_withdrawn=0
+      AND NOT EXISTS (SELECT 1 FROM message_soft_delete d
+                      WHERE d.msg_id = pm0.msg_id AND d.scope = 'pm' AND d.user_id = #{me})
+    """)
     int countUnreadFromPeer(@Param("me") String me, @Param("peer") String peer);
 
 
@@ -188,6 +202,9 @@ public interface PrivateMessageMapper {
     LEFT JOIN user_information u ON gm.from_user = u.user_id
     WHERE gm.group_id = #{groupId}
       AND NOT (gm.from_user = IFNULL(#{me}, '') AND gm.from_deleted = 1)
+      AND NOT EXISTS (SELECT 1 FROM message_soft_delete d
+                      WHERE d.msg_id = gm.msg_id AND d.scope = 'group'
+                        AND d.user_id = IFNULL(#{me}, ''))
     ORDER BY gm.create_time ASC
     """)
     List<Map<String,Object>> selectGroupMessage(@Param("groupId") String groupId, @Param("me") String me);
@@ -397,4 +414,92 @@ public interface PrivateMessageMapper {
        AND from_deleted = 0
     """)
     int deleteGroupMessageFromMySide(@Param("msgId") String msgId, @Param("userId") String userId);
+    /**
+     * @since 2026/11/12/19:42
+     * @author Conan Doyle
+     * @说明: 表情包不再仅仅是我后端列举的那几个，用户也可以上传。
+     * @功能: 添加表情包功能。
+     * @表: user_emoji
+     *
+     * **/
+    @Insert("""
+    INSERT INTO user_emoji(emoji_id, owner_id, name, file_name)
+    VALUES(#{emojiId}, #{ownerId}, #{name}, #{fileName})
+    """)
+    int insertUserEmoji(@Param("emojiId")  String emojiId,
+                        @Param("ownerId")  String ownerId,
+                        @Param("name")     String name,
+                        @Param("fileName") String fileName);
+
+    //查我的表情（选择器用，只取未删除的，最近上传排前）
+    @Select("""
+    SELECT emoji_id  AS emojiId,
+           name,
+           file_name AS fileName,
+           create_time AS createTime
+    FROM user_emoji
+    WHERE owner_id = #{ownerId} AND enabled = 1
+    ORDER BY create_time DESC
+    """)
+    List<Map<String, Object>> selectMyEmojiList(@Param("ownerId") String ownerId);
+
+    // 发送前白名单校验：只认"属于我 且 未删除"的表情
+    @Select("""
+    SELECT COUNT(*) FROM user_emoji
+    WHERE owner_id = #{ownerId} AND file_name = #{fileName} AND enabled = 1
+    """)
+    int countMyEnabledEmoji(@Param("ownerId") String ownerId,
+                            @Param("fileName") String fileName);
+    //删除（用户自己删，软删，历史消息仍能渲染）
+    @Update("""
+    UPDATE user_emoji SET enabled = 0
+    WHERE emoji_id = #{emojiId} AND owner_id = #{ownerId}
+    """)
+    int disableUserEmoji(@Param("emojiId") String emojiId,
+                         @Param("ownerId") String ownerId);
+
+    //重名校验（同一人 file_name 唯一，插入前先查，避免抛 DuplicateKeyException）
+    @Select("""
+    SELECT COUNT(*) FROM user_emoji
+    WHERE owner_id = #{ownerId} AND file_name = #{fileName}
+    """)
+    int countUserEmojiFile(@Param("ownerId") String ownerId,
+                           @Param("fileName") String fileName);
+
+    /**
+     * @since 2026/11/14
+     * @功能: 单方面软删除一条消息（谁删只影响谁）。scope='pm' 私信 / 'group' 群聊。
+     *        INSERT IGNORE + 联合主键天然幂等；不再限制"只能删自己发的"。
+     * @表: message_soft_delete
+     */
+    @Insert("""
+    INSERT IGNORE INTO message_soft_delete(user_id, scope, msg_id)
+    VALUES(#{userId}, #{scope}, #{msgId})
+    """)
+    int softDeleteMessage(@Param("userId") String userId,
+                          @Param("scope")  String scope,
+                          @Param("msgId")  String msgId);
+
+    /** 右键收藏他人表情前的来源校验：文件名必须是系统里登记过的表情。
+     *  user_emoji 分支不限制 enabled —— 原作者后来删了自己的表情，别人仍应能收藏历史消息里那张图。
+     *  这样也防止借接口把任意 /videos/ 文件注册成表情。 */
+    @Select("""
+    SELECT COUNT(*) FROM (
+        SELECT file_name FROM emoji_item  WHERE file_name = #{fileName} AND enabled = 1
+        UNION ALL
+        SELECT file_name FROM user_emoji WHERE file_name = #{fileName}
+    ) t
+    """)
+    int countKnownEmoji(@Param("fileName") String fileName);
+
+    /** 把别人发的表情收进"我的表情"：同一人同一文件只留一条；曾经软删过的重新启用 */
+    @Insert("""
+    INSERT INTO user_emoji(emoji_id, owner_id, name, file_name)
+    VALUES(#{emojiId}, #{ownerId}, #{name}, #{fileName})
+    ON DUPLICATE KEY UPDATE enabled = 1, name = #{name}
+    """)
+    int addFavoriteEmoji(@Param("emojiId")  String emojiId,
+                         @Param("ownerId")  String ownerId,
+                         @Param("name")     String name,
+                         @Param("fileName") String fileName);
 }

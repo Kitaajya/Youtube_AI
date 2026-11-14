@@ -139,15 +139,20 @@ public class PrivateMessageService {
         return Result.success("发送成功！",Map.of("msgId",privateMessage.getMsgId()));
     }
 
-    //从我这里删除发出的信息，但是对方依旧能看得到。因为这不是撤回操作，软删除
+    //单方面软删除私信：现在不再限制"只能删自己发的"，接收方也能删对方发来的消息。
+    //只写 message_soft_delete（按 user_id 隔离），消息本体和对方视图都不受影响。
     public Result<Map<String,Object>> deleteFromMySide(String msgId,String userId){
+        if (msgId == null || msgId.isBlank() || userId == null || userId.isBlank())
+            return Result.fail("参数错误");
         try{
-            int k= privateMessageMapper.deleteFromMySide(msgId, userId);
-            if(k!=0) return Result.success("删除成功！",Map.of("success",true));
+            // 兼容旧的 from_deleted 标记：自己发的消息顺手把老列也置 1（老数据/老接口行为不变）
+            privateMessageMapper.deleteFromMySide(msgId, userId);
+            // INSERT IGNORE 返回 0 = 之前已经删过，同样算成功
+            privateMessageMapper.softDeleteMessage(userId, "pm", msgId);
+            return Result.success("删除成功！",Map.of("success",true));
         }catch (DuplicateKeyException esq){
             return Result.success("已经删除过一次了！",Map.of("success",true));
         }
-        return Result.fail("删除失败！");
     }
     //撤回操作
     public Result<Map<String,Object>> withdraw(String msgId,String userId,int timeWithdraw){
@@ -204,23 +209,101 @@ public class PrivateMessageService {
     public Result<Map<String,Object>> sendEmoji(PrivateMessage privateMessage){
         if (privateMessage.getFromUser() == null) return Result.fail("发件人不能为空");
         if (privateMessage.getToUser() == null)   return Result.fail("目标人不能为空");
-        // 同上：表情包也是私信发送入口，被屏蔽的人不能靠它绕过屏蔽
-        int isBlocked = privateMessageMapper.checkBlockStatus(privateMessage.getToUser(), privateMessage.getFromUser());
+        int isBlocked = privateMessageMapper.checkBlockStatus(
+                privateMessage.getToUser(), privateMessage.getFromUser());
         if (isBlocked > 0) return Result.fail("对方已拒收你的消息");
         String fileName = privateMessage.getMediaPath();
         if (fileName == null || fileName.isEmpty()) return Result.fail("表情不能为空");
-        // 白名单：只认 emoji_item 里登记过且未下架的文件
-        if (privateMessageMapper.countEnabledEmoji(fileName) == 0) return Result.fail("表情不存在或已下架");
-
+        // 官方库命中OR我上传的命中，任一即可
+        boolean ok = privateMessageMapper.countEnabledEmoji(fileName) > 0
+                || privateMessageMapper.countMyEnabledEmoji(privateMessage.getFromUser(), fileName) > 0;
+        if (!ok) return Result.fail("表情不存在或已下架");
         RandomlyCreateID id = new RandomlyCreateID();
         privateMessage.setMsgId(id.createId());
         int k = privateMessageMapper.sendEmoji(privateMessage);
         if (k == 0) return Result.fail("发送失败！");
         return Result.success("发送成功！", Map.of("msgId", privateMessage.getMsgId()));
     }
-    //查看表情包
+    //查看表情包（官方库）；保留无参版本给内部/老调用
     public Result<List<Map<String,Object>>> selectEmojiList(){
-        return Result.success(privateMessageMapper.selectEmojiList());
+        return selectEmojiList(null);
+    }
+    /**
+     * @since 2026/11/14
+     * @功能: 表情选择器数据源：官方表情 + 我上传的表情。
+     *        我上传的每行带 mine=1 和 emojiId，供前端显示删除按钮；
+     *        me 为空时只返回官方库（保持老行为）。
+     */
+    public Result<List<Map<String,Object>>> selectEmojiList(String me){
+        List<Map<String,Object>> rows = privateMessageMapper.selectEmojiList();
+        // 按文件名去重：收藏了官方表情时不重复出两格；LinkedHashMap 保持官方库原有顺序
+        Map<String, Map<String,Object>> byFile = new LinkedHashMap<>();
+        if (rows != null) {
+            for (Map<String,Object> row : rows) {
+                String file = String.valueOf(row.get("fileName"));
+                if (file != null && !file.isBlank()) byFile.put(file, new HashMap<>(row));
+            }
+        }
+        if (me != null && !me.isBlank()) {
+            List<Map<String,Object>> mine = privateMessageMapper.selectMyEmojiList(me);
+            if (mine != null) {
+                for (Map<String,Object> row : mine) {
+                    String file = String.valueOf(row.get("fileName"));
+                    Map<String,Object> one = byFile.get(file);
+                    if (one == null) {
+                        one = new HashMap<>(row);
+                        byFile.put(file, one);
+                    }
+                    one.put("mine", 1);
+                    one.put("name", row.get("name"));
+                    // 删除按钮要用"我这条收藏"的 emojiId，不能用官方库的 emoji_id
+                    one.put("emojiId", row.get("emojiId"));
+                    // 只有用户上传的表情在 /videos/** 下；官方表情由前端从 emoji/ 静态目录取
+                    if (file.startsWith("emoji_")) one.put("url", "/videos/" + file);
+                }
+            }
+        }
+        return Result.success(new ArrayList<>(byFile.values()));
+    }
+    /** 我上传的表情列表（管理面板用，未删除的按时间倒序） */
+    public Result<List<Map<String,Object>>> selectMyEmojiList(String ownerId){
+        if (ownerId == null || ownerId.isBlank()) return Result.success(List.of());
+        List<Map<String,Object>> list = privateMessageMapper.selectMyEmojiList(ownerId);
+        return Result.success(list == null ? List.of() : list);
+    }
+    /** 删除我上传的表情：软删除，历史聊天里已发的仍可渲染 */
+    public Result<Map<String,Object>> disableUserEmoji(String emojiId, String ownerId){
+        if (emojiId == null || emojiId.isBlank() || ownerId == null || ownerId.isBlank())
+            return Result.fail("参数错误");
+        int k = privateMessageMapper.disableUserEmoji(emojiId, ownerId);
+        if (k == 0) return Result.fail("删除失败，表情不存在或不是你的");
+        return Result.success("删除成功", Map.of("emojiId", emojiId));
+    }
+
+    /**
+     * @since 2026/11/14
+     * @功能: 右键收藏"别人发的表情"到我的表情库。
+     *        官方表情和任何用户上传的表情都能收藏；只往 user_emoji 里给当前用户插一行引用，
+     *        不复制也不改动原文件（别人上传的 /videos/emoji_xxx.png 是共享可读的），
+     *        所以删除我这条收藏不会影响原作者和其他人。
+     * @安全: 只接受系统里已登记且启用的表情文件名，防止借接口把任意文件注册成表情。
+     */
+    public Result<Map<String,Object>> addEmojiFromMessage(String ownerId, String fileName, String rawName){
+        if (ownerId == null || ownerId.isBlank()) return Result.fail("用户不能为空");
+        if (fileName == null || fileName.isBlank()) return Result.fail("表情不能为空");
+        if (fileName.length() > 200 || fileName.contains("..") || fileName.contains("\\"))
+            return Result.fail("文件名不合法");
+        if (privateMessageMapper.countUser(ownerId) == 0) return Result.fail("用户不存在");
+        if (privateMessageMapper.countKnownEmoji(fileName) == 0)
+            return Result.fail("这不是可用的表情");
+        String name = (rawName == null || rawName.isBlank())
+                ? fileName.replaceFirst("\\.[^.]+$", "")
+                : rawName.trim();
+        if (name.length() > 50) name = name.substring(0, 50);
+        String emojiId = new RandomlyCreateID().createId();
+        privateMessageMapper.addFavoriteEmoji(emojiId, ownerId, name, fileName);
+        return Result.success("已添加到我的表情", Map.of(
+                "emojiId", emojiId, "fileName", fileName, "name", name));
     }
     /**表情包塞给DeepSeek**/
     public Flux<String> getPrivateMessageEmojiForDeepSeek(ChatClient client, String question){
@@ -321,16 +404,23 @@ public class PrivateMessageService {
      * @功能: 群聊消息软删除：只删"我这边的显示"，群里其他人照常能看到。因为这不是撤回操作
      * @see #deleteFromMySide(String, String)
      */
+    /**
+     * @since 2026/11/10/21:30（2026/11/14 支持删除他人消息）
+     * @author Conan Doyle
+     * @功能: 群聊消息软删除：任何群成员都能把任意消息从"自己的视图"里删掉，其他群友照常可见。
+     *        这不是撤回，消息本体不动。
+     * @see #deleteFromMySide(String, String)
+     */
     public Result<Map<String,Object>> deleteGroupMessageFromMySide(String msgId,String userId){
         if (msgId == null || msgId.isBlank() || userId == null || userId.isBlank())
             return Result.fail("参数错误");
         try{
-            int k= privateMessageMapper.deleteGroupMessageFromMySide(msgId, userId);
-            if(k!=0) return Result.success("删除成功！",Map.of("success",true));
+            privateMessageMapper.deleteGroupMessageFromMySide(msgId, userId);   // 兼容旧 from_deleted
+            privateMessageMapper.softDeleteMessage(userId, "group", msgId);     // 任意发送者都生效
+            return Result.success("删除成功！",Map.of("success",true));
         }catch (DuplicateKeyException esq){
             return Result.success("已经删除过一次了！",Map.of("success",true));
         }
-        return Result.fail("删除失败！（只能删除自己发的消息）");
     }
     /**
      * @描述 向群中发消息。
@@ -580,5 +670,37 @@ public class PrivateMessageService {
             return Result.success("不允许重复撤回！",Map.of("msgId",msgId,"userId",userId,"time",timeWithdraw));
         }
         return Result.fail("撤回失败！");
+    }
+    /**
+     * @since 2026/11/12
+     * @功能: 用户上传表情包。文件已由 Controller 落盘，这里只做校验 + 入库。
+     * @param ownerId   上传者
+     * @param fileName  落盘后的文件名（建议带 user/ 前缀，如 "user/aB3k.png"）
+     * @param rawName   用户可读名，缺省取文件名去扩展名
+     */
+    @Transactional
+    public Result<Map<String,Object>> uploadUserEmoji(String ownerId, String fileName, String rawName) {
+        if (ownerId == null || ownerId.isBlank()) return Result.fail("用户不能为空");
+        if (fileName == null || fileName.isBlank()) return Result.fail("文件名不能为空");
+        // 先确认上传者真实存在：user_emoji 有外键，直接插入会抛 500 且留下已落盘的孤儿图片
+        if (privateMessageMapper.countUser(ownerId) == 0) return Result.fail("用户不存在，无法上传表情");
+        //扩展名白名单：表情只放图片，别让用户传mp4进来
+        String ext = fileName.contains(".")
+                ? fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase()
+                : "";
+        if (!List.of("png","jpg","jpeg","gif","webp").contains(ext))
+            return Result.fail("表情只支持png/jpg/jpeg/gif/webp");
+        // 防重复：同一人同一文件只传一次
+        if (privateMessageMapper.countUserEmojiFile(ownerId, fileName) > 0)
+            return Result.fail("这个表情你已经上传过了");
+        String name = (rawName == null || rawName.isBlank())
+                ? fileName.substring(fileName.lastIndexOf('/') + 1,
+                fileName.lastIndexOf('.') > 0 ? fileName.lastIndexOf('.') : fileName.length())
+                : rawName.trim();
+        if (name.length() > 50) name = name.substring(0, 50);
+        String emojiId = new RandomlyCreateID().createId();
+        int k = privateMessageMapper.insertUserEmoji(emojiId, ownerId, name, fileName);
+        if (k == 0) return Result.fail("上传失败");
+        return Result.success("上传成功", Map.of("emojiId", emojiId, "fileName", fileName, "name", name));
     }
 }

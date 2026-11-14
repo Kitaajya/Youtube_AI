@@ -14,6 +14,7 @@
     const picBtn = $('#pm-pic-btn'), videoBtn = $('#pm-video-btn');
     const picInput = $('#pm-pic-input'), videoInput = $('#pm-video-input');
     const emojiBtn = $('#pm-emoji-btn'), emojiPanel = $('#pm-emoji-panel');
+    const emojiInput = $('#pm-emoji-input');   // 用户上传表情的文件选择框
     const voiceBtn = $('#pm-voice-btn');
     const bdayBar = $('#pm-bday-bar'), bdayBtn = $('#pm-bday-btn');
     const groupsBox = $('#pm-groups');
@@ -171,7 +172,11 @@
     }
 
     function emojiSrc(fileName) {
-        return 'emoji/' + encodeURIComponent(String(fileName));
+        const f = String(fileName || '');
+        // 我上传的表情文件名统一以 emoji_ 开头，落在后端 video.storage.dir，
+        // 对外走 /videos/**；官方表情仍是前端 public/emoji/ 下的静态图片。
+        // 历史消息里只有文件名，所以这里按前缀自动分流，不用给消息表加字段。
+        return f.startsWith('emoji_') ? YT.mediaUrl(f) : 'emoji/' + encodeURIComponent(f);
     }
 
     // ---------- 生日祝福消息 ----------
@@ -666,12 +671,14 @@
 
     // ---------- 表情包 ----------
     let emojiCache = null, emojiLoading = false;
-    async function loadEmojiPanel() {
+    async function loadEmojiPanel(force = false) {
         if (emojiLoading) return;
+        if (force) emojiCache = null;          // 上传/删除后强制刷新
         if (!emojiCache) {
             emojiLoading = true;
             try {
-                const r = await YT.api.get('/api/private_message/emoji/list');
+                // 传 me 让后端把"我上传的表情"合并进同一个列表
+                const r = await YT.api.get('/api/private_message/emoji/list', { me: me.userId });
                 emojiCache = Array.isArray(r.data) ? r.data : [];
             } catch (e) {
                 emojiPanel.innerHTML = '<div class="pm-empty-emoji">表情加载失败，点击重试</div>';
@@ -680,19 +687,57 @@
             }
             emojiLoading = false;
         }
-        if (!emojiCache.length) {
-            emojiPanel.innerHTML = '<div class="pm-empty-emoji">暂无可用表情</div>';
-            return;
-        }
         const cells = emojiCache.map(e => ({
             file: String(YT.pick(e, 'fileName', 'file_name') || ''),
-            name: String(YT.pick(e, 'name') || '')
+            name: String(YT.pick(e, 'name') || ''),
+            mine: Number(YT.pick(e, 'mine') || 0) === 1,
+            id: String(YT.pick(e, 'emojiId', 'emoji_id') || '')
         })).filter(it => it.file).map(it => `
-            <button class="pm-emoji" data-emoji="${YT.esc(it.file)}" title="${YT.esc(it.name || it.file)}">
-                <img src="${emojiSrc(it.file)}" alt="${YT.esc(it.name || it.file)}" loading="lazy">
-            </button>
+            <div class="pm-emoji-cell">
+                <button class="pm-emoji" data-emoji="${YT.esc(it.file)}" title="${YT.esc(it.name || it.file)}">
+                    <img src="${emojiSrc(it.file)}" alt="${YT.esc(it.name || it.file)}" loading="lazy">
+                </button>
+                ${it.mine && it.id ? `<button class="pm-emoji-del" data-emoji-del="${YT.esc(it.id)}" title="删除这个表情">×</button>` : ''}
+            </div>
         `).join('');
-        emojiPanel.innerHTML = `<div class="pm-emoji-cells">${cells}</div>`;
+        emojiPanel.innerHTML = `
+            <div class="pm-emoji-bar">
+                <span>表情${emojiCache.length ? '（' + emojiCache.length + '）' : ''}</span>
+                <button type="button" class="pm-emoji-add" data-emoji-add>＋ 上传表情</button>
+            </div>
+            <div class="pm-emoji-cells">${cells || '<div class="pm-empty-emoji">暂无可用表情</div>'}</div>`;
+    }
+
+    // 上传我自己的表情：一次 multipart 请求完成落盘 + 入库
+    async function uploadMyEmoji(file) {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('ownerId', me.userId);
+        fd.append('rawName', file.name.replace(/\.[^.]+$/, ''));
+        try {
+            YT.toast('表情上传中…');
+            const r = await YT.api.post('/api/private_message/upload/user/emoji', fd);
+            if (!r.success) { YT.toast(r.message || '上传失败'); return; }
+            YT.toast('上传成功');
+            await loadEmojiPanel(true);
+        } catch (e) {
+            YT.toast('上传失败：' + e.message);
+        }
+    }
+
+    // 删除我自己的表情（软删除，历史消息里已发送的仍能显示）
+    async function deleteMyEmoji(emojiId) {
+        if (!confirm('确定删除这个表情？已发送的历史消息不受影响。')) return;
+        try {
+            const r = await YT.api.post('/api/private_message/emoji/delete', {
+                emojiId, ownerId: me.userId
+            });
+            if (!r.success) { YT.toast(r.message || '删除失败'); return; }
+            YT.toast('已删除');
+            await loadEmojiPanel(true);
+        } catch (e) {
+            YT.toast('删除失败：' + e.message);
+        }
     }
 
     function toggleEmojiPanel(forceHide) {
@@ -1003,6 +1048,87 @@
             }
         } catch (e) {
             YT.toast('删除失败：' + e.message);
+        }
+    }
+
+    // ---------- 右键消息菜单 ----------
+    // 三个操作：把别人发的表情收进我的表情库 / 单方面软删除（任意人的消息都行） / 撤回（自己发的限时内）
+    const ctxMenu = document.createElement('div');
+    ctxMenu.className = 'pm-ctx-menu';
+    ctxMenu.style.display = 'none';
+    document.body.appendChild(ctxMenu);
+    let ctxTarget = null;          // { m, node, isGroup }
+
+    function hideCtxMenu() { ctxMenu.style.display = 'none'; ctxTarget = null; }
+
+    function showCtxMenu(x, y, m, node, isGroup) {
+        const mine = String(m.fromUser) === me.userId;
+        const withdrawn = Number(m.isWithdrawn || 0) === 1;
+        const created = new Date(String(m.createTime || '').replace(' ', 'T')).getTime();
+        const fresh = mine && !withdrawn && !isNaN(created)
+            && (Date.now() - created) / 1000 <= WITHDRAW_LIMIT_S;
+        const canFav = String(m.msgType || '').toLowerCase() === 'emoji'
+            && !!String(m.mediaPath || '') && !withdrawn;
+
+        const items = [];
+        if (canFav) items.push('<button type="button" class="pm-ctx-item" data-ctx="fav">添加到我的表情</button>');
+        items.push('<button type="button" class="pm-ctx-item danger" data-ctx="del">删除（仅自己可见）</button>');
+        if (fresh) items.push('<button type="button" class="pm-ctx-item" data-ctx="withdraw">撤回</button>');
+
+        ctxMenu.innerHTML = items.join('');
+        ctxMenu.style.display = 'block';
+        ctxTarget = { m, node, isGroup };
+        const w = ctxMenu.offsetWidth, h = ctxMenu.offsetHeight;
+        ctxMenu.style.left = Math.max(4, Math.min(x, window.innerWidth - w - 8)) + 'px';
+        ctxMenu.style.top = Math.max(4, Math.min(y, window.innerHeight - h - 8)) + 'px';
+    }
+
+    msgs.addEventListener('contextmenu', e => {
+        const isGroup = !!currentGroup;
+        // 群消息要取外层 wrap；私信取 .pm-msg
+        const node = isGroup
+            ? e.target.closest('.pm-group-msg-wrap')
+            : e.target.closest('.pm-msg');
+        if (!node || !msgs.contains(node)) return;
+        const msgId = node.dataset.msgId;
+        const m = curList.find(x => String(x.msgId) === String(msgId));
+        if (!m || !msgId) return;
+        e.preventDefault();          // 只拦聊天消息上的右键，别处照常出浏览器菜单
+        showCtxMenu(e.clientX, e.clientY, m, node, isGroup);
+    });
+
+    ctxMenu.addEventListener('click', e => {
+        const item = e.target.closest('[data-ctx]');
+        if (!item || !ctxTarget) { hideCtxMenu(); return; }
+        const { m, node, isGroup } = ctxTarget;
+        const act = item.dataset.ctx;
+        hideCtxMenu();
+        if (act === 'fav') addOtherEmoji(m);
+        else if (act === 'del') doDeleteFromMySide(String(m.msgId), node, isGroup);
+        else if (act === 'withdraw') doWithdraw(String(m.msgId), node, isGroup);
+    });
+
+    document.addEventListener('click', e => {
+        if (!ctxMenu.contains(e.target)) hideCtxMenu();
+    });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') hideCtxMenu(); });
+    msgs.addEventListener('scroll', hideCtxMenu);
+    window.addEventListener('resize', hideCtxMenu);
+
+    // 收藏别人发的表情：只登记引用，原图不动；成功后让选择器下次打开时重新拉列表
+    async function addOtherEmoji(m) {
+        try {
+            const r = await YT.api.post('/api/private_message/emoji/add/from/message', {
+                ownerId: me.userId,
+                fileName: String(m.mediaPath || ''),
+                rawName: String(m.senderName || '')
+            });
+            if (!r.success) { YT.toast(r.message || '添加失败'); return; }
+            emojiCache = null;
+            if (!emojiPanel.hidden) loadEmojiPanel(true);   // 面板开着就立刻看到新表情
+            YT.toast('已添加到我的表情');
+        } catch (err) {
+            YT.toast('添加失败：' + err.message);
         }
     }
 
@@ -1587,9 +1713,21 @@
 
     emojiBtn.addEventListener('click', () => { toggleEmojiPanel(); });
     emojiPanel.addEventListener('click', e => {
-        if (e.target.closest('.pm-empty-emoji')) { loadEmojiPanel(); return; }
+        if (e.target.closest('.pm-empty-emoji')) { loadEmojiPanel(true); return; }
+        if (e.target.closest('[data-emoji-add]')) {
+            emojiInput.value = '';
+            emojiInput.click();
+            return;
+        }
+        const del = e.target.closest('[data-emoji-del]');
+        if (del) { deleteMyEmoji(del.dataset.emojiDel); return; }
         const cell = e.target.closest('[data-emoji]');
         if (cell) doSendEmoji(cell.dataset.emoji);
+    });
+    emojiInput.addEventListener('change', () => {
+        const f = emojiInput.files && emojiInput.files[0];
+        emojiInput.value = '';
+        if (f) uploadMyEmoji(f);
     });
 
     document.addEventListener('click', e => {
