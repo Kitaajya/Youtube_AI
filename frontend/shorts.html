@@ -7,8 +7,8 @@
     <link rel="stylesheet" href="css/vars.css">
     <script>(function(){try{var s=localStorage.getItem('yt-theme');var d=s==='dark'||(s!=='light'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
     <link rel="stylesheet" href="css/dark.css">
-    <link rel="stylesheet" href="css/style.css?v=10">
-    <link rel="stylesheet" href="css/shorts.css?v=1">
+    <link rel="stylesheet" href="css/style.css?v=11">
+    <link rel="stylesheet" href="css/shorts.css?v=2">
 </head>
 <body>
     <div id="app-header"></div>
@@ -24,12 +24,13 @@
         <div class="sf-dlist" id="sf-dlist"></div>
         <div class="sf-dfoot">
             <textarea id="sf-dinput" placeholder="写下你的评论…"></textarea>
+            <button class="btn" type="button" id="sf-demoji" data-cmt-emoji-btn title="添加表情">☺</button>
             <button class="btn primary" type="button" id="sf-dsend">发送</button>
         </div>
     </aside>
 
     <script src="js/theme.js?v=1"></script>
-    <script src="js/common.js?v=20"></script>
-    <script src="js/shorts.js?v=2"></script>
+    <script src="js/common.js?v=21"></script>
+    <script src="js/shorts.js?v=4"></script>
 </body>
 </html>

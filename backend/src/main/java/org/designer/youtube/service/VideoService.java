@@ -1066,4 +1066,79 @@ public class VideoService {
         return Result.success("审核完毕：待审 " + toAudit.size() + " 条，判定违规 "
                 + finalIds.size() + " 条并已删除，其余 " + rejected + " 条举报已驳回");
     }
+
+    /**
+     *
+     *
+     * @since 2026/11/14/23:55
+     * @author Conan Doyle
+     * <div>
+     * 发表视频评论，支持纯文字 / 纯表情 / 文字 + 单个表情。
+     *
+     * <p>{@code commentType} 由服务端按「有无文字、有无表情」推导（text / emoji / text_emoji），
+     * 客户端不必传，也避免了传 1/2/3 之类与表结构不符的值。{@code emojiOwner} 只接受
+     * {@code official} / {@code user}，为空时自动探测来源库。
+     *
+     * <p>表情会做真实存在性与使用权校验：官方表情查 emoji_item，用户表情查 user_emoji
+     * 且必须属于当前用户（自己上传或右键收藏的），防止写入任意 emoji_id。
+     * </div>
+     */
+    public Result<Map<String,Object>> addCommentWithEmoji(String commentId,
+                                                          long videoId,
+                                                          String userId,
+                                                          String content,
+                                                          String parentId,
+                                                          String commentType,
+                                                          String emojiId,
+                                                          String emojiOwner){
+        String c   = content   == null ? "" : content.trim();
+        String eid = emojiId   == null ? "" : emojiId.trim();
+        String cid = commentId == null ? "" : commentId.trim();
+        String uid = userId    == null ? "" : userId.trim();
+        // parent_id 有外键：一级评论必须是 SQL NULL，空串会触发 fk_vcomment_parent
+        String pid = (parentId == null || parentId.isBlank()) ? null : parentId.trim();
+
+        if (cid.isEmpty() || uid.isEmpty()) return Result.fail("参数错误");
+        if (c.isEmpty() && eid.isEmpty()) return Result.fail("评论不应为空！");
+        if (c.length() > 2000) return Result.fail("评论内容过长");
+        // 与老 addComment 保持一致：被该视频屏蔽的人不能评论，也不能借新接口绕过
+        if (vm.countShieldByVideoAndUser(videoId, uid) > 0)
+            return Result.fail("你已被 UP 主限制，无法评论该视频");
+
+        boolean withEmoji = !eid.isEmpty();
+        String type = null, owner = null;
+        if (withEmoji) {
+            String wanted = emojiOwner == null ? "" : emojiOwner.trim();
+            if ("official".equals(wanted)) {
+                if (vm.countOfficialEmoji(eid) == 0) return Result.fail("表情不存在或已下架");
+                owner = "official";
+            } else if ("user".equals(wanted)) {
+                if (vm.countMyUserEmoji(eid, uid) == 0) return Result.fail("表情不存在或不是你的");
+                owner = "user";
+            } else if (vm.countOfficialEmoji(eid) > 0) {
+                owner = "official";           // 兼容早期只传 emojiId 的调用：自动探测来源
+            } else if (vm.countMyUserEmoji(eid, uid) > 0) {
+                owner = "user";
+            } else {
+                return Result.fail("表情不存在或无权使用");
+            }
+            type = c.isEmpty() ? "emoji" : "text_emoji";
+        }
+
+        try {
+            // 只插一次：没有表情时复用老方法（comment_type 走数据库默认值 'text'）
+            int k = withEmoji
+                    ? vm.addCommentWithEmoji(cid, videoId, uid, c, pid, type, eid, owner)
+                    : vm.addComment(cid, videoId, uid, c, pid);
+            if (k != 1) return Result.fail("评论失败！");
+        } catch (DuplicateKeyException e) {
+            return Result.fail("评论已存在，请勿重复提交");
+        } catch (DataIntegrityViolationException e) {
+            return Result.fail("视频、用户或父评论不存在");
+        }
+
+        // 与老 addComment 保持一致：写评论通知；纯表情评论给个可读摘要
+        sendCommentNotify(cid, videoId, uid, c.isEmpty() ? "[表情]" : c, pid);
+        return Result.success("评论成功！", Map.of("commentId", cid, "userId", uid));
+    }
 }

@@ -258,12 +258,21 @@ public class PrivateMessageService {
                     one.put("name", row.get("name"));
                     // 删除按钮要用"我这条收藏"的 emojiId，不能用官方库的 emoji_id
                     one.put("emojiId", row.get("emojiId"));
-                    // 只有用户上传的表情在 /videos/** 下；官方表情由前端从 emoji/ 静态目录取
-                    if (file.startsWith("emoji_")) one.put("url", "/videos/" + file);
                 }
             }
         }
-        return Result.success(new ArrayList<>(byFile.values()));
+        // 每行补上可直接用的 url 和提交评论时的来源标记，前端无需再猜路径：
+        //   mine=1 -> 本人 user_emoji 那行（emojiId 已换成本人记录的 ID），来源 user
+        //   其余    -> 官方 emoji_item，来源 official
+        List<Map<String,Object>> out = new ArrayList<>();
+        for (Map<String,Object> one : byFile.values()) {
+            String file = String.valueOf(one.get("fileName"));
+            one.put("url", file.startsWith("emoji_") ? "/videos/" + file : "/emoji/" + file);
+            boolean mine = "1".equals(String.valueOf(one.getOrDefault("mine", 0)));
+            one.put("emojiOwner", mine ? "user" : "official");
+            out.add(one);
+        }
+        return Result.success(out);
     }
     /** 我上传的表情列表（管理面板用，未删除的按时间倒序） */
     public Result<List<Map<String,Object>>> selectMyEmojiList(String ownerId){

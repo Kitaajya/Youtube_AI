@@ -858,7 +858,7 @@
             <span class="avatar">${avInner}</span>
             <div class="body">
                 <div class="who">@${YT.esc(who)}<span class="time">${YT.timeAgo(YT.pick(c, 'create_time'))}</span></div>
-                <div class="text">${YT.esc(YT.pick(c, 'contents'))}</div>
+                <div class="text">${YT.esc(YT.pick(c, 'contents'))}${YT.commentEmoji.html(c)}</div>
                 ${opBtns(c, isMine, commentUid)}
                 ${isReply ? '' : `<button class="toggle-replies" data-toggle="${YT.esc(cid)}" hidden></button>`}
                 <div class="edit-form" style="display:none;"></div>
@@ -866,6 +866,7 @@
                     <textarea placeholder="${roPh}" rows="2"${roAttr} style="width:100%;font-family:inherit;font-size:13px;border:1px solid var(--input-border);border-radius:8px;padding:8px;outline:none;background:var(--input-bg);color:var(--text-primary);"></textarea>
                     <div class="cf-btns" style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;">
                         <button class="btn sm" data-cancel-reply>取消</button>
+                        <button class="btn sm" data-reply-emoji data-cmt-emoji-btn title="添加表情">☺ 表情</button>
                         <button class="btn sm primary" data-send-reply="${YT.esc(cid)}">回复</button>
                     </div>
                 </div>
@@ -925,15 +926,30 @@
         groups.forEach((arr, rid) => mountReplies(rid, arr));
     }
 
-    $('#root-cancel').onclick = () => { $('#root-content').value = ''; };
+    const rootForm = $('#root-form');
+    $('#root-emoji-btn').addEventListener('click', e => {
+        YT.commentEmoji.open(e.currentTarget, row => YT.commentEmoji.setPending(rootForm, row));
+    });
+    $('#root-cancel').onclick = () => {
+        $('#root-content').value = '';
+        YT.commentEmoji.setPending(rootForm, null);
+    };
     $('#root-submit').onclick = async () => {
         if (!YT.requireLogin()) return;
         const content = $('#root-content').value.trim();
-        if (!content) return YT.toast('评论内容不能为空');
-        const r = await YT.api.post('/api/video/add/my/comments', {
-            commentId: YT.randId(), videoId: id, userId: currentUserId, content, parentId: null
-        });
-        if (r.success) { $('#root-content').value = ''; YT.toast('评论成功'); loadComments(); }
+        const emoji = YT.commentEmoji.getPending(rootForm);
+        if (!content && !emoji) return YT.toast('评论内容不能为空');
+        const base = { commentId: YT.randId(), videoId: id, userId: currentUserId, content, parentId: null };
+        const r = emoji
+            ? await YT.api.post('/api/video/add/comment/emoji', {
+                ...base, emojiId: emoji.emojiId, emojiOwner: emoji.emojiOwner
+            })
+            : await YT.api.post('/api/video/add/my/comments', base);
+        if (r.success) {
+            $('#root-content').value = '';
+            YT.commentEmoji.setPending(rootForm, null);
+            YT.toast('评论成功'); loadComments();
+        }
         //判断用户是否 @ 了 DeepSeek
         if (content.includes('@DeepSeek')) triggerDeepSeekAnswer(id);
         else YT.toast(r.message || '评论失败');
@@ -1126,21 +1142,34 @@
         }
         if (cid.cancelReply !== undefined) { t.closest('.reply-form').classList.remove('open'); return; }
 
+        // 回复框的表情按钮：与顶级评论共用一个浮层，选中的表情挂在对应 reply-form 上
+        if (cid.replyEmoji !== undefined) {
+            const box = t.closest('.reply-form');
+            if (!box) return;
+            YT.commentEmoji.open(t, row => YT.commentEmoji.setPending(box, row));
+            return;
+        }
+
         if (cid.sendReply) {
             if (!YT.requireLogin()) return;
             const form = t.closest('.reply-form');
             const ta = form.querySelector('textarea');
             let content = ta.value.trim();
-            if (!content) return YT.toast('回复不能为空');
+            const emoji = YT.commentEmoji.getPending(form);
+            if (!content && !emoji) return YT.toast('回复不能为空');
             const target = t.closest('.comment');
             if (target.classList.contains('is-reply')) {
                 const who = target.dataset.who || '';
                 if (who && !content.startsWith('@' + who)) content = `@${who} ${content}`;
             }
-            const r = await YT.api.post('/api/video/add/my/comments', {
-                commentId: YT.randId(), videoId: id, userId: currentUserId, content, parentId: cid.sendReply
-            });
+            const base = { commentId: YT.randId(), videoId: id, userId: currentUserId, content, parentId: cid.sendReply };
+            const r = emoji
+                ? await YT.api.post('/api/video/add/comment/emoji', {
+                    ...base, emojiId: emoji.emojiId, emojiOwner: emoji.emojiOwner
+                })
+                : await YT.api.post('/api/video/add/my/comments', base);
             if (r.success) { ta.value = '';
+                YT.commentEmoji.setPending(form, null);
                 form.classList.remove('open');
                 YT.toast('回复成功');
                 loadComments();

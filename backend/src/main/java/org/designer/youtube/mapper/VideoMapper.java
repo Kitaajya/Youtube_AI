@@ -217,13 +217,25 @@ public interface VideoMapper {
      */
 
     //查看此视频的所有评论，根据id（视频id）；关联用户表带出昵称与头像
+    //comment_type / emoji_id / emoji_owner 是表情评论的落库字段；emoji_url 按来源拼好前端可直接用的地址：
+    //  official -> emoji_item.file_name（/emoji 静态目录）；user -> user_emoji.file_name
+    //  （emoji_ 前缀的是上传到 video.storage.dir 的文件，走 /videos/**）
     @Select("""
     SELECT vc.comment_id, vc.video_id, vc.user_id, vc.contents, vc.parent_id, vc.create_time,
+           vc.comment_type, vc.emoji_id, vc.emoji_owner,
+           CASE
+             WHEN ei.file_name IS NOT NULL THEN CONCAT('/emoji/', ei.file_name)
+             WHEN ue.file_name IS NOT NULL AND LEFT(ue.file_name, 6) = 'emoji_' THEN CONCAT('/videos/', ue.file_name)
+             WHEN ue.file_name IS NOT NULL THEN CONCAT('/emoji/', ue.file_name)
+             ELSE NULL
+           END AS emoji_url,
            u.nickname AS commenter, u.avatar AS commenter_avatar,
            (SELECT COUNT(*) FROM comment_like cl WHERE cl.comment_id = vc.comment_id) AS like_count,
            (SELECT COUNT(*) FROM comment_like cl WHERE cl.comment_id = vc.comment_id AND cl.user_id = #{userId}) AS my_liked
     FROM video_comment vc
     LEFT JOIN user_information u ON vc.user_id = u.user_id
+    LEFT JOIN emoji_item ei ON vc.emoji_owner = 'official' AND ei.emoji_id = vc.emoji_id
+    LEFT JOIN user_emoji  ue ON vc.emoji_owner = 'user'     AND ue.emoji_id = vc.emoji_id
     WHERE vc.video_id=#{videoId}
       AND NOT EXISTS (
           SELECT 1 FROM video_shield vs
@@ -261,12 +273,21 @@ public interface VideoMapper {
                    @Param("userId")     String userId,
                    @Param("content")    String content,
                    @Param("parentId")   String parentId);
-    //查某条评论下的全部回复（楼中楼）
+    //查某条评论下的全部回复（楼中楼）；与主列表一样带出表情评论的 url，否则回复里的表情会渲染成空气泡
     @Select("""
     SELECT vc.comment_id, vc.user_id, vc.contents, vc.create_time,
+           vc.comment_type, vc.emoji_id, vc.emoji_owner,
+           CASE
+             WHEN ei.file_name IS NOT NULL THEN CONCAT('/emoji/', ei.file_name)
+             WHEN ue.file_name IS NOT NULL AND LEFT(ue.file_name, 6) = 'emoji_' THEN CONCAT('/videos/', ue.file_name)
+             WHEN ue.file_name IS NOT NULL THEN CONCAT('/emoji/', ue.file_name)
+             ELSE NULL
+           END AS emoji_url,
            u.nickname AS commenter, u.avatar AS commenter_avatar
     FROM video_comment vc
     LEFT JOIN user_information u ON vc.user_id = u.user_id
+    LEFT JOIN emoji_item ei ON vc.emoji_owner = 'official' AND ei.emoji_id = vc.emoji_id
+    LEFT JOIN user_emoji  ue ON vc.emoji_owner = 'user'     AND ue.emoji_id = vc.emoji_id
     WHERE vc.parent_id = #{parentId}
     ORDER BY vc.create_time ASC
     """)
@@ -454,24 +475,6 @@ public interface VideoMapper {
      * 新消息通知表
      *
      *
-     * CREATE TABLE IF NOT EXISTS notification(
-     *     notify_id   VARCHAR(13)  NOT NULL,               -- RandomlyCreateID / 前端 randId()
-     *     to_user     VARCHAR(13)  NOT NULL,               -- 通知给谁（作品主人 / 被回复者）
-     *     from_user   VARCHAR(13)  NOT NULL,               -- 谁触发的
-     *     type        VARCHAR(16)  NOT NULL,               -- like / comment / reply / favorite / follow
-     *     video_id    BIGINT       NULL,                   -- 相关视频（关注类为 NULL）
-     *     comment_id  VARCHAR(13)  NULL,                   -- 相关评论（点赞/关注类为 NULL）
-     *     ref_id      VARCHAR(13)  NULL,                   -- 兜底：动态ID等
-     *     contents    VARCHAR(200) NULL,                   -- 摘要，如"赞了你的视频《xxx》"或评论前 50 字
-     *     is_read     TINYINT(1)   NOT NULL DEFAULT 0,
-     *     create_time DATETIME     DEFAULT CURRENT_TIMESTAMP,
-     *     PRIMARY KEY (notify_id),
-     *     KEY idx_nt_inbox (to_user, is_read, create_time),   -- 收件箱 + 未读数，与私信同款
-     *     CONSTRAINT fk_nt_to   FOREIGN KEY (to_user)
-     *         REFERENCES user_information(user_id) ON DELETE CASCADE,
-     *     CONSTRAINT fk_nt_from FOREIGN KEY (from_user)
-     *         REFERENCES user_information(user_id) ON DELETE CASCADE
-     * ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
      *
      *
      * **/
@@ -994,15 +997,25 @@ public interface VideoMapper {
     """)
     List<Map<String,Object>> selectMyReports(@Param("userId")  String userId,
                                              @Param("videoId") long videoId);
-
     /**
+     * 发表视频评论，支持纯文字 / 纯表情 / 文字 + 单个表情。
+     *
+     * <p>与 {@link #addComment(String, long, String, String, String)} 的区别：本方法额外写入
+     * {@code comment_type / emoji_id / emoji_owner} 三列。纯文字评论请走老方法（列走默认值）。
+     *
+     * <p>字段约定（见 video_comment 表注释）：
+     * <ul>
+     *   <li>{@code comment_type}：{@code text} / {@code emoji} / {@code text_emoji}，由 Service 推导；</li>
+     *   <li>{@code emoji_owner}：{@code official}=官方库 {@code emoji_item}，
+     *       {@code user}=用户库 {@code user_emoji}，决定 {@code emoji_id} 去哪张表查，
+     *       <b>不是</b>表情归属者的 userId；</li>
+     *   <li>{@code contents} 为 NOT NULL，纯表情评论传空串 {@code ""}；</li>
+     *   <li>{@code parent_id} 有外键，一级评论必须传 {@code null}，不能传空串。</li>
+     * </ul>
+     *
      * @since 2026/11/14/23:51
-     * @author Conan Doyle
-     * @功能: 视频下方评论区添加表情包功能，可以只评论表情，也可以评论表情包加评论。但是不允许一个评论加多个表情包。
-     * 每次评论的表情包数量不超过1.
-     * @表: video_comment
-     * **/
-    
+     * @see #addComment(String, long, String, String, String)
+     */
     @Insert("""
     INSERT INTO video_comment(comment_id, video_id, user_id, contents, parent_id,
                               comment_type, emoji_id, emoji_owner)
@@ -1016,5 +1029,16 @@ public interface VideoMapper {
                             @Param("parentId")    String parentId,
                             @Param("commentType") String commentType,
                             @Param("emojiId")     String emojiId,
-                            @Param("emojiOwner")  String emojiOwner);
+                            @Param("emojiOwner")  String emojiOwner    );
+
+    /** 表情评论入库前校验：官方表情必须真实存在且启用 */
+    @Select("SELECT COUNT(*) FROM emoji_item WHERE emoji_id = #{emojiId} AND enabled = 1")
+    int countOfficialEmoji(@Param("emojiId") String emojiId);
+
+    /** 表情评论入库前校验：用户表情必须是当前用户自己库里（自己上传或收藏的）且未删除 */
+    @Select("""
+    SELECT COUNT(*) FROM user_emoji
+    WHERE emoji_id = #{emojiId} AND owner_id = #{ownerId} AND enabled = 1
+    """)
+    int countMyUserEmoji(@Param("emojiId") String emojiId, @Param("ownerId") String ownerId);
 }

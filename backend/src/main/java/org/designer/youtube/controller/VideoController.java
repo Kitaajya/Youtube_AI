@@ -487,38 +487,27 @@ public class VideoController {
         return Result.success(vs.selectMyReports(userId, videoId));
     }
     /**
-     * 发表视频评论，支持纯表情评论或"文字 + 单个表情"评论。
-     *
-     * <p>业务约束：
+     * 发表视频评论，支持纯文字 / 纯表情 / 文字 + 单个表情。
+     * @since 2026/11/14/23:55
+     * <p>只有 commentId / videoId / userId 必填，其余均可选：
      * <ul>
-     *   <li>一条评论最多携带 1 个表情包（由 {@code emojiId} 单值保证）；</li>
-     *   <li>允许仅有表情、无文字内容（{@code content} 可为空）；</li>
-     *   <li>文字与表情可同时存在，但表情不可多个。</li>
+     *   <li>{@code content}：评论文字，纯表情评论可不传（后端按空串入库）；</li>
+     *   <li>{@code parentId}：父评论 ID，一级评论不传或传 null；<b>不要传空串</b>（parent_id 有外键）；</li>
+     *   <li>{@code commentType}：保留兼容参数，实际由服务端推导 text / emoji / text_emoji；</li>
+     *   <li>{@code emojiId}：表情 ID，不传即纯文字评论；</li>
+     *   <li>{@code emojiOwner}：{@code official}=官方库 emoji_item，{@code user}=我的表情 user_emoji，
+     *       是<b>来源库标记</b>而不是用户 ID；不传时服务端自动探测。</li>
      * </ul>
-     *
-     * <p>数据落库至 {@code video_comment} 表。
-     *
-     * @param commentId   评论 ID；新增评论时由调用方生成，回复场景需与 {@code parentId} 配合使用
-     * @param videoId     视频 ID
-     * @param userId      评论用户 ID
-     * @param content     评论文本，纯表情评论时可为空
-     * @param parentId    父评论 ID；顶级评论传 null 或空串
-     * @param commentType 评论类型：{@code 1}-文字，{@code 2}-表情，{@code 3}-文字+表情（按实际枚举补充）
-     * @param emojiId     表情包 ID，可为空；非空时单条评论仅允许一个
-     * @param emojiOwner  表情包归属者 ID，用于校验表情包使用权限
-     * @return 统一结果；成功时 {@code data} 含 {@code commentId}（新评论 ID），失败时返回错误码与提示
-     * @since 2026/11/15/15:55
-     * @see #addComment(String, long, String, String, String)
      */
     @PostMapping("/add/comment/emoji")
     public Result<Map<String,Object>> addCommentWithEmoji(@RequestParam String commentId,
                                                           @RequestParam long videoId,
                                                           @RequestParam String userId,
-                                                          @RequestParam String content,
-                                                          @RequestParam String parentId,
-                                                          @RequestParam String commentType,
-                                                          @RequestParam String emojiId,
-                                                          @RequestParam String emojiOwner){
+                                                          @RequestParam(required = false) String content,
+                                                          @RequestParam(required = false) String parentId,
+                                                          @RequestParam(required = false) String commentType,
+                                                          @RequestParam(required = false) String emojiId,
+                                                          @RequestParam(required = false) String emojiOwner){
         return vs.addCommentWithEmoji(commentId, videoId, userId, content, parentId, commentType, emojiId, emojiOwner);
     }
 }

@@ -119,6 +119,92 @@ const YT = (() => {
         const name = p.split(/[\\/]/).pop().replace(/[?#].*$/, '');
         return name ? '/videos/' + encodeURIComponent(name) : '';
     }
+
+    // ---------- 评论表情（watch.html / shorts.html 共用） ----------
+    // get/all/comments 与 select/parent/comments 现在会返回 emoji_url；没有该字段就是纯文字评论。
+    function commentEmojiHtml(row) {
+        const url = String(pick(row, 'emoji_url', 'emojiUrl') || '');
+        if (!url) return '';
+        return `<div class="cmt-emoji-box"><img class="cmt-emoji" src="${esc(url)}" alt="表情" loading="lazy"></div>`;
+    }
+
+    // 全页一个浮层：任何输入框的表情按钮都可以 open(anchor, onPick)
+    const commentEmoji = (() => {
+        let panel = null, rows = null, pickCb = null, lastAnchor = null;
+
+        function close() { if (panel) panel.hidden = true; }
+        function ensure() {
+            if (panel) return panel;
+            panel = document.createElement('div');
+            panel.className = 'cmt-emoji-pop';
+            panel.hidden = true;
+            document.body.appendChild(panel);
+            panel.addEventListener('click', e => {
+                const cell = e.target.closest('[data-ce-id]');
+                if (!cell) return;
+                close();
+                if (pickCb) pickCb({
+                    emojiId: cell.dataset.ceId,
+                    emojiOwner: cell.dataset.ceOwner || 'official',
+                    url: cell.dataset.ceUrl,
+                    name: cell.title || ''
+                });
+            });
+            document.addEventListener('click', e => {
+                if (panel && !panel.hidden && !panel.contains(e.target)
+                    && !e.target.closest('[data-cmt-emoji-btn]')) close();
+            });
+            return panel;
+        }
+
+        async function open(anchor, cb) {
+            const p = ensure();
+            if (!p.hidden && lastAnchor === anchor) { close(); return; }  // 同一按钮再点 = 关闭
+            lastAnchor = anchor;                                          // 换输入框则直接切过去
+            pickCb = cb;
+            const r = anchor.getBoundingClientRect();
+            p.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 320)) + 'px';
+            p.style.top = Math.max(8, Math.min(r.bottom + 6, window.innerHeight - 250)) + 'px';
+            p.hidden = false;
+            if (rows) return;
+            p.innerHTML = '<div class="cmt-emoji-empty">表情加载中…</div>';
+            try {
+                const me = user();
+                const res = await api.get('/api/private_message/emoji/list', me ? { me: me.userId } : {});
+                rows = Array.isArray(res.data) ? res.data : [];
+                if (!rows.length) { p.innerHTML = '<div class="cmt-emoji-empty">暂无可用表情</div>'; return; }
+                p.innerHTML = rows.map(e => {
+                    const url = String(pick(e, 'url') || '');
+                    if (!url) return '';
+                    const id = String(pick(e, 'emojiId', 'emoji_id') || '');
+                    const owner = String(pick(e, 'emojiOwner', 'emoji_owner') || 'official');
+                    const name = String(pick(e, 'name') || '表情');
+                    return `<button type="button" class="cmt-emoji-cell" data-ce-id="${esc(id)}" data-ce-owner="${esc(owner)}" data-ce-url="${esc(url)}" title="${esc(name)}"><img src="${esc(url)}" alt="${esc(name)}" loading="lazy"></button>`;
+                }).join('');
+            } catch (err) {
+                rows = null;
+                p.innerHTML = `<div class="cmt-emoji-empty">表情加载失败：${esc(err.message)}</div>`;
+            }
+        }
+
+        // 选中的表情挂在表单 DOM 上：发送时取回，成功后清掉
+        function setPending(form, row) {
+            const host = form.querySelector('.cf-btns') || form;
+            let box = host.querySelector('.cmt-emoji-pending');
+            if (!row) { if (box) box.remove(); form._pendingEmoji = null; return; }
+            if (!box) {
+                box = document.createElement('span');
+                box.className = 'cmt-emoji-pending';
+                host.appendChild(box);
+            }
+            box.innerHTML = `<img src="${esc(row.url)}" alt=""><button type="button" title="移除表情">×</button>`;
+            box.querySelector('button').onclick = () => setPending(form, null);
+            form._pendingEmoji = row;
+        }
+        const getPending = form => form._pendingEmoji || null;
+
+        return { open, close, setPending, getPending, html: commentEmojiHtml };
+    })();
     // ---------- 头像 ----------
     // 全站统一用这个函数渲染头像：有头像地址就出图片，没有就退回首字母。
     // 首字母用 .av-fb 垫在图片下面（见 style.css），所以图片 404 时自动露出首字母，
@@ -769,6 +855,6 @@ const YT = (() => {
 
     return { api, randId, user, requireLogin, logout, esc, pick, mediaUrl, thumb, timeAgo, fmtNum,
         fmtFull, toast, safeFrom, currentPath, FROM_KEY, IC, todayMD, isBirthdayToday, birthdayOf,
-        avatarHtml, myAvatar, refreshMyAvatar };})();
+        avatarHtml, myAvatar, refreshMyAvatar, commentEmoji };})();
 //截止2026/10/16/8:34，我已经修复了通知红点bug，以上的红点bug注释作废
 //2026/10/21/14:48 修复通知图标丢失及文字重复问题

@@ -313,43 +313,173 @@
     document.getElementById('sf-dclose').onclick = closeComments;
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeComments(); });
 
+    // 单条评论（含根评论的回复按钮、回复表单、回复容器）
+    function sfcItem(c, isReply) {
+        const cid = String(YT.pick(c, 'comment_id'));
+        const who = String(YT.pick(c, 'commenter') || YT.pick(c, 'userId', 'user_id') || '匿名用户');
+        const av = String(YT.pick(c, 'commenter_avatar', 'commenterAvatar') || '');
+        const avHtml = av
+            ? `<img src="${YT.esc(YT.mediaUrl(av))}" alt="" loading="lazy">`
+            : `<span class="sf-cav">${YT.esc(who.slice(0, 1).toUpperCase())}</span>`;
+        return '<div class="sf-cmt' + (isReply ? ' is-reply' : '') + '"'
+            + ' data-cid="' + YT.esc(cid) + '" data-who="' + YT.esc(who) + '">'
+            + avHtml
+            + '<div class="sf-cbody"><div class="sfcname">' + YT.esc(who)
+            + '<span style="float:right;color:var(--text-tertiary);font-size:12px;">' + YT.timeAgo(YT.pick(c, 'createTime', 'create_time')) + '</span></div>'
+            + '<div class="sfctext">' + YT.esc(YT.pick(c, 'contents') || YT.pick(c, 'content'))
+            + YT.commentEmoji.html(c) + '</div>'
+            + (isReply ? '' : '<button class="sf-creply" data-sf-reply="' + YT.esc(cid) + '">回复</button>')
+            + '<div class="sf-reply-form" hidden>'
+            + '<textarea rows="2" placeholder="回复 ' + YT.esc(who) + '…"></textarea>'
+            + '<div class="sf-rbtns"><button type="button" data-sf-r-cancel>取消</button>'
+            + '<button type="button" data-sf-r-emoji title="添加表情">☺ 表情</button>'
+            + '<button type="button" class="primary" data-sf-r-send="' + YT.esc(cid) + '">回复</button></div>'
+            + '</div>'
+            + '<div class="sf-replies" data-sf-replies="' + YT.esc(cid) + '"></div>'
+            + (isReply ? '' : '<button type="button" class="sf-rtoggle" data-sf-toggle="' + YT.esc(cid) + '" hidden></button>')
+            + '</div></div>';
+    }
+
     async function loadComments(id) {
         dlist.innerHTML = '<div class="empty" style="padding:20px;">加载评论…</div>';
         try {
             const r = await YT.api.get('/api/video/get/all/comments', { videoId: id });
-            const rows = (r.data || []).filter(c => !c.parent_id && !c.parentId);
-            dhead.textContent = '评论 ' + (r.data || []).length;
-            if (!rows.length) { dlist.innerHTML = '<div class="empty" style="padding:20px;">还没有评论，来说两句吧</div>'; return; }
-            dlist.innerHTML = rows.map(c => {
-                const who = String(YT.pick(c, 'commenter') || YT.pick(c, 'userId', 'user_id') || '匿名用户');
-                // 评论区头像：接口本来就返回 commenter_avatar，有就显示图片
-                const av = String(YT.pick(c, 'commenter_avatar', 'commenterAvatar') || '');
-                const avHtml = av
-                    ? `<img src="${YT.esc(YT.mediaUrl(av))}" alt="" loading="lazy">`
-                    : `<span class="sf-cav">${YT.esc(who.slice(0, 1).toUpperCase())}</span>`;
-                return '<div class="sf-cmt">' + avHtml
-                    + '<div class="sf-cbody"><div class="sfcname">' + YT.esc(who)
-                    + '<span style="float:right;color:var(--text-tertiary);font-size:12px;">' + YT.timeAgo(YT.pick(c, 'createTime', 'create_time')) + '</span></div>'
-                    + '<div class="sfctext">' + YT.esc(YT.pick(c, 'contents') || YT.pick(c, 'content')) + '</div></div></div>';
-            }).join('');
+            const data = r.data || [];
+            const roots = data.filter(c => !c.parent_id && !c.parentId);
+            const replies = data.filter(c => c.parent_id || c.parentId);
+            dhead.textContent = '评论 ' + data.length;
+            if (!roots.length) { dlist.innerHTML = '<div class="empty" style="padding:20px;">还没有评论，来说两句吧</div>'; return; }
+            dlist.innerHTML = roots.map(c => sfcItem(c, false)).join('');
+
+            // 把回复挂到各自的根评论下（与 watch 页同款分组逻辑）
+            const byId = new Map(data.map(c => [String(YT.pick(c, 'comment_id')), c]));
+            const rootOf = c => {
+                let cur = c, guard = 0;
+                while (cur && (cur.parent_id || cur.parentId) && guard++ < 50) {
+                    cur = byId.get(String(cur.parent_id || cur.parentId));
+                }
+                return cur;
+            };
+            const groups = new Map();
+            replies.forEach(rc => {
+                const root = rootOf(rc);
+                if (!root) return;
+                const rid = String(YT.pick(root, 'comment_id'));
+                (groups.get(rid) || groups.set(rid, []).get(rid)).push(rc);
+            });
+            groups.forEach((arr, rid) => {
+                const box = dlist.querySelector(`[data-sf-replies="${CSS.escape(rid)}"]`);
+                const tog = dlist.querySelector(`[data-sf-toggle="${CSS.escape(rid)}"]`);
+                if (!box) return;
+                box.innerHTML = arr.map(c => sfcItem(c, true)).join('');
+                if (tog) {
+                    tog.hidden = arr.length === 0;
+                    tog.textContent = arr.length + ' 条回复 ▾';
+                }
+            });
         } catch (e) {
             dlist.innerHTML = '<div class="empty" style="padding:20px;">评论加载失败：' + YT.esc(e.message) + '</div>';
         }
     }
 
+    // 抽屉内点击委派：回复按钮 / 回复表单的取消、表情、发送 / 回复折叠
+    dlist.addEventListener('click', async e => {
+        const t = e.target;
+        const tog = t.closest('[data-sf-toggle]');
+        if (tog) {
+            const box = dlist.querySelector(`[data-sf-replies="${CSS.escape(tog.dataset.sfToggle)}"]`);
+            if (box) box.hidden = !box.hidden;
+            tog.textContent = tog.textContent.includes('▾')
+                ? tog.textContent.replace('▾', '▸')
+                : tog.textContent.replace('▸', '▾');
+            return;
+        }
+        const rb = t.closest('[data-sf-reply]');
+        if (rb) {
+            if (!YT.requireLogin()) return;
+            if (!cmtFor) return;
+            // 一次只开一个回复框
+            dlist.querySelectorAll('.sf-reply-form:not([hidden])').forEach(f => { f.hidden = true; YT.commentEmoji.setPending(f, null); });
+            const wrap = rb.closest('.sf-cbody');
+            const form = wrap.querySelector('.sf-reply-form');
+            form.hidden = false;
+            form.querySelector('textarea').focus();
+            return;
+        }
+        const cancel = t.closest('[data-sf-r-cancel]');
+        if (cancel) {
+            const form = cancel.closest('.sf-reply-form');
+            form.hidden = true;
+            YT.commentEmoji.setPending(form, null);
+            form.querySelector('textarea').value = '';
+            return;
+        }
+        const emo = t.closest('[data-sf-r-emoji]');
+        if (emo) {
+            const form = emo.closest('.sf-reply-form');
+            YT.commentEmoji.open(emo, row => YT.commentEmoji.setPending(form, row));
+            return;
+        }
+        const send = t.closest('[data-sf-r-send]');
+        if (send) {
+            if (!YT.requireLogin()) return;
+            if (!cmtFor) return;
+            const form = send.closest('.sf-reply-form');
+            const ta = form.querySelector('textarea');
+            const content = ta.value.trim();
+            const emoji = YT.commentEmoji.getPending(form);
+            if (!content && !emoji) return YT.toast('回复不能为空');
+            send.disabled = true;
+            try {
+                const base = {
+                    commentId: YT.randId(), videoId: String(cmtFor.dataset.id),
+                    userId: me.userId, content, parentId: send.dataset.sfRSend
+                };
+                const r = emoji
+                    ? await YT.api.post('/api/video/add/comment/emoji', {
+                        ...base, emojiId: emoji.emojiId, emojiOwner: emoji.emojiOwner
+                    })
+                    : await YT.api.post('/api/video/add/my/comments', base);
+                if (r.success) {
+                    form.hidden = true;
+                    ta.value = '';
+                    YT.commentEmoji.setPending(form, null);
+                    YT.toast('回复成功');
+                    loadComments(String(cmtFor.dataset.id));
+                } else YT.toast(r.message || '回复失败');
+            } catch (err) {
+                YT.toast('请求失败：' + err.message);
+            } finally {
+                send.disabled = false;
+            }
+        }
+    });
+
+    const dfoot = document.querySelector('.sf-dfoot');
+    document.getElementById('sf-demoji').addEventListener('click', e => {
+        YT.commentEmoji.open(e.currentTarget, row => YT.commentEmoji.setPending(dfoot, row));
+    });
+
     dsend.onclick = async () => {
         if (!YT.requireLogin()) return;
         if (!cmtFor) return;
         const content = dinput.value.trim();
-        if (!content) return YT.toast('评论内容不能为空');
+        const emoji = YT.commentEmoji.getPending(dfoot);
+        if (!content && !emoji) return YT.toast('评论内容不能为空');
         dsend.disabled = true;
         try {
-            const r = await YT.api.post('/api/video/add/my/comments', {
+            const base = {
                 commentId: YT.randId(), videoId: String(cmtFor.dataset.id),
                 userId: me.userId, content, parentId: null
-            });
+            };
+            const r = emoji
+                ? await YT.api.post('/api/video/add/comment/emoji', {
+                    ...base, emojiId: emoji.emojiId, emojiOwner: emoji.emojiOwner
+                })
+                : await YT.api.post('/api/video/add/my/comments', base);
             if (r.success) {
                 dinput.value = '';
+                YT.commentEmoji.setPending(dfoot, null);
                 YT.toast('评论成功');
                 loadComments(String(cmtFor.dataset.id));
                 const n = cmtFor.querySelector('.js-cmt .sf-n');
