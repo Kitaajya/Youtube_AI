@@ -486,5 +486,38 @@ public class VideoController {
                                                             @RequestParam(required = false, defaultValue = "0") long videoId) {
         return Result.success(vs.selectMyReports(userId, videoId));
     }
-
+    /**
+     * 发表视频评论，支持纯表情评论或"文字 + 单个表情"评论。
+     *
+     * <p>业务约束：
+     * <ul>
+     *   <li>一条评论最多携带 1 个表情包（由 {@code emojiId} 单值保证）；</li>
+     *   <li>允许仅有表情、无文字内容（{@code content} 可为空）；</li>
+     *   <li>文字与表情可同时存在，但表情不可多个。</li>
+     * </ul>
+     *
+     * <p>数据落库至 {@code video_comment} 表。
+     *
+     * @param commentId   评论 ID；新增评论时由调用方生成，回复场景需与 {@code parentId} 配合使用
+     * @param videoId     视频 ID
+     * @param userId      评论用户 ID
+     * @param content     评论文本，纯表情评论时可为空
+     * @param parentId    父评论 ID；顶级评论传 null 或空串
+     * @param commentType 评论类型：{@code 1}-文字，{@code 2}-表情，{@code 3}-文字+表情（按实际枚举补充）
+     * @param emojiId     表情包 ID，可为空；非空时单条评论仅允许一个
+     * @param emojiOwner  表情包归属者 ID，用于校验表情包使用权限
+     * @return 统一结果；成功时 {@code data} 含 {@code commentId}（新评论 ID），失败时返回错误码与提示
+     * @since 2026/11/15/15:55
+     * @see #addComment(String, long, String, String, String)
+     */
+    public Result<Map<String,Object>> addCommentWithEmoji(@RequestParam String commentId,
+                                                          @RequestParam long videoId,
+                                                          @RequestParam String userId,
+                                                          @RequestParam String content,
+                                                          @RequestParam String parentId,
+                                                          @RequestParam String commentType,
+                                                          @RequestParam String emojiId,
+                                                          @RequestParam String emojiOwner){
+        return vs.addCommentWithEmoji(commentId, videoId, userId, content, parentId, commentType, emojiId, emojiOwner);
+    }
 }
