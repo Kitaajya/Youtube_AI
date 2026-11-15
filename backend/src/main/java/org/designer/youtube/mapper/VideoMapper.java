@@ -994,4 +994,27 @@ public interface VideoMapper {
     """)
     List<Map<String,Object>> selectMyReports(@Param("userId")  String userId,
                                              @Param("videoId") long videoId);
+
+    /**
+     * @since 2026/11/14/23:51
+     * @author Conan Doyle
+     * @功能: 视频下方评论区添加表情包功能，可以只评论表情，也可以评论表情包加评论。但是不允许一个评论加多个表情包。
+     * 每次评论的表情包数量不超过1.
+     * @表: video_comment
+     * **/
+    
+    @Insert("""
+    INSERT INTO video_comment(comment_id, video_id, user_id, contents, parent_id,
+                              comment_type, emoji_id, emoji_owner)
+    VALUES(#{commentId}, #{videoId}, #{userId}, #{content}, #{parentId},
+           #{commentType}, #{emojiId}, #{emojiOwner})
+    """)
+    int addCommentWithEmoji(@Param("commentId")   String commentId,
+                            @Param("videoId")     long   videoId,
+                            @Param("userId")      String userId,
+                            @Param("content")     String content,
+                            @Param("parentId")    String parentId,
+                            @Param("commentType") String commentType,
+                            @Param("emojiId")     String emojiId,
+                            @Param("emojiOwner")  String emojiOwner);
 }
