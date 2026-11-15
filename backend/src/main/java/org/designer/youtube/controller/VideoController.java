@@ -510,6 +510,7 @@ public class VideoController {
      * @since 2026/11/15/15:55
      * @see #addComment(String, long, String, String, String)
      */
+    @PostMapping("/add/comment/emoji")
     public Result<Map<String,Object>> addCommentWithEmoji(@RequestParam String commentId,
                                                           @RequestParam long videoId,
                                                           @RequestParam String userId,
