@@ -258,4 +258,12 @@ public class UserInformationService {
         return Result.success(userInformationMapper.selectAvatar(userId));
     }
 
+    /**
+     *
+     * @since 2026/11/17/21:20
+     * @author Conan Doyle
+     * @功能: 用户一个手机号可以添加多个账号，最多添加5个
+     * **/
+
+
 }
