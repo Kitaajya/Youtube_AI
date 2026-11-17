@@ -197,5 +197,80 @@ public interface UserInformationMapper {
     //注：此接口是查看所有人的头像，无论有没有进入youtuber的主页
     @Select("SELECT avatar FROM user_information WHERE user_id = #{userId}")
     List<Map<String,Object>> selectAvatar(@Param("userId") String userId);
+
+    /**
+     *
+     * @since 2026/11/17/21:20
+     * @author Conan Doyle
+     * @功能: 用户一个手机号可以添加多个账号，最多添加5个小号，总体账号最多6个（大号一个，小号最多5个）
+     * @说明: 本次添加接口：添加小号1，小号2，...，小号5的添加接口，删除小号的接口。
+     * **/
+
+    //同一手机号下当前已有几个账号
+    @Select("""
+    SELECT COUNT(*) FROM user_information WHERE phone = #{phone}
+    """)
+    int countAccountsByPhone(@Param("phone") String phone);
+
+    // 同一手机号下最早创建的那个 user_id（即大号）
+    @Select("""
+    SELECT user_id FROM user_information
+    WHERE phone = #{phone}
+    ORDER BY create_time ASC, user_id ASC
+    LIMIT 1
+    """)
+    String selectMainUserIdByPhone(@Param("phone") String phone);
+
+    // 判断某 user_id 是不是该手机号下的小号（不是大号即小号）
+    @Select("""
+    SELECT COUNT(*) FROM user_information
+    WHERE user_id = #{userId} AND phone = #{phone}
+      AND user_id <> (
+          SELECT m.user_id FROM (
+              SELECT user_id FROM user_information
+              WHERE phone = #{phone}
+              ORDER BY create_time ASC, user_id ASC
+              LIMIT 1
+          ) m
+      )
+    """)
+    int isSubAccount(@Param("userId") String userId, @Param("phone") String phone);
+
+    /**
+     * 添加小号：一个手机号最多 6 个账号（1 大号 + 5 小号）
+     * 调用前应先校验手机号、昵称违禁词、userId 不重复等
+     * @return 1 成功；0 表示已达上限（未插入）
+     */
+    @Insert("""
+    INSERT INTO user_information(user_id, username, password, nickname, email, phone)
+    SELECT #{userId}, #{username}, #{password}, #{nickname}, #{email}, #{phone}
+    FROM DUAL
+    WHERE (SELECT COUNT(*) FROM user_information WHERE phone = #{phone}) < 6
+    """)
+    int addTheOtherAccounts(@Param("userId") String userId,
+                            @Param("username") String username,
+                            @Param("password") String password,
+                            @Param("nickname") String nickname,
+                            @Param("email") String email,
+                            @Param("phone") String phone);
+
+    /**
+     * 删除小号：只能删小号，不能删大号；且必须同手机号，防止越权删别人账号
+     * @return 1 成功；0 表示不存在 / 是大号 / 手机号不匹配
+     */
+    @Delete("""
+    DELETE u FROM user_information u
+    JOIN (
+        SELECT user_id FROM user_information
+        WHERE phone = #{phone}
+        ORDER BY create_time ASC, user_id ASC
+        LIMIT 1
+    ) main ON main.user_id = u.user_id
+    WHERE u.user_id = #{userId}
+      AND u.phone = #{phone}
+      AND u.user_id <> main.user_id
+    """)
+    int deleteSubAccount(@Param("userId") String userId, @Param("phone") String phone);
+
 }
 
