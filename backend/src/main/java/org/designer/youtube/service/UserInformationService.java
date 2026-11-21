@@ -265,5 +265,32 @@ public class UserInformationService {
      * @功能: 用户一个手机号可以添加多个账号，最多添加5个
      * **/
 
-
+    /**
+     * 添加小号：一个手机号最多 6 个账号（1 大号 + 5 小号）
+     * 调用前应先校验手机号、昵称违禁词、userId 不重复等
+     * @return 1 成功；0 表示已达上限（未插入）
+     */
+    public Result<Map<String,Object>> addTheOtherAccounts(String userId,String username,String password,
+                                                          String nickname,String email,String phone){
+        try {
+            int k=userInformationMapper.addTheOtherAccounts(userId, username, password, nickname, email, phone);
+            if(k!=0) return Result.success("添加成功！",Map.of("phone",phone,"userId",userId));
+        }catch (DuplicateKeyException esq){
+            return Result.success("你已经添加过一次了！",Map.of("phone",phone,"userId",userId));
+        }
+        return Result.fail("添加失败！");
+    }
+    /**
+     * 删除小号：只能删小号，不能删大号；且必须同手机号，防止越权删别人账号
+     * @return 1 成功；0 表示不存在 / 是大号 / 手机号不匹配
+     */
+    public Result<Map<String,Object>> deleteSubAccount(String userId,String phone){
+        try {
+            int k=userInformationMapper.deleteSubAccount(userId, phone);
+            if(k!=0) return Result.success("删除成功！",Map.of("userId",userId,"phone",phone));
+        }catch (DuplicateKeyException esq){
+            return Result.success("你已经删除过一次了！",Map.of("userId",userId,"phone",phone));
+        }
+        return Result.fail("删除失败或账号不存在");
+    }
 }
