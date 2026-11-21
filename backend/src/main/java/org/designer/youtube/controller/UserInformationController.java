@@ -219,4 +219,47 @@ public class UserInformationController {
     public Result<List<Map<String, Object>>> selectAvatar(@RequestParam String userId){
         return userInformationService.selectAvatar(userId);
     }
+    /**
+     *
+     * @since 2026/11/17/21:20
+     * @author Conan Doyle
+     * @功能: 用户一个手机号可以添加多个账号，最多添加5个
+     * **/
+
+    //当前电话号下有几个号
+    //int quantityOfCurrentPhoneNumber=userInformationService.countAccountsByPhone(phone);
+    //当前电话号的大号id
+    //String mainUserIdByPhone=userInformationService.selectMainUserIdByPhone(phone);
+
+    //判断此小号是否为手机号下的小号
+    @PostMapping("/justify/subaccount")
+    public Result<Map<String, Object>> isSubAccount(@RequestParam String userId, @RequestParam String phone){
+        log.info("当前手机号有{}个账号",userInformationService.countAccountsByPhone(phone));
+        return userInformationService.isSubAccount(userId, phone);
+    }
+    //标出大号ID
+    @PostMapping("/highlight/main/account")
+    public Result<List<Map<String,Object>>> selectMainUserIdByPhone(@RequestParam String phone){
+        return Result.success(userInformationService.selectMainUserIdByPhone(phone));
+    }
+
+    /**
+     * 添加小号：一个手机号最多 6 个账号（1 大号 + 5 小号）
+     * 调用前应先校验手机号、昵称违禁词、userId 不重复等
+     * @return 1 成功；0 表示已达上限（未插入）
+     */
+    @PostMapping("/add/account")
+    public Result<Map<String,Object>> addTheOtherAccounts(@RequestParam String userId,@RequestParam String username,@RequestParam String password,
+                                                          @RequestParam String nickname,@RequestParam String email,@RequestParam String phone){
+        return userInformationService.addTheOtherAccounts(userId, username, password, nickname, email, phone);
+    }
+
+    /**
+     * 删除小号：只能删小号，不能删大号；且必须同手机号，防止越权删别人账号
+     * @return 1 成功；0 表示不存在 / 是大号 / 手机号不匹配
+     */
+    @DeleteMapping("/delete/account")
+    public Result<Map<String,Object>> deleteSubAccount(String userId,String phone){
+        return userInformationService.deleteSubAccount(userId, phone);
+    }
 }
