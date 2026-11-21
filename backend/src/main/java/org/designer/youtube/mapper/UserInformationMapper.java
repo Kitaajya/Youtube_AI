@@ -219,7 +219,7 @@ public interface UserInformationMapper {
     ORDER BY create_time ASC, user_id ASC
     LIMIT 1
     """)
-    String selectMainUserIdByPhone(@Param("phone") String phone);
+    List<Map<String,Object>> selectMainUserIdByPhone(@Param("phone") String phone);
 
     // 判断某 user_id 是不是该手机号下的小号（不是大号即小号）
     @Select("""
@@ -247,12 +247,12 @@ public interface UserInformationMapper {
     FROM DUAL
     WHERE (SELECT COUNT(*) FROM user_information WHERE phone = #{phone}) < 6
     """)
-    int addTheOtherAccounts(@Param("userId") String userId,
+    int addTheOtherAccounts(@Param("userId")   String userId,
                             @Param("username") String username,
                             @Param("password") String password,
                             @Param("nickname") String nickname,
-                            @Param("email") String email,
-                            @Param("phone") String phone);
+                            @Param("email")    String email,
+                            @Param("phone")    String phone);
 
     /**
      * 删除小号：只能删小号，不能删大号；且必须同手机号，防止越权删别人账号
@@ -271,6 +271,5 @@ public interface UserInformationMapper {
       AND u.user_id <> main.user_id
     """)
     int deleteSubAccount(@Param("userId") String userId, @Param("phone") String phone);
-
 }
 

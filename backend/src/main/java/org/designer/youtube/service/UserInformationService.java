@@ -2,6 +2,7 @@ package org.designer.youtube.service;
 
 import jakarta.annotation.Nonnull;
 import lombok.RequiredArgsConstructor;
+import org.apache.ibatis.annotations.Param;
 import org.designer.youtube.RandomlyCreateID;
 import org.designer.youtube.common.Result;
 import org.designer.youtube.entity.UserInformation;
@@ -264,6 +265,20 @@ public class UserInformationService {
      * @author Conan Doyle
      * @功能: 用户一个手机号可以添加多个账号，最多添加5个
      * **/
+    //当前手机号的账号个数
+    public int countAccountsByPhone(String phone){
+        return userInformationMapper.countAccountsByPhone(phone);
+    }
+    //大号id
+    public List<Map<String,Object>> selectMainUserIdByPhone(String phone){
+        return userInformationMapper.selectMainUserIdByPhone(phone);
+    }
+    // 判断某 user_id 是不是该手机号下的小号（不是大号即小号）
+    public Result<Map<String, Object>> isSubAccount(@Param("userId") String userId, @Param("phone") String phone){
+        int k=userInformationMapper.isSubAccount(userId,phone);
+        if(k==0) return Result.fail("当前账号不是你的号，注意甄别");
+        return Result.success("当前账号是你的号",Map.of("userId",userId,"phone",phone));
+    }
 
     /**
      * 添加小号：一个手机号最多 6 个账号（1 大号 + 5 小号）
